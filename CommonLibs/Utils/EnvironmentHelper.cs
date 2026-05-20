@@ -25,9 +25,9 @@ namespace SystemManagement.Helpers
         /// <summary>
         /// Get environment variable by key
         /// </summary>
-        public static string Get(string key)
+        public static string Get(string key, EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
-            return Environment.GetEnvironmentVariable(key);
+            return Environment.GetEnvironmentVariable(key, target);
         }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace SystemManagement.Helpers
         public static void Set(
             string key,
             string value,
-            EnvironmentVariableTarget target = EnvironmentVariableTarget.User)
+            EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
             Environment.SetEnvironmentVariable(key, value, target);
         }
@@ -46,7 +46,7 @@ namespace SystemManagement.Helpers
         /// </summary>
         public static void Delete(
             string key,
-            EnvironmentVariableTarget target = EnvironmentVariableTarget.User)
+            EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
             Environment.SetEnvironmentVariable(key, null, target);
         }
@@ -54,10 +54,10 @@ namespace SystemManagement.Helpers
         /// <summary>
         /// Check environment variable exists
         /// </summary>
-        public static bool Exists(string key)
+        public static bool Exists(string key, EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
             return !string.IsNullOrWhiteSpace(
-                Environment.GetEnvironmentVariable(key)
+                Environment.GetEnvironmentVariable(key, target)
             );
         }
 
@@ -67,7 +67,7 @@ namespace SystemManagement.Helpers
         public static bool Update(
             string key,
             string value,
-            EnvironmentVariableTarget target = EnvironmentVariableTarget.User)
+            EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
             if (!Exists(key))
                 return false;
@@ -83,7 +83,7 @@ namespace SystemManagement.Helpers
         public static bool Create(
             string key,
             string value,
-            EnvironmentVariableTarget target = EnvironmentVariableTarget.User)
+            EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
             if (Exists(key))
                 return false;

@@ -31,5 +31,10 @@ namespace SystemManagement.Views.Home
         {
             BaseUC.InternalNavigate(new UC_ConfigEnv());
         }
+
+        private void label4_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

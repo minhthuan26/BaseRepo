@@ -121,7 +121,7 @@
   <data name="picBox_Back.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAL
-        DQAACw0B7QfALAAABb1JREFUaEPtmdlTU1ccx1OtpVVkSdjEIAgoFJHV1tpXH/rYmaqdTjt9r9r+Dc4U
+        DAAACwwBP0AiyAAABb1JREFUaEPtmdlTU1ccx1OtpVVkSdjEIAgoFJHV1tpXH/rYmaqdTjt9r9r+Dc4U
         QWqtWq3WUCQsGiAsClqqoLKZ/SaXBJJAWAREEkS2Oo5TWb6dExprT8TcJBfoA5/3JN/P3HvO+Z1vBII1
         1lhjxUjrsEdkmCYOpbHjuan68apU3VjrLu0Yk6J1MClqR0uy0l6VrBjNTVKMHkxsGw2nP7+q7DZNh2aa
         Jr9LN05o0zueLKSxT7DbMI7dzGOk6h5jl3YMKWoH3lfZkaywI+n+KHa2PcLOlocLiS0j6oR7w0djmx+E
@@ -149,4 +149,7 @@
         QmCC
 </value>
   </data>
+  <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 17</value>
+  </metadata>
 </root>

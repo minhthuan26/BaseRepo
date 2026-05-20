@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UC_Base));
             tableLayoutPanel1 = new TableLayoutPanel();
             panel1 = new Panel();
@@ -35,6 +36,7 @@
             picBox_Back = new PictureBox();
             lbl_Title = new Label();
             pnl_PageMain = new Panel();
+            toolTip1 = new ToolTip(components);
             tableLayoutPanel1.SuspendLayout();
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picBox_Back).BeginInit();
@@ -53,7 +55,7 @@
             tableLayoutPanel1.RowCount = 2;
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new Size(1002, 643);
+            tableLayoutPanel1.Size = new Size(1002, 674);
             tableLayoutPanel1.TabIndex = 0;
             // 
             // panel1
@@ -86,6 +88,7 @@
             picBox_Back.Size = new Size(52, 54);
             picBox_Back.TabIndex = 1;
             picBox_Back.TabStop = false;
+            toolTip1.SetToolTip(picBox_Back, "Back");
             picBox_Back.Click += picBox_Back_Click;
             // 
             // lbl_Title
@@ -104,8 +107,12 @@
             pnl_PageMain.Dock = DockStyle.Fill;
             pnl_PageMain.Location = new Point(3, 63);
             pnl_PageMain.Name = "pnl_PageMain";
-            pnl_PageMain.Size = new Size(996, 577);
+            pnl_PageMain.Size = new Size(996, 608);
             pnl_PageMain.TabIndex = 1;
+            // 
+            // toolTip1
+            // 
+            toolTip1.IsBalloon = true;
             // 
             // UC_Base
             // 
@@ -113,7 +120,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(tableLayoutPanel1);
             Name = "UC_Base";
-            Size = new Size(1002, 643);
+            Size = new Size(1002, 674);
             Load += UC_Base_Load;
             tableLayoutPanel1.ResumeLayout(false);
             panel1.ResumeLayout(false);
@@ -129,5 +136,6 @@
         private PictureBox picBox_Back;
         private Panel panel2;
         protected Panel pnl_PageMain;
+        private ToolTip toolTip1;
     }
 }

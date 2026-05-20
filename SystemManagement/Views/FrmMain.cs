@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,12 +14,14 @@ namespace SystemManagement.Views
 {
     public partial class FrmMain : Form
     {
+        public static FrmMain Instance { get; private set; }
         private System.Windows.Forms.Timer _clockTimer;
 
         private Stack<UserControl> navigationStack = new Stack<UserControl>();
         public FrmMain()
         {
             InitializeComponent();
+            Instance = this;
         }
 
         public void ClearNavigation()
@@ -61,8 +64,7 @@ namespace SystemManagement.Views
             {
                 pnl_Main.Controls.Clear();
 
-                UserControl previousPage =
-                    navigationStack.Pop();
+                UserControl previousPage = navigationStack.Pop();
 
                 previousPage.Dock = DockStyle.Fill;
 
@@ -70,9 +72,130 @@ namespace SystemManagement.Views
             }
         }
 
+        public static async Task RunWithLoadingAsync(Func<Task> action)
+        {
+            ShowLoading();
+            try
+            {
+                await Task.Yield();
+                await action();
+            }
+            finally
+            {
+                HideLoading();
+            }
+        }
+
+        #region Global Messages
+
+        public static void ThrowInfo(string message, string title = "Thông báo")
+        {
+            HideLoading();
+
+            MessageBox.Show(
+                Instance,
+                message,
+                title,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        public static void ThrowWarning(string message, string title = "Cảnh báo")
+        {
+            HideLoading();
+
+            MessageBox.Show(
+                Instance,
+                message,
+                title,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+
+        public static void ThrowError(string message, string title = "Lỗi")
+        {
+            HideLoading();
+
+            MessageBox.Show(
+                Instance,
+                message,
+                title,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+
+        public static bool ThrowQuestion(string message, string title = "Xác nhận")
+        {
+            HideLoading();
+
+            return MessageBox.Show(
+                Instance,
+                message,
+                title,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes;
+        }
+
+        #endregion
+
+        #region Global Loading
+
+        public static void ShowLoading()
+        {
+            if (Instance.InvokeRequired)
+            {
+                Instance.Invoke(new Action(ShowLoading));
+                return;
+            }
+
+            Instance.progressBar1.Visible = true;
+            Instance.progressBar1.Style = ProgressBarStyle.Marquee;
+            Instance.progressBar1.MarqueeAnimationSpeed = 20;
+            Instance.progressBar1.BringToFront();
+        }
+
+        public static void HideLoading()
+        {
+            if (Instance.InvokeRequired)
+            {
+                Instance.Invoke(new Action(HideLoading));
+                return;
+            }
+
+            Instance.progressBar1.Visible = false;
+            Instance.progressBar1.Style = ProgressBarStyle.Blocks;
+            Instance.progressBar1.Value = 0;
+            Instance.Refresh();
+        }
+
+        public static void SetProgress(int value)
+        {
+            if (Instance.InvokeRequired)
+            {
+                Instance.Invoke(new Action<int>(SetProgress), value);
+                return;
+            }
+
+            if (value < 0) value = 0;
+
+            if (value > 100) value = 100;
+
+            Instance.progressBar1.Visible = true;
+            Instance.progressBar1.Style = ProgressBarStyle.Blocks;
+            Instance.progressBar1.Value = value;
+
+            if (value >= 100)
+            {
+                HideLoading();
+            }
+        }
+
+        #endregion
+
         private void FrmHome_Load(object sender, EventArgs e)
         {
-            tstrip_LblVersion.Text = $"Version: {Application.ProductVersion}";
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            tstrip_LblVersion.Text = $"Version: {version}";
             UpdateTimeLabel();
 
             // 3. Initialize and configure the timer
@@ -81,8 +204,12 @@ namespace SystemManagement.Views
             _clockTimer.Tick += ClockTimer_Tick; // Link it to the event below
             _clockTimer.Start(); // Turn it on!
 
-            // Load default page if empty
-            if (navigationStack.Count == 0 && pnl_Main.Controls.Count == 0)
+            // Load default page if emptybool hasPage = pnl_Main.Controls
+            bool hasPage = pnl_Main.Controls
+            .OfType<UserControl>()
+            .Any();
+
+            if (navigationStack.Count == 0 && !hasPage)
             {
                 UC_Base basePage = new UC_Base();
 
@@ -113,6 +240,32 @@ namespace SystemManagement.Views
                 _clockTimer.Stop();
                 _clockTimer.Dispose();
             }
+        }
+
+        private void homeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Clear navigation history
+            navigationStack.Clear();
+
+            // Clear current controls
+            pnl_Main.Controls.Clear();
+
+            // Create home page
+            UC_Base homePage = new UC_Base();
+
+            // Dock fill
+            homePage.Dock = DockStyle.Fill;
+
+            // Add to panel
+            pnl_Main.Controls.Add(homePage);
+
+            // Save as root page
+            navigationStack.Push(homePage);
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

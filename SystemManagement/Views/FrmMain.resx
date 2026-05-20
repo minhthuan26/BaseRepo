@@ -117,14 +117,23 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <metadata name="pnl_Main.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>True</value>
+  </metadata>
+  <metadata name="progressBar1.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>True</value>
+  </metadata>
   <metadata name="menuStrip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>130, 17</value>
+  </metadata>
+  <metadata name="menuStrip1.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>True</value>
   </metadata>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
   <data name="homeToolStripMenuItem.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAL
-        DQAACw0B7QfALAAABoVJREFUaEPtmGtsU2UYx+vW+7gkKAqKIYgRIQYMsJ5zpjA+KGCMk4ExfCEYLx+M
+        DAAACwwBP0AiyAAABoVJREFUaEPtmGtsU2UYx+vW+7gkKAqKIYgRIQYMsJ5zpjA+KGCMk4ExfCEYLx+M
         AYIf+KQyEQMYRA0oKExQEyNyiYBEdutpt9HL1nVdVxhs69rSrffu3jEu+pjnjLO072lXdjoZhv2TX0LY
         Oe/7/+28531PJpFM5AGKg85ebWeybHYmqx7/Tf78fxE7k/W2ncm+Zc/LBg4m+7YtL+t98rr7NiCRPNTA
         ZBc15GVDCr7Ba8j77quw+RKpjc7+wcZIYSTqGelPliUSGXn/fRFHvmRSHS09b2WkcFfQ0nKTRjKFHGdc
@@ -155,10 +164,10 @@
         LP8CmeaMso4KjIkAAAAASUVORK5CYII=
 </value>
   </data>
-  <data name="thôngTinToolStripMenuItem.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+  <data name="aboutToolStripMenuItem.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAL
-        DQAACw0B7QfALAAABh5JREFUaEPtmetPU2ccx1GnQ1bAIuWqQBFoLbe2bIlmL3jhtmSv3CX6D2wuWTKz
+        DAAACwwBP0AiyAAABh5JREFUaEPtmetPU2ccx1GnQ1bAIuWqQBFoLbe2bIlmL3jhtmSv3CX6D2wuWTKz
         LJlz7zBTbl6QOxTKpUBByk1uyqWAM2aZ0RdDAelpT9vT0wuX9pRdjIkb/pbnGJbsKSg9B+obPsmT9E3P
         +X76nN/zbdOgoB122CFgnNLBHuXoSk7mmOfLrBHmcuZtjybjlqc7c3i5J2PQ3ZI+4L4q61/+StrvPpY7
         BW/h73+joPByvedjxbi3XT7q8WaPMpA9wkDWbQ9k3vJA5rAbMobckD7oBtnAMsj6l+HozSWQ9i7+Ie1Z
@@ -189,6 +198,12 @@
   </data>
   <metadata name="tstrip_Main.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
+  </metadata>
+  <metadata name="tstrip_Main.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>True</value>
+  </metadata>
+  <metadata name="$this.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+    <value>True</value>
   </metadata>
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

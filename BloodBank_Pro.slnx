@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="CommonLibs/CommonLibs.csproj" />
+  <Project Path="Gateway.Application/Gateway.Application.csproj" />
+  <Project Path="Gateway.Domain/Gateway.Domain.csproj" />
+  <Project Path="Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
+  <Project Path="Gateway/Gateway.csproj" />
+  <Project Path="Site.Application/Site.Application.csproj" />
+  <Project Path="Site.Domain/Site.Domain.csproj" />
+  <Project Path="Site.Infrastructure/Site.Infrastructure.csproj" />
+  <Project Path="Site/Site.csproj" />
+  <Project Path="SystemManagement/SystemManagement.csproj" Id="29c9c436-546e-46a5-8f97-348315652019" />
+</Solution>

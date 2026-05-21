@@ -19,6 +19,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.36" />
     <PackageReference Include="Microsoft.Web.Administration" Version="11.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Obfuscar" Version="2.2.50">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Enrichers.Demystifier" Version="1.0.3" />

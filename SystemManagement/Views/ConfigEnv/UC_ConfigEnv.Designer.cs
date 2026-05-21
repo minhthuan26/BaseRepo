@@ -62,6 +62,8 @@
             btn_AutoAll = new Button();
             btn_Save = new Button();
             toolTip1 = new ToolTip(components);
+            button1 = new Button();
+            button2 = new Button();
             panel1.SuspendLayout();
             panel3.SuspendLayout();
             panel4.SuspendLayout();
@@ -414,6 +416,8 @@
             // panel9
             // 
             panel9.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            panel9.Controls.Add(button2);
+            panel9.Controls.Add(button1);
             panel9.Controls.Add(btn_AutoAll);
             panel9.Controls.Add(btn_Save);
             panel9.Location = new Point(3, 513);
@@ -454,6 +458,34 @@
             // toolTip1
             // 
             toolTip1.IsBalloon = true;
+            // 
+            // button1
+            // 
+            button1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            button1.BackColor = Color.MediumSpringGreen;
+            button1.Cursor = Cursors.Hand;
+            button1.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            button1.Location = new Point(668, 3);
+            button1.Name = "button1";
+            button1.Size = new Size(134, 39);
+            button1.TabIndex = 11;
+            button1.Text = "Đồng bộ về cục bộ";
+            toolTip1.SetToolTip(button1, "Auto Create All");
+            button1.UseVisualStyleBackColor = false;
+            // 
+            // button2
+            // 
+            button2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            button2.BackColor = Color.Coral;
+            button2.Cursor = Cursors.Hand;
+            button2.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            button2.Location = new Point(528, 3);
+            button2.Name = "button2";
+            button2.Size = new Size(134, 39);
+            button2.TabIndex = 12;
+            button2.Text = "Tải lên tập trung";
+            toolTip1.SetToolTip(button2, "Auto Create All");
+            button2.UseVisualStyleBackColor = false;
             // 
             // UC_ConfigEnv
             // 
@@ -515,5 +547,7 @@
         private Panel panel9;
         private Button btn_Save;
         private Button btn_AutoAll;
+        private Button button1;
+        private Button button2;
     }
 }

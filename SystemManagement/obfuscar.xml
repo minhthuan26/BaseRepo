@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Obfuscator>
+	<!-- Thư mục đầu vào: Dấu chấm (.) đại diện cho thư mục Build đầu ra (bin/Release/net6.0/) -->
+	<Var name="InPath" value="." />
+	<!-- Thư mục đầu ra sau khi làm rối: Sẽ đè thẳng vào thư mục cũ để đóng gói -->
+	<Var name="OutPath" value=".\Obfuscated" />
+
+	<!-- Cấu hình các tính năng làm rối mã -->
+	<Var name="KeepPublicApi" value="true" />
+	<Var name="HidePrivateApi" value="true" />
+	<Var name="RenameProperties" value="false" />
+	<Var name="RenameEvents" value="true" />
+	<Var name="RenameFields" value="true" />
+	<Var name="UseUnicodeNames" value="true" />
+	<!-- Đổi tên biến/hàm thành ký tự lạ -->
+
+	<!-- QUAN TRỌNG: Chỉ định chính xác file DLL của Service này -->
+	<!-- Ví dụ đây là file cấu hình của Project A -->
+	<Module file="SystemManagement.dll" />
+</Obfuscator>

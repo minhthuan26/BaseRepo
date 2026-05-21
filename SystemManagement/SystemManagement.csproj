@@ -1,46 +1,81 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>assets\app.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net6.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>assets\app.ico</ApplicationIcon>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
 
-  <ItemGroup>
-    <Compile Remove="Models\**" />
-    <EmbeddedResource Remove="Models\**" />
-    <None Remove="Models\**" />
-  </ItemGroup>
+		<!-- Đóng gói thành 1 file .exe duy nhất -->
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>true</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<IncludeNativeLibrariesForSelfContained>true</IncludeNativeLibrariesForSelfContained>
 
-  <ItemGroup>
-    <Content Include="assets\app.ico" />
-  </ItemGroup>
+		<!-- Bật tính năng này để nén gọn các dll hệ thống, giảm dung lượng file exe tối đa -->
+		<PublishTrimmed>false</PublishTrimmed>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<!-- Ép hệ thống dùng bản để sửa lỗi Downgrade -->
+		<PackageReference Include="Microsoft.Win32.Primitives" Version="4.3.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="DevExpress.Data" Version="23.2.15" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Ép hệ thống dùng bản để sửa lỗi Downgrade -->
+		<PackageReference Include="System.Net.Primitives" Version="4.3.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\CommonLibs\CommonLibs.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Models\**" />
+		<EmbeddedResource Remove="Models\**" />
+		<None Remove="Models\**" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="assets\app.ico" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="DevExpress.Data" Version="23.2.15" />
+	</ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\CommonLibs\CommonLibs.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+	<ItemGroup>
+		<!-- Tự động cài đặt công cụ Obfuscar dạng Tool cho dự án -->
+		<PackageReference Include="Obfuscar" Version="2.2.38" PrivateAssets="all" />
+	</ItemGroup>
+
+	<!-- Tạo một tác vụ tự động chạy NGAY SAU KHI dự án được Biên dịch (Build) xong -->
+	<Target Name="ObfuscateCode" AfterTargets="AfterBuild" Condition="'$(Configuration)' == 'Release'">
+		<Message Text="=== ĐANG TIẾN HÀNH LÀM RỐI MÃ NGUỒN BIÊN DỊCH BẰNG OBFUSCAR ===" Importance="high" />
+
+		<!-- 1. Chạy Obfuscar để tạo file đã làm rối vào thư mục Obfuscated -->
+		<Exec WorkingDirectory="$(TargetDir)" Command="$(Obfuscar) &quot;$(ProjectDir)obfuscar.xml&quot;" />
+
+		<!-- 2. Copy đè file đã làm rối ngược trở lại thư mục TargetDir sau khi tiến trình build nhả file -->
+		<Copy SourceFiles="$(TargetDir)Obfuscated\SystemManagement.dll"
+			  DestinationFiles="$(TargetDir)SystemManagement.dll"
+			  OverwriteReadOnlyFiles="true" />
+	</Target>
 </Project>

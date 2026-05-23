@@ -24,15 +24,6 @@ namespace SystemManagement.Views.ConfigEnv
         private string RefreshKey { get; set; }
         private string PrivateKeyPath { get; set; }
         private string PublicKeyPath { get; set; }
-        private readonly string[] EnvKeys = new string[]
-        {
-            "BloodBank__JWT__AccessKey",
-            "BloodBank__JWT__RefreshKey",
-            "BloodBank__JWT__Audience",
-            "BloodBank__JWT__Issuer",
-            "BloodBank__PrivateKey",
-            "BloodBank__PublicKey"
-        };
         public UC_ConfigEnv()
         {
             InitializeComponent();
@@ -57,12 +48,12 @@ namespace SystemManagement.Views.ConfigEnv
 
         private void LoadSavedConfig()
         {
-            this.AccessKey = EnvironmentHelper.Get(EnvKeys[0]);
-            this.RefreshKey = EnvironmentHelper.Get(EnvKeys[1]);
-            this.Audience = EnvironmentHelper.Get(EnvKeys[2]);
-            this.Issuer = EnvironmentHelper.Get(EnvKeys[3]);
-            this.PrivateKeyPath = EnvironmentHelper.Get(EnvKeys[4]);
-            this.PublicKeyPath = EnvironmentHelper.Get(EnvKeys[5]);
+            this.AccessKey = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[0]);
+            this.RefreshKey = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[1]);
+            this.Audience = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[2]);
+            this.Issuer = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[3]);
+            this.PrivateKeyPath = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[4]);
+            this.PublicKeyPath = EnvironmentHelper.Get(FrmMain.SysConfig.EnvKeys[5]);
         }
 
         private bool CheckRequiredField(TextBox textBox, string savedValue)
@@ -269,7 +260,7 @@ namespace SystemManagement.Views.ConfigEnv
 
         private void SaveKey(int index, TextBox txt)
         {
-            string key = EnvKeys[index];
+            string key = FrmMain.SysConfig.EnvKeys[index];
             string value = txt.Text.Trim();
 
             bool success = EnvironmentHelper.Exists(key)

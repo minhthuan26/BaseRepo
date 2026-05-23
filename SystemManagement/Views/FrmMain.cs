@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommonLibs.Utils;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -8,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using SystemManagement.Models;
 using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views
@@ -16,6 +18,7 @@ namespace SystemManagement.Views
     {
         public static FrmMain Instance { get; private set; }
         private System.Windows.Forms.Timer _clockTimer;
+        public static SystemConfig SysConfig { get; set; }
 
         private Stack<UserControl> navigationStack = new Stack<UserControl>();
         public FrmMain()
@@ -192,19 +195,41 @@ namespace SystemManagement.Views
 
         #endregion
 
-        private void FrmHome_Load(object sender, EventArgs e)
+        private async Task ReadSystemConfig()
         {
+            try
+            {
+                string configPath = "Config/system.config";
+
+                SystemConfig? config = await FileHelper.ReadXML<SystemConfig>(configPath);
+                SysConfig = config ?? new SystemConfig
+                {
+                    EnvKeys = new List<string>(),
+                    Connections = new List<ConnectionItem>(),
+                    Sites = new List<SiteItem>()
+                };
+            }
+            catch (Exception ex)
+            {
+                ThrowError($"Failed to read environment keys: {ex.Message}");
+            }
+        }
+
+        private async void FrmHome_Load(object sender, EventArgs e)
+        {
+            await RunWithLoadingAsync(async () =>
+            {
+                await ReadSystemConfig();
+            });
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             tstrip_LblVersion.Text = $"Version: {version}";
             UpdateTimeLabel();
 
-            // 3. Initialize and configure the timer
             _clockTimer = new System.Windows.Forms.Timer();
-            _clockTimer.Interval = 1000; // 1000 milliseconds = 1 second
-            _clockTimer.Tick += ClockTimer_Tick; // Link it to the event below
-            _clockTimer.Start(); // Turn it on!
+            _clockTimer.Interval = 1000; 
+            _clockTimer.Tick += ClockTimer_Tick; 
+            _clockTimer.Start();
 
-            // Load default page if emptybool hasPage = pnl_Main.Controls
             bool hasPage = pnl_Main.Controls
             .OfType<UserControl>()
             .Any();
@@ -212,12 +237,8 @@ namespace SystemManagement.Views
             if (navigationStack.Count == 0 && !hasPage)
             {
                 UC_Base basePage = new UC_Base();
-
                 basePage.Dock = DockStyle.Fill;
-
                 pnl_Main.Controls.Add(basePage);
-
-                // Save as root/default page
                 navigationStack.Push(basePage);
             }
         }

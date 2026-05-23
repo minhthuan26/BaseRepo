@@ -30,12 +30,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Compile Remove="Models\**" />
-		<EmbeddedResource Remove="Models\**" />
-		<None Remove="Models\**" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<Content Include="assets\app.ico" />
 	</ItemGroup>
 
@@ -65,6 +59,11 @@
 		<!-- Tự động cài đặt công cụ Obfuscar dạng Tool cho dự án -->
 		<PackageReference Include="Obfuscar" Version="2.2.38" PrivateAssets="all" />
 	</ItemGroup>
+	<ItemGroup>
+	  <None Update="Config\system.config">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
 
 	<!-- Tạo một tác vụ tự động chạy NGAY SAU KHI dự án được Biên dịch (Build) xong -->
 	<Target Name="ObfuscateCode" AfterTargets="AfterBuild" Condition="'$(Configuration)' == 'Release'">
@@ -74,8 +73,6 @@
 		<Exec WorkingDirectory="$(TargetDir)" Command="$(Obfuscar) &quot;$(ProjectDir)obfuscar.xml&quot;" />
 
 		<!-- 2. Copy đè file đã làm rối ngược trở lại thư mục TargetDir sau khi tiến trình build nhả file -->
-		<Copy SourceFiles="$(TargetDir)Obfuscated\SystemManagement.dll"
-			  DestinationFiles="$(TargetDir)SystemManagement.dll"
-			  OverwriteReadOnlyFiles="true" />
+		<Copy SourceFiles="$(TargetDir)Obfuscated\SystemManagement.dll" DestinationFiles="$(TargetDir)SystemManagement.dll" OverwriteReadOnlyFiles="true" />
 	</Target>
 </Project>

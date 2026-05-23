@@ -38,6 +38,9 @@
             tstrip_LblVersion = new ToolStripLabel();
             toolStripSeparator1 = new ToolStripSeparator();
             tstrip_LblTime = new ToolStripLabel();
+            registModuleToolStripMenuItem = new ToolStripMenuItem();
+            registIISToolStripMenuItem = new ToolStripMenuItem();
+            centerConnectToolStripMenuItem = new ToolStripMenuItem();
             pnl_Main.SuspendLayout();
             menuStrip1.SuspendLayout();
             tstrip_Main.SuspendLayout();
@@ -65,7 +68,7 @@
             // menuStrip1
             // 
             menuStrip1.BackColor = Color.LightSkyBlue;
-            menuStrip1.Items.AddRange(new ToolStripItem[] { homeToolStripMenuItem, aboutToolStripMenuItem });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { homeToolStripMenuItem, registModuleToolStripMenuItem, registIISToolStripMenuItem, centerConnectToolStripMenuItem, aboutToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Size = new Size(1008, 24);
@@ -118,6 +121,27 @@
             tstrip_LblTime.Size = new Size(75, 22);
             tstrip_LblTime.Text = "System Time";
             // 
+            // registModuleToolStripMenuItem
+            // 
+            registModuleToolStripMenuItem.Image = (Image)resources.GetObject("registModuleToolStripMenuItem.Image");
+            registModuleToolStripMenuItem.Name = "registModuleToolStripMenuItem";
+            registModuleToolStripMenuItem.Size = new Size(122, 20);
+            registModuleToolStripMenuItem.Text = "Đăng ký module";
+            // 
+            // registIISToolStripMenuItem
+            // 
+            registIISToolStripMenuItem.Image = (Image)resources.GetObject("registIISToolStripMenuItem.Image");
+            registIISToolStripMenuItem.Name = "registIISToolStripMenuItem";
+            registIISToolStripMenuItem.Size = new Size(93, 20);
+            registIISToolStripMenuItem.Text = "Đăng ký IIS";
+            // 
+            // centerConnectToolStripMenuItem
+            // 
+            centerConnectToolStripMenuItem.Image = (Image)resources.GetObject("centerConnectToolStripMenuItem.Image");
+            centerConnectToolStripMenuItem.Name = "centerConnectToolStripMenuItem";
+            centerConnectToolStripMenuItem.Size = new Size(124, 20);
+            centerConnectToolStripMenuItem.Text = "Kết nối tập trung";
+            // 
             // FrmMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -155,5 +179,8 @@
         private ToolStripMenuItem homeToolStripMenuItem;
         private ToolStripMenuItem aboutToolStripMenuItem;
         private ProgressBar progressBar1;
+        private ToolStripMenuItem registModuleToolStripMenuItem;
+        private ToolStripMenuItem registIISToolStripMenuItem;
+        private ToolStripMenuItem centerConnectToolStripMenuItem;
     }
 }

@@ -1,11 +1,87 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using System.Net;
+using System.Text.Json;
+using System.Xml.Serialization;
 
 namespace CommonLibs.Utils
 {
     public static class FileHelper
     {
+        /// <summary>
+        /// Writes raw string content to a file. If the directory doesn't exist, it will be created.
+        /// </summary>
+        public static async Task<bool> WriteToFile(string filename, string content)
+        {
+            try
+            {
+                var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), filename);
+
+                // Ensure target directory exists
+                var directory = Path.GetDirectoryName(absolutePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await File.WriteAllTextAsync(absolutePath, content);
+                return true;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Reads a JSON file and deserializes it into a strongly-typed object.
+        /// </summary>
+        public static async Task<T?> ReadJSON<T>(string filename, JsonSerializerOptions? options = null)
+        {
+            try
+            {
+                var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), filename);
+                if (!File.Exists(absolutePath))
+                {
+                    throw new AppException("JSON file not found.", HttpStatusCode.NotFound);
+                }
+
+                using var stream = File.OpenRead(absolutePath);
+                return await JsonSerializer.DeserializeAsync<T>(stream, options);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Reads an XML file and deserializes it into a strongly-typed object.
+        /// </summary>
+        public static async Task<T?> ReadXML<T>(string filename)
+        {
+            try
+            {
+                var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), filename);
+                if (!File.Exists(absolutePath))
+                {
+                    throw new AppException("XML file not found.", HttpStatusCode.NotFound);
+                }
+
+                // XmlSerializer does not have native async stream reading methods, 
+                // so we read the text asynchronously first.
+                string xmlContent = await File.ReadAllTextAsync(absolutePath);
+
+                using var reader = new StringReader(xmlContent);
+                var serializer = new XmlSerializer(typeof(T));
+                return (T?)serializer.Deserialize(reader);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
         public static async Task<bool> DeleteFile(string filename)
         {
             try

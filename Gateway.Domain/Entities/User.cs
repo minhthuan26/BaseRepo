@@ -2,6 +2,7 @@
 using CommonLibs.Utils;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Linq;
 using System.Text;
@@ -9,30 +10,30 @@ using System.Threading.Tasks;
 
 namespace Gateway.Domain.Entities
 {
-    public class Account : BaseEntity
+    [Table("tbl_User")]
+    public class User : BaseEntity
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string? AccountName { get; private set; }
+        public long Id { get; set; }
+        public string? UserId { get; private set; }
         public string? Password { get; private set; }
         public string? RefreshToken { get; private set; }
         public int Priority { get; set; } = 1;
 
-        public Account() { }
-        public Account(string Id, string accountName, string password, string? refreshToken, int priority)
+        public User() { }
+        public User(long id, string accountName, string password, string? refreshToken, int priority)
         {
-            SetId(Id);
+            SetId(id);
             SetAccountName(accountName);
             SetPassword(password);
             SetRefreshToken(refreshToken);
             SetPriority(priority);
         }
-        public Account(DataRow row)
+        public User(DataRow row)
         {
             if (row == null)
                 throw new AppException("DataRow cannot be null");
 
-            SetId(row.Field<string>("Id")
-                  ?? throw new AppException("Id is required"));
+            SetId(row.Field<long>("Id"));
 
             SetAccountName(row.Field<string>("AccountName")
                   ?? throw new AppException("AccountName is required"));
@@ -44,7 +45,7 @@ namespace Gateway.Domain.Entities
             SetPriority(row.Field<int>("Priority"));
         }
 
-        public void SetId(string id)
+        public void SetId(long id)
         {
             Id = id;
         }
@@ -55,7 +56,7 @@ namespace Gateway.Domain.Entities
             {
                 throw new AppException("Account name could not be empty");
             }
-            AccountName = accountName;
+            UserId = accountName;
         }
 
         public void SetPassword(string password)

@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SystemManagement.Helpers
+namespace CommonLibs.Utils
 {
     public static class EnvironmentHelper
     {

@@ -34,4 +34,10 @@
     <Folder Include="Comtrollers\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="EncryptionLibrary">
+      <HintPath>Libs\EncryptionLibrary.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

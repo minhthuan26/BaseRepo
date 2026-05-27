@@ -1,9 +1,9 @@
-﻿using API.Controllers.Base;
-using Gateway.Application.Commands;
+﻿using Gateway.Application.Commands;
 using Gateway.Domain.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using CommonLibs.Utils;
+using CommonLibs.Comtrollers;
 
 namespace Gateway.Controllers.Authorization
 {

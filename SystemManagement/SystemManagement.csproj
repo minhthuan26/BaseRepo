@@ -21,6 +21,7 @@
 	
 	<ItemGroup>
 		<!-- Ép hệ thống dùng bản để sửa lỗi Downgrade -->
+		<PackageReference Include="Guna.UI2.WinForms" Version="2.0.4.7" />
 		<PackageReference Include="Microsoft.Win32.Primitives" Version="4.3.0" />
 	</ItemGroup>
 
@@ -58,6 +59,11 @@
 	<ItemGroup>
 		<!-- Tự động cài đặt công cụ Obfuscar dạng Tool cho dự án -->
 		<PackageReference Include="Obfuscar" Version="2.2.38" PrivateAssets="all" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Reference Include="Guna.UI2">
+	    <HintPath>..\CommonLibs\Libs\GunaUI\.net 4.0\Guna.UI2.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 	<ItemGroup>
 	  <None Update="Config\system.config">

@@ -34,4 +34,8 @@
     <Folder Include="Comtrollers\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Libs\GunaUI\.net 4.0\Guna.UI2.dll" />
+  </ItemGroup>
+
 </Project>

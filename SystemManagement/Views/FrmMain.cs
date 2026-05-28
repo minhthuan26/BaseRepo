@@ -16,17 +16,27 @@ namespace SystemManagement.Views
 {
     public partial class FrmMain : Form
     {
-        public static FrmMain Instance { get; private set; }
-        private System.Windows.Forms.Timer _clockTimer;
-        public static SystemConfig SysConfig { get; set; }
+        #region Public props
 
+        public static FrmMain Instance { get; private set; }
+        public static SystemConfig SysConfig { get; set; }
+        public static int FrmWidth => Instance?.Width ?? 0;
+        public static int FrmHeight => Instance?.Height ?? 0;
+
+        #endregion
+        #region Private props
+
+        private System.Windows.Forms.Timer _clockTimer;
         private Stack<UserControl> navigationStack = new Stack<UserControl>();
+
+        #endregion
         public FrmMain()
         {
             InitializeComponent();
             Instance = this;
         }
 
+        #region Public functions
         public void ClearNavigation()
         {
             navigationStack.Clear();
@@ -194,7 +204,9 @@ namespace SystemManagement.Views
         }
 
         #endregion
+        #endregion
 
+        #region Private functions
         private async Task ReadSystemConfig()
         {
             try
@@ -226,8 +238,8 @@ namespace SystemManagement.Views
             UpdateTimeLabel();
 
             _clockTimer = new System.Windows.Forms.Timer();
-            _clockTimer.Interval = 1000; 
-            _clockTimer.Tick += ClockTimer_Tick; 
+            _clockTimer.Interval = 1000;
+            _clockTimer.Tick += ClockTimer_Tick;
             _clockTimer.Start();
 
             bool hasPage = pnl_Main.Controls
@@ -288,5 +300,24 @@ namespace SystemManagement.Views
         {
 
         }
+        #endregion
+
+        #region Override functions
+        const int WM_SYSCOMMAND = 0x0112;
+        const int SC_MAXIMIZE = 0xF030;
+        const int SC_RESTORE = 0xF120;
+        protected override void WndProc(ref Message m) {
+            if (m.Msg == WM_SYSCOMMAND)
+            {
+                if (m.WParam == (IntPtr)SC_MAXIMIZE ||
+                    m.WParam == (IntPtr)SC_RESTORE)
+                {
+                    OnResizeEnd(EventArgs.Empty);
+                }
+            }
+
+            base.WndProc(ref m);
+        }
+        #endregion
     }
 }

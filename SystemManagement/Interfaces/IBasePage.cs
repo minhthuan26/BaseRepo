@@ -11,5 +11,6 @@ namespace SystemManagement.Interfaces
     {
         UC_Base BaseUC { get; set; }
         string Title { get; set; }
+        void Responsive();
     }
 }

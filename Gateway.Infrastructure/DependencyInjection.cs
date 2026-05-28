@@ -30,12 +30,17 @@ namespace Gateway.Infrastructure
             // Gọi hàm rút gọn từ CommonLibs
             services.AddSharedDbContext<GatewayDbContext>(resolvedConnectionString);
 
-            // Đăng ký hạ tầng REDIS chính chủ của Microsoft
+            // KÍCH HOẠT REDIS HELPER (STATIC)
+            //var redisConnString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+            //const string instancePrefix = "BaseRepo_";
+            //RedisHelper.Initialize(redisConnString, instancePrefix);
+            // Đăng ký hạ tầng REDIS ASYNC (IDistributedCache) chính chủ Microsoft
             //services.AddStackExchangeRedisCache(options =>
             //{
-            //    options.Configuration = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-            //    options.InstanceName = "BaseRepo__";
+            //    options.Configuration = redisConnString;
+            //    options.InstanceName = instancePrefix;
             //});
+            //services.AddScoped<IRedisService, RedisService>();
 
             // Đăng ký dịch vụ phát tin nhắn RABBITMQ dạng SINGLETON độc nhất
             //services.AddSingleton<IRabbitMQService>(sp =>

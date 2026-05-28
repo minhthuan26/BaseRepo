@@ -1,4 +1,5 @@
 ﻿using CommonLibs.Logging;
+using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
 using Gateway.Infrastructure;
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ĐĂNG KÝ SERVICES (DI CONTAINER)
 // ==========================================================================
 builder.AddSharedSerilog();
+builder.Services.Configure<ApplicationOptions>(builder.Configuration.GetSection("Application"));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 

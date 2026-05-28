@@ -1,6 +1,8 @@
-﻿using EncryptionLibrary;
+﻿using CommonLibs.Options;
+using EncryptionLibrary;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,17 +12,17 @@ using System.Threading.Tasks;
 
 namespace CommonLibs.Utils
 {
-    public interface IConnectionFactory
+    public interface ISqlConnectionFactory
     {
         IDbConnection CreateConnection();
         bool TestConnection(out string message);
     }
 
-    public class ConnectionFactory : IConnectionFactory
+    public class SqlConnectionFactory : ISqlConnectionFactory
     {
         private readonly IConfiguration _configuration;
 
-        public ConnectionFactory(IConfiguration configuration)
+        public SqlConnectionFactory(IConfiguration configuration)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
@@ -53,24 +55,24 @@ namespace CommonLibs.Utils
 
         public string GetConnectionString(bool isEncrypt = true)
         {
-            string applicationId = EncryptionUtils.GetApplicationId();
-            string applicationName = EncryptionUtils.GetApplicationName();
-            string? host = _configuration["Host"];
+            string applicationId = _configuration["Application:ApplicationId"] ?? throw new InvalidOperationException("ApplicationId is missing."); 
+            string applicationName = _configuration["Application:ApplicationName"] ?? throw new InvalidOperationException("ApplicationName is missing.");
+            string? host = _configuration["ConnectionInfo:Host"];
             if (string.IsNullOrEmpty(host))
             {
                 throw new InvalidOperationException("Host configuration is missing.");
             }
-            string? database = _configuration["Database"];
+            string? database = _configuration["ConnectionInfo:Database"];
             if (string.IsNullOrEmpty(database))
             {
                 throw new InvalidOperationException("Database configuration is missing.");
             }
-            string? userName = _configuration["Username"];
+            string? userName = _configuration["ConnectionInfo:Username"];
             if (string.IsNullOrEmpty(userName))
             {
                 throw new InvalidOperationException("Username configuration is missing.");
             }
-            string? password = _configuration["Password"];
+            string? password = _configuration["ConnectionInfo:Password"];
             if (string.IsNullOrEmpty(password))
             {
                 throw new InvalidOperationException("Password configuration is missing.");

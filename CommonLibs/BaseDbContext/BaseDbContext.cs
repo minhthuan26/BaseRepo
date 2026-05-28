@@ -1,112 +1,168 @@
-﻿using CommonLibs.Utils;
+﻿using CommonLibs.Entities;
+using CommonLibs.Utils;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CommonLibs.BaseDbContext
 {
     public class BaseContext : DbContext
     {
-        public BaseContext(DbContextOptions options) : base(options)
+        public BaseContext(DbContextOptions options)
+            : base(options)
         {
         }
+
+        #region Dapper
+
+        public IDbConnection Connection
+            => Database.GetDbConnection();
+
+        public IDbTransaction? CurrentTransaction
+            => Database.CurrentTransaction?.GetDbTransaction();
+
+        public async Task<IEnumerable<T>> QueryAsync<T>(
+            string sql,
+            object? param = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await Connection.QueryAsync<T>(
+                new CommandDefinition(
+                    sql,
+                    param,
+                    transaction: CurrentTransaction,
+                    cancellationToken: cancellationToken
+                ));
+        }
+
+        public async Task<T?> QueryFirstOrDefaultAsync<T>(
+            string sql,
+            object? param = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await Connection.QueryFirstOrDefaultAsync<T>(
+                new CommandDefinition(
+                    sql,
+                    param,
+                    transaction: CurrentTransaction,
+                    cancellationToken: cancellationToken
+                ));
+        }
+
+        public async Task<int> ExecuteAsync(
+            string sql,
+            object? param = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await Connection.ExecuteAsync(
+                new CommandDefinition(
+                    sql,
+                    param,
+                    transaction: CurrentTransaction,
+                    cancellationToken: cancellationToken
+                ));
+        }
+
+        #endregion
+
+        #region SaveChanges
 
         public override int SaveChanges()
         {
-            var entries = ChangeTracker
-                .Entries()
-                .Where(e =>
-                        e.State == EntityState.Added
-                        || e.State == EntityState.Modified);
-
-            foreach (var entityEntry in entries)
-            {
-                entityEntry.Property("UpdatedDate").CurrentValue = DateTime.Now;
-
-                if (entityEntry.State == EntityState.Added)
-                {
-                    entityEntry.Property("CreatedDate").CurrentValue = DateTime.Now;
-                }
-            }
+            ApplyAuditInformation();
 
             var result = base.SaveChanges();
-            if (result <= 0)
+
+            if (result < 0)
             {
-                throw new AppException("Failed to save record.", HttpStatusCode.InternalServerError);
+                throw new AppException(
+                    "Failed to save changes.",
+                    HttpStatusCode.InternalServerError);
             }
+
             return result;
         }
 
-
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        public override async Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default)
         {
+            ApplyAuditInformation();
 
-            var entries = ChangeTracker
-                .Entries()
-                .Where(e =>
-                        e.State == EntityState.Added
-                        || e.State == EntityState.Modified);
+            var result = await base.SaveChangesAsync(cancellationToken);
 
-            foreach (var entityEntry in entries)
+            if (result < 0)
             {
-                entityEntry.Property("UpdatedDate").CurrentValue = DateTime.Now;
+                throw new AppException(
+                    "Failed to save changes.",
+                    HttpStatusCode.InternalServerError);
+            }
 
-                if (entityEntry.State == EntityState.Added)
+            return result;
+        }
+
+        private void ApplyAuditInformation()
+        {
+            var entries = ChangeTracker
+                .Entries<BaseEntity>()
+                .Where(x =>
+                    x.State == EntityState.Added ||
+                    x.State == EntityState.Modified);
+
+            foreach (var entry in entries)
+            {
+                entry.Entity.UpdatedDate = DateTime.UtcNow;
+
+                if (entry.State == EntityState.Added)
                 {
-                    entityEntry.Property("CreatedDate").CurrentValue = DateTime.Now;
+                    entry.Entity.CreatedDate = DateTime.UtcNow;
                 }
             }
-            var result = await base.SaveChangesAsync(cancellationToken);
-            if (result <= 0)
-            {
-                throw new AppException("Failed to save record.", HttpStatusCode.InternalServerError);
-            }
-            return result;
         }
 
-        public override async ValueTask<EntityEntry<TEntity>> AddAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
-        {
-            var result = await base.AddAsync(entity, cancellationToken);
-            if (result.State.ToString() != "Added")
-            {
-                throw new AppException("Failed to add record.", HttpStatusCode.InternalServerError);
-            }
-            return result;
-        }
+        #endregion
 
-        public override EntityEntry<TEntity> Remove<TEntity>(TEntity entity)
-        {
-            var result = base.Remove(entity);
-            if (result.State.ToString() != "Deleted")
-            {
-                throw new AppException("Failed to delete record.", HttpStatusCode.InternalServerError);
-            }
-            return result;
-        }
+        #region Transaction
 
-        public override EntityEntry<TEntity> Update<TEntity>(TEntity entity)
+        public async Task ExecuteWithTransactionAsync(
+            Func<Task> action,
+            CancellationToken cancellationToken = default)
         {
-            var result = base.Update(entity);
-            if (result.State.ToString() != "Modified")
-            {
-                throw new AppException("Failed to update record.", HttpStatusCode.InternalServerError);
-            }
-            return result;
-        }
+            await using var transaction =
+                await Database.BeginTransactionAsync(cancellationToken);
 
-        public async Task<TEntity> ExecuteWithTransactionAsync<TEntity>(Func<Task<TEntity>> action, CancellationToken cancellationToken = default)
-        {
-            using var transaction = await Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                TEntity result = await action();
+                await action();
+
                 await SaveChangesAsync(cancellationToken);
+
                 await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        public async Task<TResult> ExecuteWithTransactionAsync<TResult>(
+            Func<Task<TResult>> action,
+            CancellationToken cancellationToken = default)
+        {
+            await using var transaction =
+                await Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var result = await action();
+
+                await SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
                 return result;
             }
             catch
@@ -115,5 +171,8 @@ namespace CommonLibs.BaseDbContext
                 throw;
             }
         }
+
+        #endregion
     }
 }
+

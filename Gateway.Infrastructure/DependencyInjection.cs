@@ -1,10 +1,12 @@
-﻿using Gateway.Application.Interfaces;
+﻿using CommonLibs.Options;
+using CommonLibs.Utils;
+using Gateway.Application.Interfaces;
 using Gateway.Infrastructure.DBContext;
 using Gateway.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using CommonLibs.Utils;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 
@@ -18,8 +20,8 @@ namespace Gateway.Infrastructure
                 cfg.RegisterServicesFromAssembly(Assembly.Load("Gateway.Application"))
             );
 
-            services.AddSingleton<IConnectionFactory, ConnectionFactory>();
-            var temporaryFactory = new ConnectionFactory(configuration);
+            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
+            var temporaryFactory = new SqlConnectionFactory(configuration);
             string resolvedConnectionString = temporaryFactory.GetConnectionString();
             services.AddDbContext<GatewayDbContext>(options =>
             {

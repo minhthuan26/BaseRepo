@@ -9,16 +9,16 @@ namespace Gateway.Domain.DTOs
 {
     public class AuthorizationOutputDTO : BaseDTO
     {
-        public string Id { get; set; }
+        public long AutoId { get; set; }
         public string AccessToken { get; set; }
-        public string AccountName { get; set; }
+        public string UserId { get; set; }
         public string RefreshToken { get; set; }
         public string PublicKey { get; set; }
     }
 
     public class AuthorizationInputDTO
     {
-        public string AccountName { get; set; }
+        public string UserId { get; set; }
         public string Password { get; set; }
     }
 }

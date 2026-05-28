@@ -15,4 +15,10 @@
     <ProjectReference Include="..\Gateway.Domain\Gateway.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="EncryptionLibrary">
+      <HintPath>..\CommonLibs\Libs\EncryptionLibrary.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

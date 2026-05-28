@@ -1,12 +1,17 @@
 ﻿using AutoMapper;
+using CommonLibs.Repositories;
+using CommonLibs.Utils;
+using EncryptionLibrary;
+using Gateway.Application.Interfaces;
+using Gateway.Domain.DTOs;
+using Gateway.Domain.Entities;
+using Gateway.Infrastructure.DBContext;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using CommonLibs.Repositories;
-using CommonLibs.Utils;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -16,9 +21,6 @@ using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using Gateway.Infrastructure.DBContext;
-using Gateway.Application.Interfaces;
-using Gateway.Domain.DTOs;
 
 namespace Gateway.Infrastructure.Repositories
 {
@@ -40,9 +42,9 @@ namespace Gateway.Infrastructure.Repositories
         }
 
         #region Stored Procedure
-        private async Task<DataTable> GetAccountByRefreshTokenAsync(string refreshToken)
+        private async Task<DataTable> GetUserByRefreshTokenAsync(string refreshToken)
         {
-            return await ExecuteProcAsync(_dbContext, "dbo.Proc_Account_GetByRefreshToken",
+            return await ExecuteProcAsync(_dbContext, "dbo.Proc_User_GetByRefreshToken",
             new[] { new SqlParameter("@RefreshToken", refreshToken) });
         }
         #endregion
@@ -57,48 +59,63 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}Login-01] Input is null.", HttpStatusCode.BadRequest);
                 }
-                if (string.IsNullOrEmpty(input.AccountName) || string.IsNullOrEmpty(input.Password))
+                if (string.IsNullOrEmpty(input.UserId) || string.IsNullOrEmpty(input.Password))
                 {
-                    throw new AppException($"[{_errorPrefix}Login-02] AccountName or Password is null or empty.", HttpStatusCode.BadRequest);
+                    throw new AppException($"[{_errorPrefix}Login-02] UserId or Password is null or empty.", HttpStatusCode.BadRequest);
                 }
                 // Lấy access key và refresh key từ cấu hình
-                var accessKey = _configuration["Mitalab:JWT:AccessKey"];
+                var accessKey = _configuration["BaseRepo:JWT:AccessKey"];
                 if (string.IsNullOrEmpty(accessKey))
                 {
                     throw new AppException($"[{_errorPrefix}Login-03] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
-                var refreshKey = _configuration["Mitalab:JWT:RefreshKey"];
+                var refreshKey = _configuration["BaseRepo:JWT:RefreshKey"];
                 if (string.IsNullOrEmpty(refreshKey))
                 {
                     throw new AppException($"[{_errorPrefix}Login-04] RefreshKey key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
                 // Xác thực tài khoản
-                var account = _dbContext.Accounts.FirstOrDefault(a => a.AccountName == input.AccountName && a.Password == input.Password);
-                if (account == null)
+                var user = await _dbContext.QueryFirstOrDefaultAsync<User>(@"
+                        Select * From tbl_Users
+                        Where UserId = @UserId And Password = @Password
+                    ", new
+                    {
+                        UserId = input.UserId,
+                        Password = Cypher.AesCypher.Encrypt(input.Password, Encoding.UTF8.GetBytes(accessKey)).CipherText
+                    }, 
+                    cancellationToken);
+                if (user == null)
                 {
-                    throw new AppException($"[{_errorPrefix}Login-05] Invalid AccountName or Password.", HttpStatusCode.Unauthorized);
+                    throw new AppException($"[{_errorPrefix}Login-05] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
                 }
                 // Tạo access token và refresh token
                 var accessToken = GenerateToken(accessKey, new List<Claim>
                 {
-                    new Claim(ClaimTypes.NameIdentifier, account.Id),
-                    new Claim(ClaimTypes.Name, account.AccountName)
+                    new Claim(ClaimTypes.NameIdentifier, user.UserId),
+                    new Claim(ClaimTypes.Name, user.UserName)
                 }, DateTime.UtcNow.AddHours(10)).Result;
 
                 var refreshToken = GenerateToken(refreshKey, new List<Claim>
                 {
-                    new Claim(ClaimTypes.NameIdentifier, account.Id),
-                    new Claim(ClaimTypes.Name, account.AccountName)
+                    new Claim(ClaimTypes.NameIdentifier, user.UserId),
+                    new Claim(ClaimTypes.Name, user.UserName)
                 }, DateTime.UtcNow.AddDays(7)).Result;
                 // Cập nhật refresh token cho tài khoản
-                account.SetRefreshToken(refreshToken);
-                _dbContext.Accounts.Update(account);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                user.SetRefreshToken(refreshToken);
+                await _dbContext.ExecuteAsync(@"
+                        Update tbl_Users
+                        Set RefreshToken = @RefreshToken
+                        Where UserId = @UserId
+                    ", new
+                {
+                    RefreshToken = refreshToken,
+                    UserId = user.UserId
+                }, cancellationToken);
 
                 return new AuthorizationOutputDTO
                 {
-                    Id = account.Id,
-                    AccountName = account.AccountName,
+                    AutoId = user.AutoId,
+                    UserId = user.UserId,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken,
                 };
@@ -116,29 +133,40 @@ namespace Gateway.Infrastructure.Repositories
                 // Lấy access token từ header
                 var accessToken = GetAuthorizattionHeader();
                 // Lấy access key từ cấu hình
-                var accessKey = _configuration["Mitalab:JWT:AccessKey"];
+                var accessKey = _configuration["BaseRepo:JWT:AccessKey"];
                 if (string.IsNullOrEmpty(accessKey))
                 {
                     throw new AppException($"[{_errorPrefix}Logout-01] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
                 // Lấy thông tin tài khoản từ access token
                 List<Claim> claims = await VerifyToken(accessToken, accessKey);
-                var accountId = GetClaim(claims, ClaimTypes.NameIdentifier).ToString();
-                if (string.IsNullOrEmpty(accountId))
+                var userId = GetClaim(claims, ClaimTypes.NameIdentifier).ToString();
+                if (string.IsNullOrEmpty(userId))
                 {
-                    throw new AppException($"[{_errorPrefix}Logout-02] AccountId is missing in token claims.", HttpStatusCode.BadRequest);
+                    throw new AppException($"[{_errorPrefix}Logout-02] UserId is missing in token claims.", HttpStatusCode.BadRequest);
                 }
                 // Lấy tài khoản từ database
-                var currentAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => a.Id == accountId);
-                if (currentAccount == null)
+                var currentUser = await _dbContext.QueryFirstOrDefaultAsync<User>(@"
+                        Select * From tbl_Users
+                        Where UserId = @UserId
+                        ", new
+                    {
+                        UserId = userId
+                    }, cancellationToken);
+                if (currentUser == null)
                 {
-                    throw new AppException($"[{_errorPrefix}Logout-03] Account not found.", HttpStatusCode.BadRequest);
+                    throw new AppException($"[{_errorPrefix}Logout-03] User not found.", HttpStatusCode.BadRequest);
                 }
                 // Xóa refresh token của tài khoản
-                currentAccount.SetRefreshToken(null);
-                _dbContext.Accounts.Update(currentAccount);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-                return currentAccount.Id;
+                await _dbContext.ExecuteAsync(@"
+                        Update tbl_Users
+                        Set RefreshToken = NULL
+                        Where UserId = @UserId
+                        ", new
+                    {
+                        UserId = currentUser.UserId
+                    }, cancellationToken);
+                return currentUser.UserId;
             }
             catch
             {
@@ -161,12 +189,12 @@ namespace Gateway.Infrastructure.Repositories
                 }
 
                 // Lấy access key và refresh key từ cấu hình
-                var accessKey = _configuration["Mitalab:JWT:AccessKey"];
+                var accessKey = _configuration["BaseRepo:JWT:AccessKey"];
                 if (string.IsNullOrEmpty(accessKey))
                 {
                     throw new AppException($"[{_errorPrefix}RenewToken-06] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
-                var refreshKey = _configuration["Mitalab:JWT:RefreshKey"];
+                var refreshKey = _configuration["BaseRepo:JWT:RefreshKey"];
                 if (string.IsNullOrEmpty(refreshKey))
                 {
                     throw new AppException($"[{_errorPrefix}RenewToken-07] RefreshKey key is missing in configuration.", HttpStatusCode.InternalServerError);
@@ -177,8 +205,14 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}RenewToken-08] Access token is not expired.");
                 }
                 // Lấy thông tin tài khoản từ refresh token
-                var currentAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => a.RefreshToken == refreshToken);
-                if (currentAccount == null)
+                var currentUser = await _dbContext.QueryFirstOrDefaultAsync<User>(@"
+                        Select * From tbl_Users
+                        Where RefreshToken = @RefreshToken
+                        ", new
+                    {
+                        RefreshToken = refreshToken
+                    }, cancellationToken);
+                if (currentUser == null)
                 {
                     throw new AppException($"[{_errorPrefix}RenewToken-09] Refresh token is not valid.");
                 }
@@ -196,9 +230,15 @@ namespace Gateway.Infrastructure.Repositories
                 refreshToken = await GenerateToken(refreshKey, claims, DateTime.UtcNow.AddDays(7));
 
                 // Cập nhật refresh token cho tài khoản
-                currentAccount.SetRefreshToken(refreshToken);
-                _dbContext.Accounts.Update(currentAccount);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                await _dbContext.ExecuteAsync(@"
+                        Update tbl_Users
+                        Set RefreshToken = @RefreshToken
+                        Where UserId = @UserId
+                        ", new
+                    {
+                        RefreshToken = refreshToken,
+                        UserId = currentUser.UserId
+                    }, cancellationToken);
 
                 // Lưu refresh token vào cookie
                 var cookieOptions = new CookieOptions
@@ -212,8 +252,8 @@ namespace Gateway.Infrastructure.Repositories
 
                 return new AuthorizationOutputDTO
                 {
-                    Id = currentAccount.Id,
-                    AccountName = currentAccount.AccountName,
+                    AutoId = currentUser.AutoId,
+                    UserId = currentUser.UserId,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken,
                 };
@@ -263,9 +303,9 @@ namespace Gateway.Infrastructure.Repositories
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _configuration["Mitalab:JWT:Issuer"],
+                    ValidIssuer = _configuration["BaseRepo:JWT:Issuer"],
                     ValidateAudience = true,
-                    ValidAudience = _configuration["Mitalab:JWT:Audience"],
+                    ValidAudience = _configuration["BaseRepo:JWT:Audience"],
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = signingKey,
                     ValidateLifetime = true,
@@ -313,8 +353,8 @@ namespace Gateway.Infrastructure.Repositories
                 );
 
                 var tokenDescription = new JwtSecurityToken(
-                    issuer: _configuration["Mitalab:JWT:Issuer"],
-                    audience: _configuration["Mitalab:JWT:Audience"],
+                    issuer: _configuration["BaseRepo:JWT:Issuer"],
+                    audience: _configuration["BaseRepo:JWT:Audience"],
                     claims: claims,
                     expires: expires,
                     signingCredentials: signingCredential
@@ -342,9 +382,9 @@ namespace Gateway.Infrastructure.Repositories
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _configuration["Mitalab:JWT:Issuer"],
+                    ValidIssuer = _configuration["BaseRepo:JWT:Issuer"],
                     ValidateAudience = true,
-                    ValidAudience = _configuration["Mitalab:JWT:Audience"],
+                    ValidAudience = _configuration["BaseRepo:JWT:Audience"],
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKeys = new List<SecurityKey> { signingKey },
                     ValidateLifetime = true

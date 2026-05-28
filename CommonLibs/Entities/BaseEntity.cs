@@ -2,6 +2,7 @@
 {
     public class BaseEntity
     {
+        public long AutoId { get; set; }
         public DateTime UpdatedDate { get; set; }
         public DateTime CreatedDate { get; set; }
         public string? CreatedBy { get; set; }
@@ -9,7 +10,6 @@
         public EntityStatus Status { get; set; } = EntityStatus.Active;
         public string? DeviceName { get; set; }
         public string? DeviceId { get; set; }
-        public EntityType Type { get; set; } = EntityType.Custom;
     }
 
     public enum EntityStatus

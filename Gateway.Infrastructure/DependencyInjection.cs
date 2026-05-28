@@ -18,10 +18,18 @@ namespace Gateway.Infrastructure
                 cfg.RegisterServicesFromAssembly(Assembly.Load("Gateway.Application"))
             );
 
+            services.AddSingleton<IConnectionFactory, ConnectionFactory>();
+            var temporaryFactory = new ConnectionFactory(configuration);
+            string resolvedConnectionString = temporaryFactory.GetConnectionString();
             services.AddDbContext<GatewayDbContext>(options =>
             {
-                string connectionString = Environment.GetEnvironmentVariable("Mitalab__ConnectionStrings__DefaultConnection") ?? throw new AppException("[AddGatewayInfrastructure] Could not find the connection string");
-                options.UseSqlServer(connectionString);
+                options.UseSqlServer(resolvedConnectionString, sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorNumbersToAdd: null);
+                });
             });
             services.AddScoped<JwtSecurityTokenHandler>();
             services.AddAutoMapper(cfg => { }, Assembly.Load("Gateway.Application"));

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace API.Controllers.Base
+namespace CommonLibs.Comtrollers
 {
     [Route("api/[controller]")]
     [ApiController]

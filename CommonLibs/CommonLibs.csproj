@@ -35,6 +35,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="EncryptionLibrary">
+      <HintPath>Libs\EncryptionLibrary.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="Libs\GunaUI\.net 4.0\Guna.UI2.dll" />
   </ItemGroup>
 

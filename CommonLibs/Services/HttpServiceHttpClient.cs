@@ -22,6 +22,7 @@ public class HttpServiceHttpClient
             // Tự động đính kèm mã vết log vào request tiếp theo
             if (!_httpClient.DefaultRequestHeaders.Contains("X-Correlation-ID"))
             {
+                _httpClient.DefaultRequestHeaders.Remove("X-Correlation-ID");
                 _httpClient.DefaultRequestHeaders.Add("X-Correlation-ID", correlationId.ToString());
             }
         }

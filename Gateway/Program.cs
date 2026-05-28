@@ -42,10 +42,23 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddGatewayInfrastructure(builder.Configuration);
+// Chạy ngầm để NHẬN TIN từ RabbitMQ
+// builder.Services.AddHostedService<LogQueueConsumer>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<GrpcClientHelper>();
 builder.Services.AddHttpClient<HttpServiceHttpClient>();
+// Cấu hình Kestrel lắng nghe port 80 và 443
+builder.WebHost.ConfigureKestrel(options =>
+{
+    // Lắng nghe HTTP thông thường
+    options.ListenAnyIP(80);
 
+    // Lắng nghe HTTPS bảo mật (Yêu cầu Server cần cài sẵn chứng chỉ SSL hợp lệ)
+    options.ListenAnyIP(443, listenOptions =>
+    {
+        listenOptions.UseHttps();
+    });
+});
 // Cấu hình YARP
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -59,7 +72,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins("http://localhost")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

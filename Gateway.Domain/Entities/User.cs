@@ -6,7 +6,6 @@ namespace Gateway.Domain.Entities
 {
     public class User : BaseEntity
     {
-        public long AutoId { get; private set; }
 
         public string UserId { get; private set; } = null!;
 

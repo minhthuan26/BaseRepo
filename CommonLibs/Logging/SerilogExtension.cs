@@ -1,13 +1,29 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Context;
+using System.Diagnostics;
 using System.Text;
 
 namespace CommonLibs.Logging
 {
+    public sealed class LoggingOptions
+    {
+        public bool LogRequestBody { get; set; } = true;
+
+        public bool LogResponseBody { get; set; } = true;
+
+        public bool LogSuccessResponse { get; set; } = false;
+
+        public bool LogFailedResponse { get; set; } = true;
+
+        public int MaxBodyLength { get; set; } = 5000;
+    }
+
     public static class SerilogExtension
     {
         private const string CorrelationIdHeaderKey = "X-Correlation-ID";
@@ -22,164 +38,161 @@ namespace CommonLibs.Logging
             "AccessToken"
         };
 
+        private static readonly string[] ExcludedPaths =
+        {
+            "/swagger",
+            "/health",
+            "/favicon.ico"
+        };
+
+        private static bool ShouldSkipLogging(PathString path)
+        {
+            return ExcludedPaths.Any(x =>
+                path.StartsWithSegments(x,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
         public static void AddSharedSerilog(this WebApplicationBuilder builder)
         {
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(builder.Configuration)
-                .Enrich.FromLogContext()
-                .Enrich.WithDemystifiedStackTraces()
-                .CreateLogger();
+               .ReadFrom.Configuration(builder.Configuration)
+               .Enrich.FromLogContext()
+               .Enrich.WithDemystifiedStackTraces()
+               .CreateLogger();
 
             builder.Host.UseSerilog();
         }
 
-        public static void UseSharedSerilogRequestLogging(this WebApplication app)
+        public static void UseSharedSerilogRequestLogging(this WebApplication app, Action<LoggingOptions>? configure = null)
         {
+            var options = new LoggingOptions();
+            configure?.Invoke(options);
+
             app.Use(async (context, next) =>
             {
+                if (ShouldSkipLogging(context.Request.Path))
+                {
+                    await next();
+                    return;
+                }
+
                 #region CorrelationId
 
-                if (!context.Request.Headers.TryGetValue(
-                    CorrelationIdHeaderKey,
-                    out var correlationId))
+                if (!context.Request.Headers.TryGetValue(CorrelationIdHeaderKey, out var correlationId))
                 {
                     correlationId = Guid.NewGuid().ToString();
                 }
 
-                context.Response.Headers[CorrelationIdHeaderKey] =
-                    correlationId;
+                context.Response.Headers[CorrelationIdHeaderKey] = correlationId;
 
                 #endregion
 
-                using (LogContext.PushProperty(
-                    "CorrelationId",
-                    correlationId.ToString()))
+                using (LogContext.PushProperty("CorrelationId", correlationId.ToString()))
+                using (LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString()))
+                using (LogContext.PushProperty("SpanId", Activity.Current?.SpanId.ToString()))
                 {
-                    #region Request
-
-                    context.Request.EnableBuffering();
-
                     string requestBody = string.Empty;
-
-                    if (context.Request.ContentLength > 0
-                        && context.Request.Body.CanRead
-                        && IsLoggableContentType(context.Request.ContentType))
-                    {
-                        context.Request.Body.Position = 0;
-
-                        using var reader = new StreamReader(
-                            context.Request.Body,
-                            Encoding.UTF8,
-                            leaveOpen: true);
-
-                        requestBody = await reader.ReadToEndAsync();
-
-                        context.Request.Body.Position = 0;
-
-                        requestBody = TrimBody(requestBody);
-                    }
-
-                    var requestHeaders = context.Request.Headers
-                        .ToDictionary(
-                            h => h.Key,
-                            h => MaskSensitiveValue(
-                                h.Key,
-                                h.Value.ToString()));
-
-                    #endregion
-
-                    #region Response
-
+                    Dictionary<string, string> requestHeaders = new();
                     var originalResponseBody = context.Response.Body;
-
-                    await using var responseBodyMemoryStream =
-                        new MemoryStream();
-
-                    context.Response.Body = responseBodyMemoryStream;
-
-                    #endregion
-
+                    await using var responseBodyStream = new MemoryStream();
+                    context.Response.Body = responseBodyStream;
                     try
                     {
-                        await next();
+                        #region Request
 
-                        #region Read Response Body
+                        requestHeaders =
+                            context.Request.Headers
+                                .ToDictionary(
+                                    h => h.Key,
+                                    h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                                );
 
-                        context.Response.Body.Seek(0, SeekOrigin.Begin);
-
-                        string responseBody = string.Empty;
-
-                        if (IsLoggableContentType(context.Response.ContentType))
+                        if (options.LogRequestBody && context.Request.ContentLength > 0 && context.Request.Body.CanRead && IsLoggableContentType(context.Request.ContentType))
                         {
-                            responseBody =
-                                await new StreamReader(context.Response.Body)
-                                    .ReadToEndAsync();
-
-                            responseBody = TrimBody(responseBody);
+                            context.Request.EnableBuffering();
+                            context.Request.Body.Position = 0;
+                            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+                            requestBody = await reader.ReadToEndAsync();
+                            context.Request.Body.Position = 0;
+                            requestBody = TrimBody(requestBody, options.MaxBodyLength);
                         }
 
-                        context.Response.Body.Seek(0, SeekOrigin.Begin);
-
                         #endregion
 
-                        #region Response Headers
+                        await next();
+                        var isSuccess = context.Response.StatusCode < 400;
+                        var shouldLog = (isSuccess && options.LogSuccessResponse) || (!isSuccess && options.LogFailedResponse);
+                        string responseBody = string.Empty;
+                        Dictionary<string, string> responseHeaders = new();
 
-                        var responseHeaders = context.Response.Headers
-                            .ToDictionary(
-                                h => h.Key,
-                                h => MaskSensitiveValue(
-                                    h.Key,
-                                    h.Value.ToString()));
+                        if (shouldLog)
+                        {
+                            #region Response Headers
 
-                        #endregion
+                            responseHeaders = context.Response.Headers .ToDictionary(
+                                            h => h.Key,
+                                            h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                                        );
 
-                        #region Logging
+                            #endregion
 
-                        Log.Information(
-                            @"
-                            HTTP Request
-                            CorrelationId: {CorrelationId}
-                            RequestMethod: {RequestMethod}
-                            RequestPath: {RequestPath}
-                            QueryString: {QueryString}
-                            StatusCode: {StatusCode}
-                            RequestHeaders: {@RequestHeaders}
-                            RequestBody: {RequestBody}
-                            ResponseHeaders: {@ResponseHeaders}
-                            ResponseBody: {ResponseBody}
-                            ",
-                            correlationId.ToString(),
-                            context.Request.Method,
-                            context.Request.Path,
-                            context.Request.QueryString.ToString(),
-                            context.Response.StatusCode,
-                            requestHeaders,
-                            requestBody,
-                            responseHeaders,
-                            responseBody);
+                            #region Response Body
 
-                        #endregion
+                            if (options.LogResponseBody)
+                            {
+                                context.Response.Body.Seek(0, SeekOrigin.Begin);
 
-                        #region Copy Response
+                                if (IsLoggableContentType(context.Response.ContentType))
+                                {
+                                    using var responseReader = new StreamReader(context.Response.Body, leaveOpen: true);
+                                    responseBody = await responseReader.ReadToEndAsync();
+                                    responseBody = TrimBody(responseBody, options.MaxBodyLength);
+                                }
 
-                        await responseBodyMemoryStream.CopyToAsync(
-                            originalResponseBody);
+                                context.Response.Body.Seek(0, SeekOrigin.Begin);
+                            }
 
-                        #endregion
+                            #endregion
+
+                            #region Structured Logging
+
+                            var logger =
+                                Log.ForContext("RequestMethod", context.Request.Method)
+                                   .ForContext("RequestPath", context.Request.Path.ToString())
+                                   .ForContext("QueryString", context.Request.QueryString.ToString())
+                                   .ForContext("StatusCode", context.Response.StatusCode)
+                                   .ForContext("RequestHeaders", requestHeaders, true)
+                                   .ForContext("ResponseHeaders", responseHeaders, true);
+
+                            if (!string.IsNullOrWhiteSpace(requestBody))
+                            {
+                                logger = logger.ForContext("RequestBody", requestBody);
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(responseBody))
+                            {
+                                logger = logger.ForContext("ResponseBody", responseBody);
+                            }
+
+                            if (isSuccess)
+                            {
+                                logger.Information("HTTP Request Completed");
+                            }
+                            else
+                            {
+                                logger.Warning("HTTP Request Failed");
+                            }
+
+                            #endregion
+                        }
+                        responseBodyStream.Seek(0, SeekOrigin.Begin);
+                        await responseBodyStream.CopyToAsync(originalResponseBody);
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(
-                            ex,
-                            @"
-                            HTTP Request Error
-                            CorrelationId: {CorrelationId}
-                            RequestMethod: {RequestMethod}
-                            RequestPath: {RequestPath}
-                            ",
-                            correlationId.ToString(),
-                            context.Request.Method,
-                            context.Request.Path);
+                        Log.ForContext("RequestMethod", context.Request.Method)
+                            .ForContext( "RequestPath", context.Request.Path.ToString())
+                            .Error(ex, "HTTP Request Error");
 
                         throw;
                     }
@@ -192,19 +205,13 @@ namespace CommonLibs.Logging
 
             app.UseSerilogRequestLogging(options =>
             {
-                options.MessageTemplate =
-                    "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+                options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
             });
-
-            var lifetime =
-                app.Services.GetRequiredService<IHostApplicationLifetime>();
-
+            var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
             lifetime.ApplicationStopped.Register(Log.CloseAndFlush);
         }
 
-        private static string TrimBody(
-            string? body,
-            int maxLength = 5000)
+        private static string TrimBody(string? body, int maxLength = 5000)
         {
             if (string.IsNullOrWhiteSpace(body))
             {
@@ -216,14 +223,9 @@ namespace CommonLibs.Logging
                 : body[..maxLength] + "...(trimmed)";
         }
 
-        private static string MaskSensitiveValue(
-            string key,
-            string value)
+        private static string MaskSensitiveValue(string key, string value)
         {
-            if (SensitiveHeaders.Any(x =>
-                    key.Contains(
-                        x,
-                        StringComparison.OrdinalIgnoreCase)))
+            if (SensitiveHeaders.Any(x => key.Contains(x, StringComparison.OrdinalIgnoreCase)))
             {
                 return "***MASKED***";
             }
@@ -238,6 +240,10 @@ namespace CommonLibs.Logging
                 return false;
             }
             if (contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            if (contentType.Contains("application/problem+json", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Context;
+using Serilog.Debugging;
 using System.Diagnostics;
 using System.Text;
 
@@ -65,9 +66,10 @@ namespace CommonLibs.Logging
 
         public static void UseSharedSerilogRequestLogging(this WebApplication app, Action<LoggingOptions>? configure = null)
         {
-            var options = new LoggingOptions();
-            configure?.Invoke(options);
+            // Lấy cấu hình đã đăng ký từ DI qua IOptions
+            var options = app.Services.GetRequiredService<IOptions<LoggingOptions>>().Value;
 
+            // 1. Middleware tự viết để xử lý CorrelationId, Request/Response Body và Structured Log chi tiết
             app.Use(async (context, next) =>
             {
                 if (ShouldSkipLogging(context.Request.Path))
@@ -76,137 +78,154 @@ namespace CommonLibs.Logging
                     return;
                 }
 
-                #region CorrelationId
-
+                #region Xử lý CorrelationId
                 if (!context.Request.Headers.TryGetValue(CorrelationIdHeaderKey, out var correlationId))
                 {
                     correlationId = Guid.NewGuid().ToString();
                 }
 
-                context.Response.Headers[CorrelationIdHeaderKey] = correlationId;
-
+                // Trả về CorrelationId trong Header của Response để Client tiện tra cứu khi cần
+                if (!context.Response.Headers.ContainsKey(CorrelationIdHeaderKey))
+                {
+                    context.Response.Headers[CorrelationIdHeaderKey] = correlationId;
+                }
                 #endregion
 
+                // Đẩy các thuộc tính ngữ cảnh vào Scope Log để các hàm Log.Information/Warning thông thường trong Controller cũng bắt được
                 using (LogContext.PushProperty("CorrelationId", correlationId.ToString()))
                 using (LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString()))
                 using (LogContext.PushProperty("SpanId", Activity.Current?.SpanId.ToString()))
                 {
                     string requestBody = string.Empty;
                     Dictionary<string, string> requestHeaders = new();
+
+                    // Sao lưu lại luồng Response gốc của hệ thống
                     var originalResponseBody = context.Response.Body;
+
+                    // Khởi tạo một MemoryStream tạm thời để hứng dữ liệu Response xuất ra
                     await using var responseBodyStream = new MemoryStream();
                     context.Response.Body = responseBodyStream;
+
                     try
                     {
-                        #region Request
-
-                        requestHeaders =
-                            context.Request.Headers
-                                .ToDictionary(
-                                    h => h.Key,
-                                    h => MaskSensitiveValue(h.Key, h.Value.ToString())
-                                );
+                        #region Xử lý và đọc nội dung Request
+                        requestHeaders = context.Request.Headers.ToDictionary(
+                            h => h.Key,
+                            h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                        );
 
                         if (options.LogRequestBody && context.Request.ContentLength > 0 && context.Request.Body.CanRead && IsLoggableContentType(context.Request.ContentType))
                         {
                             context.Request.EnableBuffering();
                             context.Request.Body.Position = 0;
-                            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
-                            requestBody = await reader.ReadToEndAsync();
-                            context.Request.Body.Position = 0;
+                            using (var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true))
+                            {
+                                requestBody = await reader.ReadToEndAsync();
+                            }
+                            context.Request.Body.Position = 0; // Reset lại đầu Stream cho các service phía sau đọc tiếp
                             requestBody = TrimBody(requestBody, options.MaxBodyLength);
                         }
-
                         #endregion
 
+                        // Tiếp tục luân chuyển Request đến các Middleware tiếp theo (YARP Gateway, Controller, v.v.)
                         await next();
+
+                        // Xác định trạng thái của Response sau khi các tầng xử lý xong
                         var isSuccess = context.Response.StatusCode < 400;
                         var shouldLog = (isSuccess && options.LogSuccessResponse) || (!isSuccess && options.LogFailedResponse);
-                        string responseBody = string.Empty;
-                        Dictionary<string, string> responseHeaders = new();
 
                         if (shouldLog)
                         {
-                            #region Response Headers
-
-                            responseHeaders = context.Response.Headers .ToDictionary(
-                                            h => h.Key,
-                                            h => MaskSensitiveValue(h.Key, h.Value.ToString())
-                                        );
-
+                            #region Xử lý và đọc nội dung Response Headers (Luôn an toàn)
+                            var responseHeaders = context.Response.Headers.ToDictionary(
+                                h => h.Key,
+                                h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                            );
                             #endregion
 
-                            #region Response Body
-
-                            if (options.LogResponseBody)
+                            #region Xử lý và đọc nội dung Response Body (Được bọc bẫy lỗi riêng biệt)
+                            string responseBody = string.Empty;
+                            if (options.LogResponseBody && IsLoggableContentType(context.Response.ContentType))
                             {
-                                context.Response.Body.Seek(0, SeekOrigin.Begin);
-
-                                if (IsLoggableContentType(context.Response.ContentType))
+                                try
                                 {
-                                    using var responseReader = new StreamReader(context.Response.Body, leaveOpen: true);
-                                    responseBody = await responseReader.ReadToEndAsync();
-                                    responseBody = TrimBody(responseBody, options.MaxBodyLength);
+                                    if (context.Response.Body.CanSeek)
+                                    {
+                                        context.Response.Body.Seek(0, SeekOrigin.Begin);
+                                        using (var responseReader = new StreamReader(context.Response.Body, Encoding.UTF8, leaveOpen: true))
+                                        {
+                                            responseBody = await responseReader.ReadToEndAsync();
+                                        }
+                                        context.Response.Body.Seek(0, SeekOrigin.Begin); // Trả lại vị trí đầu để copy về luồng gốc
+                                        responseBody = TrimBody(responseBody, options.MaxBodyLength);
+                                    }
                                 }
-
-                                context.Response.Body.Seek(0, SeekOrigin.Begin);
+                                catch (Exception ex)
+                                {
+                                    // Ghi nhận log lỗi nội bộ nếu không thể dịch chuyển con trỏ Stream, không làm crash luồng chính
+                                    SelfLog.WriteLine($"[Serilog Extension Error] Không thể đọc Response Body: {ex.Message}");
+                                }
                             }
-
                             #endregion
 
-                            #region Structured Logging
-
-                            var logger =
-                                Log.ForContext("RequestMethod", context.Request.Method)
-                                   .ForContext("RequestPath", context.Request.Path.ToString())
-                                   .ForContext("QueryString", context.Request.QueryString.ToString())
-                                   .ForContext("StatusCode", context.Response.StatusCode)
-                                   .ForContext("RequestHeaders", requestHeaders, true)
-                                   .ForContext("ResponseHeaders", responseHeaders, true);
+                            #region Thực hiện tạo Structured Logging chi tiết (Headers luôn xuất hiện ở đây)
+                            var logger = Log.ForContext("RequestMethod", context.Request.Method)
+                                           .ForContext("RequestPath", context.Request.Path.ToString())
+                                           .ForContext("QueryString", context.Request.QueryString.ToString())
+                                           .ForContext("StatusCode", context.Response.StatusCode)
+                                           .ForContext("RequestHeaders", requestHeaders, true)
+                                           .ForContext("ResponseHeaders", responseHeaders, true);
 
                             if (!string.IsNullOrWhiteSpace(requestBody))
-                            {
                                 logger = logger.ForContext("RequestBody", requestBody);
-                            }
 
                             if (!string.IsNullOrWhiteSpace(responseBody))
-                            {
                                 logger = logger.ForContext("ResponseBody", responseBody);
-                            }
 
                             if (isSuccess)
-                            {
                                 logger.Information("HTTP Request Completed");
-                            }
                             else
-                            {
                                 logger.Warning("HTTP Request Failed");
-                            }
-
                             #endregion
                         }
+
+                        // Sao chép toàn bộ dữ liệu từ Stream tạm thời về Stream gốc trả cho Client nhận dữ liệu
                         responseBodyStream.Seek(0, SeekOrigin.Begin);
                         await responseBodyStream.CopyToAsync(originalResponseBody);
                     }
                     catch (Exception ex)
                     {
+                        // Trình bẫy lỗi tối cao phòng trường hợp hệ thống sập hoàn toàn
                         Log.ForContext("RequestMethod", context.Request.Method)
-                            .ForContext( "RequestPath", context.Request.Path.ToString())
-                            .Error(ex, "HTTP Request Error");
-
+                           .ForContext("RequestPath", context.Request.Path.ToString())
+                           .ForContext("RequestHeaders", requestHeaders, true)
+                           .Error(ex, "HTTP Request Fatal Error");
                         throw;
                     }
                     finally
                     {
+                        // Hoàn trả lại Stream gốc cho Context để tránh rò rỉ bộ nhớ hệ thống
                         context.Response.Body = originalResponseBody;
                     }
                 }
             });
 
-            app.UseSerilogRequestLogging(options =>
+            // 2. Kích hoạt tính năng ghi nhận tóm tắt dòng đơn của Serilog, nạp thêm CorrelationId vào Context chuẩn của Serilog
+            app.UseSerilogRequestLogging(serilogOptions =>
             {
-                options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+                serilogOptions.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
+
+                // Kỹ thuật đồng bộ hóa ngữ cảnh (Enrichment)
+                serilogOptions.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+                {
+                    if (httpContext.Response.Headers.TryGetValue(CorrelationIdHeaderKey, out var correlationIdValue))
+                    {
+                        diagnosticContext.Set("CorrelationId", correlationIdValue.ToString());
+                    }
+                };
             });
+
+            // 3. Đăng ký giải phóng bộ nhớ đệm an toàn khi ứng dụng nhận tín hiệu Shutdown tắt máy
             var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
             lifetime.ApplicationStopped.Register(Log.CloseAndFlush);
         }

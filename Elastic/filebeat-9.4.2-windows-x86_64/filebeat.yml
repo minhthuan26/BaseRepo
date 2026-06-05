@@ -1,0 +1,71 @@
+# ============================== Filebeat Inputs ==============================
+filebeat.inputs:
+  - type: filestream
+    id: gateway
+    enabled: true
+    paths:
+      - D:\Mitalab_Testing\BaseRepo\Gateway\Logs\*.json
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      service: Gateway
+    fields_under_root: true
+    
+  - type: filestream
+    id: site
+    enabled: true
+    paths:
+      - D:\Mitalab_Testing\BaseRepo\Site\Logs\*.json
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      service: Site
+    fields_under_root: true
+
+# ============================== Filebeat Outputs =============================
+output.elasticsearch:
+  hosts: ["localhost:8010"]
+  index: "microservices-logs-%{+yyyy.MM.dd}"
+  setup.ilm.enabled: false
+  data_stream.enabled: false
+
+# ============================ Cấu hình Template ============================
+setup.template.name: "microservices-logs"
+setup.template.pattern: "microservices-logs-*"
+setup.template.enabled: true 
+
+# =================================== Kibana ===================================
+setup.kibana:
+  host: "localhost:8011"
+  
+# ================================= Processors =================================
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+
+  # 1. Đổi tên @t thành @timestamp để khớp Elastic
+  - copy_fields:
+      fields:
+        - from: "@t"
+          to: "@timestamp"
+      fail_on_error: false
+      ignore_missing: true
+
+  # 2. THÊM ĐOẠN NÀY: Xóa bỏ tận gốc các trường hệ thống không cần thiết
+  - drop_fields:
+      fields:
+        - "agent"
+        - "host"
+        - "ecs"
+        - "input"
+        - "log"
+      ignore_missing: true

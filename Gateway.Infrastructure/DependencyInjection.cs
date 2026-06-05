@@ -57,6 +57,9 @@ namespace Gateway.Infrastructure
             services.AddScoped<JwtSecurityTokenHandler>();
             services.AddScoped<IGatewayRepository, GatewayRepository>();
 
+            // 4. Đăng ký các dịch vụ đảm bảo khởi động (EnsureServiceRunning) nếu cần thiết
+            services.AddEnsureServiceRunning("GatewayServiceDependencies");
+
             return services;
         }
     }

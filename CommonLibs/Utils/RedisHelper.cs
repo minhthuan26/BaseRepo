@@ -12,12 +12,12 @@ namespace CommonLibs.Utils
     {
         private static ConnectionMultiplexer? _connection;
         private static IDatabase? _database;
-        private static string _instancePrefix = "Mitalab_";
+        private static string _instancePrefix = "BaseRepo_";
 
         /// <summary>
         /// Khởi tạo kết nối Redis cho Helper (Được gọi 1 lần duy nhất khi hệ thống Start)
         /// </summary>
-        public static void Initialize(string connectionString, string instancePrefix = "Mitalab_")
+        public static void Initialize(string connectionString, string instancePrefix = "BaseRepo_")
         {
             if (_connection == null || !_connection.IsConnected)
             {

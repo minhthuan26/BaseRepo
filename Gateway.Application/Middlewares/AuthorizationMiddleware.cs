@@ -129,12 +129,12 @@ namespace Gateway.Application.Middlewares
                 context.Response.ContentType = "application/json";
                 await context.Response.WriteAsJsonAsync(new { code = ex.Code, message = ex.Message });
             }
-            catch (Exception)
-            {
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(new { code = HttpStatusCode.InternalServerError, message = "Internal Server Error at Gateway." });
-            }
+            //catch (Exception)
+            //{
+            //    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            //    context.Response.ContentType = "application/json";
+            //    await context.Response.WriteAsJsonAsync(new { code = HttpStatusCode.InternalServerError, message = "Internal Server Error at Gateway." });
+            //}
         }
     }
 }

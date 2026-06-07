@@ -18,6 +18,8 @@ namespace CommonLibs.Options
         public string PrivateKey { get; set; } = null!;
         public string PublicKey { get; set; } = null!;
 
+        public byte[] ActualAccessTokenByte { get; set; } = null!;
+        public byte[] ActualRefreshTokenByte { get; set; } = null!;
         public string ActualAccessToken { get; set; } = null!;
         public string ActualRefreshToken { get; set; } = null!;
         public string ActualAudience { get; set; } = null!;

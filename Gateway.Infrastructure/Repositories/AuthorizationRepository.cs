@@ -76,7 +76,7 @@ namespace Gateway.Infrastructure.Repositories
                     ", new
                     {
                         UserId = input.UserId,
-                        Password = Cypher.AesCypher.Encrypt(input.Password, Encoding.UTF8.GetBytes(_options.ActualAccessToken)).CipherText
+                        Password = Cypher.AesCypher.Encrypt(input.Password, _options.ActualAccessTokenByte).CipherText
                     }, 
                     cancellationToken);
                 if (user == null)

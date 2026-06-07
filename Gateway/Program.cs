@@ -44,9 +44,6 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddGatewayInfrastructure(builder.Configuration);
 // Chạy ngầm để NHẬN TIN từ RabbitMQ
 // builder.Services.AddHostedService<LogQueueConsumer>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<GrpcClientHelper>();
-builder.Services.AddHttpClient<HttpServiceHttpClient>();
 // Cấu hình Kestrel lắng nghe port 80 và 443
 builder.WebHost.ConfigureKestrel(options =>
 {

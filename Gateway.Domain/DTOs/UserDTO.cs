@@ -17,7 +17,7 @@ namespace Gateway.Domain.DTOs
 
         public string? RefreshToken { get; private set; }
 
-        public byte[]? Signature { get; private set; }
+        public string? Signature { get; private set; }
 
         public string? Email { get; private set; }
 
@@ -31,7 +31,7 @@ namespace Gateway.Domain.DTOs
         public string UserName { get; set; }
         public int Priority { get; set; } = 1;
         public string? RefreshToken { get; set; }
-        public byte[]? Signature { get; set; }
+        public string? Signature { get; set; }
         public string? Email { get; set; }
         public string? QuickCode { get; set; }
     }

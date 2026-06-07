@@ -56,7 +56,7 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}CreateUser-04] Password is required.", HttpStatusCode.BadRequest);
                 }
-                if (CheckUserExists(input.UserId, cancellationToken).Result)
+                if (await CheckUserExists(input.UserId, cancellationToken))
                 {
                     throw new AppException($"[{_errorPrefix}CreateUser-05] User with UserId '{input.UserId}' already exists.", HttpStatusCode.Conflict);
                 }
@@ -64,7 +64,7 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}Login-03] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
-                string encryptedPassword = Cypher.AesCypher.Encrypt(input.Password, Encoding.UTF8.GetBytes(_options.ActualAccessToken)).CipherText;
+                string encryptedPassword = Cypher.AesCypher.Encrypt(input.Password, _options.ActualAccessTokenByte).CipherText;
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Insert Into tbl_Users (UserId, UserName, Password, Priority, Signature, Email, QuickCode, CreatedDate, CreatedBy, DeviceName, DeviceId)
@@ -75,7 +75,7 @@ namespace Gateway.Infrastructure.Repositories
                     UserName = input.UserName,
                     Password = encryptedPassword,
                     Priority = input.Priority,
-                    Signature = input.Signature,
+                    Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
                     Email = input.Email,
                     QuickCode = input.QuickCode,
                     CreatedDate = DateTime.UtcNow,

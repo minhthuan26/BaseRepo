@@ -34,14 +34,15 @@ public class GlobalExceptionMiddleware
         // Trích xuất các thông tin ngữ cảnh quan trọng của Request gây lỗi
         var requestPath = context.Request.Path;
         var requestMethod = context.Request.Method;
+        var traceId = context.TraceIdentifier;
 
         // Log lỗi một cách rõ ràng, mạch lạc
-        _logger.LogError(exception, "CRITICAL ERROR: [Method: {Method}] [Path: {Path}] -> Message: {Message}",
-            requestMethod, requestPath, exception.Message);
+        _logger.LogError(exception, "CRITICAL ERROR: [TraceId: {TraceId}] [Method: {Method}] [Path: {Path}] -> Message: {Message}", traceId, requestMethod, requestPath, exception.Message);
 
         // Trả về phản hồi sạch sẽ, bảo mật cho Client (không lộ Stack Trace ra ngoài API)
         var response = new
         {
+            TraceId = traceId,
             StatusCode = context.Response.StatusCode,
             Message = "Hệ thống có sự cố. Vui lòng liên hệ Admin kèm mã Trace ID phía trên.",
             Detailed = exception.Message // Có thể ẩn đi ở môi trường Production

@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using CommonLibs.Options;
 using CommonLibs.Repositories;
 using CommonLibs.Utils;
 using EncryptionLibrary;
@@ -11,6 +12,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -18,38 +20,41 @@ using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Gateway.Infrastructure.Repositories
 {
-    public class GatewayRepository : BaseRepository<GatewayRepository>, IGatewayRepository
+    public class AuthorizationRepository : BaseRepository<AuthorizationRepository>, IAuthorizationRepository
     {
         private readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler;
         private readonly GatewayDbContext _dbContext;
-        private readonly string _errorPrefix = "Gateway_Repo_";
+        private readonly string _errorPrefix = "Authorization_Repo_";
 
-        public GatewayRepository(IMapper mapper,
-            ILogger<GatewayRepository> logger,
+        public AuthorizationRepository(IMapper mapper,
+            ILogger<AuthorizationRepository> logger,
             IConfiguration configuration,
             IHttpContextAccessor httpContext,
             JwtSecurityTokenHandler jwtSecurityTokenHandler,
-            GatewayDbContext dbContext) : base(mapper, logger, configuration, httpContext)
+            GatewayDbContext dbContext, IOptions<ApplicationOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
         {
             _jwtSecurityTokenHandler = jwtSecurityTokenHandler;
             _dbContext = dbContext;
         }
 
         #region Stored Procedure
-        private async Task<DataTable> GetUserByRefreshTokenAsync(string refreshToken)
-        {
-            return await ExecuteProcAsync(_dbContext, "dbo.Proc_User_GetByRefreshToken",
-            new[] { new SqlParameter("@RefreshToken", refreshToken) });
-        }
+        
         #endregion
 
         #region Repository Methods
+        /// <summary>
+        /// Thực hiện đăng nhập bằng cách xác thực UserId và Password, sau đó tạo access token và refresh token cho tài khoản. Access token có thời hạn ngắn (10 giờ) để sử dụng cho các yêu cầu API, trong khi refresh token có thời hạn dài hơn (7 ngày) để làm mới access token khi hết hạn. Refresh token được lưu trữ trong database để quản lý và xác thực khi làm mới token.
+        /// </summary>
+        /// <param name="input">Truyền UserId và Password</param>
+        /// <param name="cancellationToken">Cancellation Token</param>
+        /// <returns></returns>
         public async Task<AuthorizationOutputDTO> Login(AuthorizationInputDTO input, CancellationToken cancellationToken)
         {
             try
@@ -63,17 +68,7 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}Login-02] UserId or Password is null or empty.", HttpStatusCode.BadRequest);
                 }
-                // Lấy access key và refresh key từ cấu hình
-                var accessKey = _configuration["BaseRepo:JWT:AccessKey"];
-                if (string.IsNullOrEmpty(accessKey))
-                {
-                    throw new AppException($"[{_errorPrefix}Login-03] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
-                }
-                var refreshKey = _configuration["BaseRepo:JWT:RefreshKey"];
-                if (string.IsNullOrEmpty(refreshKey))
-                {
-                    throw new AppException($"[{_errorPrefix}Login-04] RefreshKey key is missing in configuration.", HttpStatusCode.InternalServerError);
-                }
+
                 // Xác thực tài khoản
                 var user = await _dbContext.QueryFirstOrDefaultAsync<User>(@"
                         Select * From tbl_Users
@@ -81,28 +76,28 @@ namespace Gateway.Infrastructure.Repositories
                     ", new
                     {
                         UserId = input.UserId,
-                        Password = Cypher.AesCypher.Encrypt(input.Password, Encoding.UTF8.GetBytes(accessKey)).CipherText
+                        Password = Cypher.AesCypher.Encrypt(input.Password, Encoding.UTF8.GetBytes(_options.ActualAccessToken)).CipherText
                     }, 
                     cancellationToken);
                 if (user == null)
                 {
-                    throw new AppException($"[{_errorPrefix}Login-05] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
+                    throw new AppException($"[{_errorPrefix}Login-03] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
                 }
                 // Tạo access token và refresh token
-                var accessToken = GenerateToken(accessKey, new List<Claim>
+                var accessToken = GenerateToken(_options.ActualAccessToken, new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.UserId),
                     new Claim(ClaimTypes.Name, user.UserName)
                 }, DateTime.UtcNow.AddHours(10)).Result;
 
-                var refreshToken = GenerateToken(refreshKey, new List<Claim>
+                var refreshToken = GenerateToken(_options.ActualRefreshToken, new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.UserId),
                     new Claim(ClaimTypes.Name, user.UserName)
                 }, DateTime.UtcNow.AddDays(7)).Result;
                 // Cập nhật refresh token cho tài khoản
                 user.SetRefreshToken(refreshToken);
-                await _dbContext.ExecuteAsync(@"
+                int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Update tbl_Users
                         Set RefreshToken = @RefreshToken
                         Where UserId = @UserId
@@ -111,6 +106,11 @@ namespace Gateway.Infrastructure.Repositories
                     RefreshToken = refreshToken,
                     UserId = user.UserId
                 }, cancellationToken);
+
+                if (rowsAffected <= 0)
+                {
+                    throw new AppException($"[{_errorPrefix}Login-04] Failed to update refresh token for user.", HttpStatusCode.InternalServerError);
+                }
 
                 return new AuthorizationOutputDTO
                 {
@@ -126,6 +126,11 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// Thực hiện đăng xuất bằng cách xóa refresh token của tài khoản trong database. Khi người dùng đăng xuất, refresh token sẽ bị vô hiệu hóa, ngăn chặn việc làm mới access token và đảm bảo rằng tài khoản không thể tiếp tục sử dụng các token cũ để truy cập vào hệ thống.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation Token</param>
+        /// <returns></returns>
         public async Task<string> Logout(CancellationToken cancellationToken)
         {
             try
@@ -174,6 +179,11 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// Làm mới access token bằng cách sử dụng refresh token. Khi access token hết hạn, người dùng có thể gửi yêu cầu làm mới token kèm theo refresh token để nhận được access token mới mà không cần phải đăng nhập lại. Hệ thống sẽ kiểm tra tính hợp lệ của refresh token, nếu hợp lệ sẽ tạo mới access token và refresh token, đồng thời cập nhật refresh token mới vào database và trả về cho người dùng. Nếu refresh token không hợp lệ hoặc đã hết hạn, người dùng sẽ được yêu cầu đăng nhập lại để lấy token mới.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation Token</param>
+        /// <returns></returns>
         public async Task<AuthorizationOutputDTO> RenewToken(CancellationToken cancellationToken)
         {
             try
@@ -264,36 +274,13 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        private string GetAuthorizattionHeader()
-        {
-            try
-            {
-                // Kiểm tra header và lấy Authorization
-                var httpContext = _httpContext.HttpContext ?? throw new AppException($"[{_errorPrefix}RenewToken-01] Http context is unavailable.", HttpStatusCode.Unauthorized);
-                if (!httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-02] Authorization header is missing.", HttpStatusCode.Unauthorized);
-                }
-                // Kiểm tra Bearer token hợp lệ
-                var authorization = authHeader.ToString();
-                if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-03] Invalid authorization scheme.", HttpStatusCode.Unauthorized);
-                }
-                // Tách Bearer và kiểm tra hợp lệ
-                var accessToken = authorization["Bearer ".Length..].Trim();
-                if (string.IsNullOrWhiteSpace(accessToken))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-04] Access token is missing.", HttpStatusCode.Unauthorized);
-                }
-                return accessToken;
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
+        /// <summary>
+        /// Xác thực token bằng cách kiểm tra tính hợp lệ của token, bao gồm việc xác minh chữ ký, kiểm tra thời gian hết hạn và các thông tin liên quan khác. Nếu token hợp lệ, phương thức sẽ trả về danh sách các claim có trong token, cho phép hệ thống sử dụng các thông tin này để xác định quyền truy cập và thực hiện các hành động phù hợp. Nếu token không hợp lệ hoặc đã hết hạn, phương thức sẽ ném ra các ngoại lệ tương ứng để xử lý lỗi và yêu cầu người dùng đăng nhập lại nếu cần thiết.
+        /// </summary>
+        /// <param name="token">Token</param>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        /// <exception cref="AppException"></exception>
         public async Task<List<Claim>> VerifyToken(string token, string key)
         {
             try
@@ -343,6 +330,36 @@ namespace Gateway.Infrastructure.Repositories
         #endregion
 
         #region Helpers
+        private string GetAuthorizattionHeader()
+        {
+            try
+            {
+                // Kiểm tra header và lấy Authorization
+                var httpContext = _httpContext.HttpContext ?? throw new AppException($"[{_errorPrefix}RenewToken-01] Http context is unavailable.", HttpStatusCode.Unauthorized);
+                if (!httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+                {
+                    throw new AppException($"[{_errorPrefix}RenewToken-02] Authorization header is missing.", HttpStatusCode.Unauthorized);
+                }
+                // Kiểm tra Bearer token hợp lệ
+                var authorization = authHeader.ToString();
+                if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new AppException($"[{_errorPrefix}RenewToken-03] Invalid authorization scheme.", HttpStatusCode.Unauthorized);
+                }
+                // Tách Bearer và kiểm tra hợp lệ
+                var accessToken = authorization["Bearer ".Length..].Trim();
+                if (string.IsNullOrWhiteSpace(accessToken))
+                {
+                    throw new AppException($"[{_errorPrefix}RenewToken-04] Access token is missing.", HttpStatusCode.Unauthorized);
+                }
+                return accessToken;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
         private async Task<string> GenerateToken(string key, List<Claim> claims, DateTime expires)
         {
             try

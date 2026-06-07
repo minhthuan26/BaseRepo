@@ -29,13 +29,21 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            return await Connection.QueryAsync<T>(
-                new CommandDefinition(
-                    sql,
-                    param,
-                    transaction: CurrentTransaction,
-                    cancellationToken: cancellationToken
-                ));
+            try
+            {
+                return await Connection.QueryAsync<T>(
+                                new CommandDefinition(
+                                    sql,
+                                    param,
+                                    transaction: CurrentTransaction,
+                                    cancellationToken: cancellationToken
+                                ));
+            }
+            catch
+            {
+                throw;
+            }
+
         }
 
         public async Task<T?> QueryFirstOrDefaultAsync<T>(
@@ -43,13 +51,21 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            return await Connection.QueryFirstOrDefaultAsync<T>(
-                new CommandDefinition(
-                    sql,
-                    param,
-                    transaction: CurrentTransaction,
-                    cancellationToken: cancellationToken
-                ));
+            try
+            {
+                return await Connection.QueryFirstOrDefaultAsync<T>(
+                                new CommandDefinition(
+                                    sql,
+                                    param,
+                                    transaction: CurrentTransaction,
+                                    cancellationToken: cancellationToken
+                                ));
+            }
+            catch
+            {
+                throw;
+            }
+
         }
 
         public async Task<int> ExecuteAsync(
@@ -57,13 +73,20 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            return await Connection.ExecuteAsync(
-                new CommandDefinition(
-                    sql,
-                    param,
-                    transaction: CurrentTransaction,
-                    cancellationToken: cancellationToken
-                ));
+            try
+            {
+                return await Connection.ExecuteAsync(
+                                new CommandDefinition(
+                                    sql,
+                                    param,
+                                    transaction: CurrentTransaction,
+                                    cancellationToken: cancellationToken
+                                ));
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         #endregion

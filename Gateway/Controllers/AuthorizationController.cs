@@ -1,13 +1,14 @@
-﻿using Gateway.Application.Commands;
-using Gateway.Domain.DTOs;
+﻿using Gateway.Domain.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using CommonLibs.Utils;
 using CommonLibs.Comtrollers;
+using Gateway.Application.Features.Authorization.Login;
+using Gateway.Application.Features.Authorization.Logout;
 
-namespace Gateway.Controllers.Authorization
+namespace Gateway.Controllers
 {
-    [Route("api/v1/authorization")]
+    [Route("api/authorization")]
     [ApiController]
     public class AuthorizationController : BaseController<AuthorizationController>
     {
@@ -16,6 +17,11 @@ namespace Gateway.Controllers.Authorization
 
         }
 
+        /// <summary>
+        /// Thực hiện đăng nhập, trả về access token và refresh token. Refresh token sẽ được lưu trong cookie HttpOnly để bảo mật hơn. Access token sẽ được trả về trong response body để client có thể sử dụng cho các yêu cầu tiếp theo.
+        /// </summary>
+        /// <param name="data">Truyền UserId và Password</param>
+        /// <returns></returns>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] AuthorizationInputDTO data)
         {
@@ -42,6 +48,10 @@ namespace Gateway.Controllers.Authorization
             });
         }
 
+        /// <summary>
+        /// Thực hiện đăng xuất, xóa refresh token khỏi cookie để đảm bảo rằng người dùng không thể sử dụng refresh token cũ để lấy access token mới sau khi đã đăng xuất. Điều này giúp tăng cường bảo mật cho hệ thống của bạn bằng cách ngăn chặn việc sử dụng lại refresh token sau khi người dùng đã đăng xuất.
+        /// </summary>
+        /// <returns></returns>
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {

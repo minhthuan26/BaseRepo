@@ -55,11 +55,13 @@ namespace CommonLibs.Logging
 
         public static void AddSharedSerilog(this WebApplicationBuilder builder)
         {
+            builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection("Logging"));
+
             Log.Logger = new LoggerConfiguration()
-               .ReadFrom.Configuration(builder.Configuration)
-               .Enrich.FromLogContext()
-               .Enrich.WithDemystifiedStackTraces()
-               .CreateLogger();
+                .ReadFrom.Configuration(builder.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithDemystifiedStackTraces()
+                .CreateLogger();
 
             builder.Host.UseSerilog();
         }

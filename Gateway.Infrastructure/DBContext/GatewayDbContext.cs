@@ -13,7 +13,5 @@ namespace Gateway.Infrastructure.DBContext
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
         }
-
-        public DbSet<User> Users { get; set; }
     }
 }

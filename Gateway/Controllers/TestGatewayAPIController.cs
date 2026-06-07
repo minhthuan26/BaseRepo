@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Gateway.Controllers
 {
-    [Route("api/v1/gateway")]
+    [Route("api/gateway")]
     [ApiController]
     public class TestGatewayAPIController : BaseController<TestGatewayAPIController>
     {

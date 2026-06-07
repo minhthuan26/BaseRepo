@@ -1,6 +1,4 @@
-﻿using Gateway.Application.Commands;
-using Gateway.Application.Interfaces;
-using Gateway.Domain.DTOs;
+﻿using Gateway.Application.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -8,13 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Gateway.Application.Handlers.Commands
+namespace Gateway.Application.Features.Authorization.Logout
 {
     public class LogoutCommandHandler : IRequestHandler<LogoutCommand, string>
     {
-        private readonly IGatewayRepository _repository;
+        private readonly IAuthorizationRepository _repository;
 
-        public LogoutCommandHandler(IGatewayRepository repository)
+        public LogoutCommandHandler(IAuthorizationRepository repository)
         {
             _repository = repository;
         }

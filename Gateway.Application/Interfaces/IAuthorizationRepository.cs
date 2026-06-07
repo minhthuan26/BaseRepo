@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Gateway.Application.Interfaces
 {
-    public interface IGatewayRepository
+    public interface IAuthorizationRepository
     {
         Task<AuthorizationOutputDTO> Login(AuthorizationInputDTO input, CancellationToken cancellationToken);
         Task<string> Logout(CancellationToken cancellationToken);

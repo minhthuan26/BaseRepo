@@ -80,13 +80,13 @@ namespace CommonLibs.Utils
             string connectionString = "server=" + host + ";database=" + database +
                     ";uid=" + userName +
                     ";pwd=" + password +
-                    ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";";
+                    ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";encrypt=true;TrustServerCertificate=true";
             if (isEncrypt)
             {
                 connectionString = "server=" + host + ";database=" + database +
                     ";uid=" + EncryptionUtils.Decrypt(userName, applicationName, applicationId) +
                     ";pwd=" + EncryptionUtils.Decrypt(password, applicationName, applicationId) +
-                    ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";";
+                    ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";encrypt=true;TrustServerCertificate=true";
             }
 
             return connectionString;

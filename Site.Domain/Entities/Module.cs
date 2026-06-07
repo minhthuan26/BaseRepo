@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Gateway.Domain.Entities
+namespace Site.Domain.Entities
 {
     public class Module : BaseEntity
     {

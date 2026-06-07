@@ -311,5 +311,10 @@ namespace SystemManagement.Views.ConfigEnv
             btn_RandomPrivateKeyPath_Click(sender, e);
             btn_RandomPublicKeyPath_Click(sender, e);
         }
+
+        public void Responsive()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

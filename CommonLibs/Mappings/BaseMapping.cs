@@ -8,7 +8,9 @@ namespace CommonLibs.Mappings
     {
         public BaseMapping()
         {
-            CreateMap<BaseEntity, BaseDTO>()
+            CreateMap<BaseEntity, BaseOutputDTO>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            CreateMap<BaseEntity, BaseInputDTO>()
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
         }
     }

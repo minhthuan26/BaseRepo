@@ -1,10 +1,13 @@
 ﻿using AutoMapper;
+using CommonLibs.Options;
+using CommonLibs.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Data;
 using System.Net;
 
@@ -16,12 +19,16 @@ namespace CommonLibs.Repositories
         protected ILogger<T> _logger;
         protected IConfiguration _configuration;
         protected IHttpContextAccessor _httpContext;
-        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext)
+        protected ApplicationOptions _options;
+        protected IAuditContext _auditContext;
+        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext, IOptions<ApplicationOptions> options, IAuditContext auditContext)
         {
             _mapper = mapper;
             _logger = logger;
             _configuration = configuration;
             _httpContext = httpContext;
+            _options = options.Value;
+            _auditContext = auditContext;
         }
 
         protected async Task<DataTable> ExecuteProcAsync(

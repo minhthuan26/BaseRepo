@@ -2,6 +2,7 @@
 using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
+using Gateway.Application.Middlewares;
 using Gateway.Infrastructure;
 using Microsoft.OpenApi.Models;
 
@@ -11,7 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 // ĐĂNG KÝ SERVICES (DI CONTAINER)
 // ==========================================================================
 builder.AddSharedSerilog();
-builder.Services.Configure<ApplicationOptions>(builder.Configuration.GetSection("Application"));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -54,25 +54,29 @@ builder.WebHost.ConfigureKestrel(options =>
     options.ListenAnyIP(80);
 
     // Lắng nghe HTTPS bảo mật (Yêu cầu Server cần cài sẵn chứng chỉ SSL hợp lệ)
-    options.ListenAnyIP(443, listenOptions =>
-    {
-        listenOptions.UseHttps();
-    });
+    //options.ListenAnyIP(443, listenOptions =>
+    //{
+    //    listenOptions.UseHttps();
+    //});
+});
+// Cấu hình Bảo mật
+builder.Services.AddAuthentication("Bearer").AddJwtBearer();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("UserOrAdminPolicy", policy => policy.RequireRole("User", "Admin"));
 });
 // Cấu hình YARP
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-// Cấu hình Bảo mật
-builder.Services.AddAuthentication("Bearer").AddJwtBearer();
-builder.Services.AddAuthorization();
 
 // Cấu hình CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost")
+        policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -104,6 +108,7 @@ app.UseCors("AllowSpecificOrigins");
 
 // 3. BẮT BUỘC: Phải xác thực danh tính (Authentication) TRƯỚC KHI phân quyền (Authorization)
 app.UseAuthentication();
+app.UseMiddleware<AuthorizationMiddleware>();
 app.UseAuthorization();
 
 // 4. BẮT BUỘC: Đóng gói các Endpoint xử lý cuối cùng

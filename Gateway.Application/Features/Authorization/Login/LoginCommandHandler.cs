@@ -1,5 +1,4 @@
 ﻿using Gateway.Application.Interfaces;
-using Gateway.Application.Commands;
 using Gateway.Domain.DTOs;
 using MediatR;
 using System;
@@ -8,13 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Gateway.Application.Handlers.Commands
+namespace Gateway.Application.Features.Authorization.Login
 {
     public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthorizationOutputDTO>
     {
-        private readonly IGatewayRepository _repository;
+        private readonly IAuthorizationRepository _repository;
 
-        public LoginCommandHandler(IGatewayRepository repository) 
+        public LoginCommandHandler(IAuthorizationRepository repository)
         {
             _repository = repository;
         }

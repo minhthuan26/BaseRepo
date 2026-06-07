@@ -59,13 +59,13 @@ CREATE TABLE tbl_Site (
 	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
 	,SiteId varchar(20) UNIQUE NOT NULL
 	,SiteName nvarchar(255) NOT NULL
-	,SiteLogo varbinary(max) null
-	,[Address] nvarchar(MAX) null
-	,Email varchar(255) null
-	,Hotline varchar(20) null
-	,TaxCode varchar(50) null
-	,Representative nvarchar(max) null
-	,RepresentativeIdNumber varchar(12) null
+	,SiteLogo varbinary(MAX) NULL
+	,[Address] nvarchar(MAX) NULL
+	,Email varchar(255) NULL
+	,Hotline varchar(20) NULL
+	,TaxCode varchar(50) NULL
+	,Representative nvarchar(MAX) NULL
+	,RepresentativeIdNumber varchar(12) NULL
 	,CreatedDate DATETIME2 NULL
 	,UpdatedDate DATETIME2 NULL
 	,CreatedBy NVARCHAR(20) NULL
@@ -76,3 +76,20 @@ CREATE TABLE tbl_Site (
 )
 CREATE UNIQUE INDEX IX_tbl_Site_SiteId ON tbl_Site(SiteId);
 CREATE INDEX IX_tbl_Site_Status_CreatedDate_UpdatedDate ON tbl_Site(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_User_Site (
+	AutoId bigint IDENTITY(1,1) PRIMARY KEY
+	,UserId varchar(20) NOT NULL
+	,SiteId varchar(20) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_tbl_User_Site_UserId_SiteId ON tbl_User_Site(UserId, SiteId);
+CREATE INDEX IX_tbl_User_Site_SiteId ON tbl_User_Site(SiteId);
+CREATE INDEX IX_tbl_User_Site_UserId ON tbl_User_Site(UserId);
+CREATE INDEX IX_tbl_User_Site_Status_CreatedDate_UpdatedDate ON tbl_User_Site(Status, CreatedDate DESC, UpdatedDate DESC);

@@ -1,9 +1,11 @@
 ﻿using CommonLibs.Logging;
+using CommonLibs.Middlewares;
 using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
 using Gateway.Application.Middlewares;
 using Gateway.Infrastructure;
+using Gateway.Utils;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +41,7 @@ builder.Services.AddSwaggerGen(options =>
             new string[]{}
         }
     });
+    options.OperationFilter<AddRequiredHeaderParameter>();
 });
 
 builder.Services.AddGatewayInfrastructure(builder.Configuration);

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,7 +96,7 @@ namespace CommonLibs.Logging
 
                 // Đẩy các thuộc tính ngữ cảnh vào Scope Log để các hàm Log.Information/Warning thông thường trong Controller cũng bắt được
                 using (LogContext.PushProperty("CorrelationId", correlationId.ToString()))
-                using (LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString()))
+                using (LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier))
                 using (LogContext.PushProperty("SpanId", Activity.Current?.SpanId.ToString()))
                 {
                     string requestBody = string.Empty;
@@ -179,10 +180,10 @@ namespace CommonLibs.Logging
                                            .ForContext("ResponseHeaders", responseHeaders, true);
 
                             if (!string.IsNullOrWhiteSpace(requestBody))
-                                logger = logger.ForContext("RequestBody", requestBody);
+                                logger = logger.ForContext("RequestBody", requestBody, destructureObjects: true);
 
                             if (!string.IsNullOrWhiteSpace(responseBody))
-                                logger = logger.ForContext("ResponseBody", responseBody);
+                                logger = logger.ForContext("ResponseBody", responseBody, destructureObjects: true);
 
                             if (isSuccess)
                                 logger.Information("HTTP Request Completed");
@@ -201,6 +202,7 @@ namespace CommonLibs.Logging
                         Log.ForContext("RequestMethod", context.Request.Method)
                            .ForContext("RequestPath", context.Request.Path.ToString())
                            .ForContext("RequestHeaders", requestHeaders, true)
+                           //.ForContext("ErrorMessage", ex.Message)
                            .Error(ex, "HTTP Request Fatal Error");
                         throw;
                     }

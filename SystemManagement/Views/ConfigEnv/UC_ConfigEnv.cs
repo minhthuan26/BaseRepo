@@ -101,13 +101,13 @@ namespace SystemManagement.Views.ConfigEnv
 
         private void btn_RandomAccessKey_Click(object sender, EventArgs e)
         {
-            byte[] keyBytes = Cypher.AesCypher.GenerateAesKey(256);
+            byte[] keyBytes = Cypher.AesCypher.GenerateAesKey(512);
             txt_AccessKey.Text = Cypher.CypherHelper.ByteArrayToBase64(keyBytes);
         }
 
         private void btn_RandomRefreshKey_Click(object sender, EventArgs e)
         {
-            byte[] keyBytes = Cypher.AesCypher.GenerateAesKey(256);
+            byte[] keyBytes = Cypher.AesCypher.GenerateAesKey(512);
             txt_RefreshKey.Text = Cypher.CypherHelper.ByteArrayToBase64(keyBytes);
         }
 

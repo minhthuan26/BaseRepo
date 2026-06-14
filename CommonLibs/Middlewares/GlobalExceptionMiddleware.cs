@@ -1,53 +1,105 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+﻿using CommonLibs.Utils;
+using Microsoft.AspNetCore.Http;
+using Serilog;
+using System.Diagnostics;
 using System.Net;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
-public class GlobalExceptionMiddleware
+namespace CommonLibs.Middlewares;
+
+public sealed class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    public GlobalExceptionMiddleware(RequestDelegate next)
     {
         _next = next;
-        _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext httpContext)
+    public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(httpContext);
+            await _next(context);
         }
         catch (Exception ex)
         {
-            await HandleExceptionAsync(httpContext, ex);
+            await HandleExceptionAsync(context, ex);
         }
     }
 
-    private Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static async Task HandleExceptionAsync(
+        HttpContext context,
+        Exception exception)
     {
-        context.Response.ContentType = "application/json";
+        var traceId = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+
+        var correlationId =
+            context.Response.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? context.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+            ?? string.Empty;
+
+        string requestBody = string.Empty;
+
+        try
+        {
+            if (context.Items.TryGetValue("RequestBody", out var body))
+            {
+                requestBody = body?.ToString() ?? string.Empty;
+            }
+            else if (context.Request.Body.CanSeek)
+            {
+                context.Request.Body.Position = 0;
+
+                using var reader = new StreamReader(
+                    context.Request.Body,
+                    Encoding.UTF8,
+                    leaveOpen: true);
+
+                requestBody = await reader.ReadToEndAsync();
+
+                context.Request.Body.Position = 0;
+            }
+        }
+        catch
+        {
+            requestBody = "[Unable to read request body]";
+        }
+
+        var requestHeaders = context.Request.Headers.ToDictionary(
+            h => h.Key,
+            h => h.Value.ToString());
+
+        context.Response.Clear();
+        context.Response.ContentType = "application/json; charset=utf-8";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        // Trích xuất các thông tin ngữ cảnh quan trọng của Request gây lỗi
-        var requestPath = context.Request.Path;
-        var requestMethod = context.Request.Method;
-        var traceId = context.TraceIdentifier;
+        Log.ForContext("CorrelationId", correlationId)
+           .ForContext("TraceId", traceId)
+           .ForContext("RequestMethod", context.Request.Method)
+           .ForContext("RequestPath", context.Request.Path.ToString())
+           .ForContext("QueryString", context.Request.QueryString.ToString())
+           .ForContext("RequestHeaders", requestHeaders, true)
+           .ForContext("RequestBody", requestBody, destructureObjects: true)
+           .ForContext("StatusCode", context.Response.StatusCode)
+           .Error(exception, "HTTP Request Fatal Error");
 
-        // Log lỗi một cách rõ ràng, mạch lạc
-        _logger.LogError(exception, "CRITICAL ERROR: [TraceId: {TraceId}] [Method: {Method}] [Path: {Path}] -> Message: {Message}", traceId, requestMethod, requestPath, exception.Message);
-
-        // Trả về phản hồi sạch sẽ, bảo mật cho Client (không lộ Stack Trace ra ngoài API)
-        var response = new
+        var response = new Response<object>
         {
-            TraceId = traceId,
-            StatusCode = context.Response.StatusCode,
-            Message = "Hệ thống có sự cố. Vui lòng liên hệ Admin kèm mã Trace ID phía trên.",
-            Detailed = exception.Message // Có thể ẩn đi ở môi trường Production
+            Success = false,
+            Code = HttpStatusCode.InternalServerError,
+            Message = $"Hệ thống có sự cố. Vui lòng liên hệ Admin và cung cấp TraceId: {traceId}",
+            Data = null
         };
 
-        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(
+                response,
+                new JsonSerializerOptions
+                {
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                }));
     }
 }

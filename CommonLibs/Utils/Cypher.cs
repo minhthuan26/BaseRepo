@@ -41,10 +41,10 @@ namespace CommonLibs.Utils
             private const int TagSize = 16;     // 128 bits auth tag
 
             // ===== AES Key Generator =====
-            public static byte[] GenerateAesKey(int keySize = 256)
+            public static byte[] GenerateAesKey(int keySize = 512)
             {
-                if (keySize is not (128 or 192 or 256))
-                    throw new ArgumentException("Key size must be 128, 192, or 256 bits");
+                if (keySize is not (128 or 192 or 256 or 512))
+                    throw new ArgumentException("Key size must be 128, 192, 256, or 512 bits");
 
                 return RandomNumberGenerator.GetBytes(keySize / 8);
             }

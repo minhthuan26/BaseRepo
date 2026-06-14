@@ -68,6 +68,27 @@ namespace CommonLibs.BaseDbContext
 
         }
 
+        public async Task<T> ExecuteScalarAsync<T>(
+            string sql,
+            object? param = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await Connection.ExecuteScalarAsync<T>(
+                                new CommandDefinition(
+                                    sql,
+                                    param,
+                                    transaction: CurrentTransaction,
+                                    cancellationToken: cancellationToken
+                                ));
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
         public async Task<int> ExecuteAsync(
             string sql,
             object? param = null,

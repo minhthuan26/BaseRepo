@@ -1,4 +1,5 @@
 ﻿using CommonLibs.BaseDbContext;
+using CommonLibs.Consul;
 using CommonLibs.Options;
 using CommonLibs.Utils;
 using Microsoft.AspNetCore.Builder.Extensions;
@@ -34,7 +35,7 @@ namespace CommonLibs.Services
 
             // Đọc cấu hình ApplicationOptions từ appsettings.json và bind vào lớp ApplicationOptions
             var applicationSection = configuration.GetSection("Application");
-            var appOptions = new ApplicationOptions();
+            var appOptions = new AppOptions();
             applicationSection.Bind(appOptions);
             appOptions.ActualAccessToken = EnvironmentHelper.Get(appOptions.AccessToken ?? "")
             ?? throw new AppException($"Biến môi trường '{appOptions.AccessToken}' cho AccessToken bị thiếu.", HttpStatusCode.InternalServerError);

@@ -184,4 +184,3 @@ server.port: 8011
 server.host: "0.0.0.0"
 elasticsearch.hosts:
   - "http://localhost:8010"
-  

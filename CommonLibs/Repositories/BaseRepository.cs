@@ -19,9 +19,9 @@ namespace CommonLibs.Repositories
         protected ILogger<T> _logger;
         protected IConfiguration _configuration;
         protected IHttpContextAccessor _httpContext;
-        protected ApplicationOptions _options;
+        protected AppOptions _options;
         protected IAuditContext _auditContext;
-        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext, IOptions<ApplicationOptions> options, IAuditContext auditContext)
+        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext, IOptions<AppOptions> options, IAuditContext auditContext)
         {
             _mapper = mapper;
             _logger = logger;

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CommonLibs.Options
 {
-    public class ApplicationOptions
+    public class AppOptions
     {
         public string ApplicationId { get; set; } = null!; 
         public string ApplicationName { get; set; } = null!;

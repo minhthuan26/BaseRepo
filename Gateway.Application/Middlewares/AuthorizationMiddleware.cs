@@ -6,10 +6,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Gateway.Application.Middlewares
@@ -18,9 +21,9 @@ namespace Gateway.Application.Middlewares
     {
         private readonly RequestDelegate _next;
         private readonly IConfiguration _configuration;
-        private readonly ApplicationOptions _options;
+        private readonly AppOptions _options;
 
-        public AuthorizationMiddleware(RequestDelegate next, IConfiguration configuration, IOptions<ApplicationOptions> options)
+        public AuthorizationMiddleware(RequestDelegate next, IConfiguration configuration, IOptions<AppOptions> options)
         {
             _next = next;
             _configuration = configuration;
@@ -77,7 +80,7 @@ namespace Gateway.Application.Middlewares
                     throw new AppException("Missing X-Device-Name header.", HttpStatusCode.BadRequest);
                 }
 
-                // 4. Xác thực Token thông qua Auth Service cũ của bạn
+                // 4. Xác thực Token thông qua Auth Service
                 List<Claim> claims = await authService.VerifyToken(accessToken, _options.ActualAccessToken);
 
                 var roleClaim = claims.FirstOrDefault(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role);
@@ -91,8 +94,13 @@ namespace Gateway.Application.Middlewares
                 string roleName = roleClaim.Value;
                 string userId = userIdClaim.Value;
 
+                // ==================== THÊM ĐOẠN NÀY ĐỂ FIX LỖI 401 ====================
+                // Tạo danh tính chính thức để các Middleware hệ thống (.NET Core Authorization) công nhận
+                var identity = new ClaimsIdentity(claims, "Bearer");
+                context.User = new ClaimsPrincipal(identity);
+                // ======================================================================
+
                 // 5. PHÂN QUYỀN THEO ROUTE YARP
-                // YARP lưu thông tin các Role được phép truy cập route hiện tại qua metadata "AuthorizeAttribute" hoặc Custom Policy
                 var authData = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>();
                 if (authData != null && !string.IsNullOrEmpty(authData.Roles))
                 {
@@ -103,8 +111,7 @@ namespace Gateway.Application.Middlewares
                     }
                 }
 
-                // 6. (Tùy chọn) Giao thoa kiểm tra chéo Token và Device
-                // Ví dụ: Token này sinh ra cho DeviceID này, nếu đem sang DeviceID khác thì chặn
+                // 6. Kiểm tra chéo Token và Device
                 var tokenDeviceIdClaim = claims.FirstOrDefault(claim => claim.Type == "device_id")?.Value;
                 if (!string.IsNullOrEmpty(tokenDeviceIdClaim) && tokenDeviceIdClaim != deviceId)
                 {
@@ -112,29 +119,31 @@ namespace Gateway.Application.Middlewares
                 }
 
                 // 7. ENRICH DATA (Đóng gói thông tin sạch đẩy xuống Service con)
-                // Ép các thông tin định danh vào Header để các service backend con chỉ việc đọc trực tiếp không cần parse token nữa
                 context.Request.Headers["X-User-Id"] = userId;
                 context.Request.Headers["X-User-Role"] = roleName;
                 context.Request.Headers["X-Validated-Device-Id"] = deviceId;
                 context.Request.Headers["X-Validated-Device-Name"] = deviceName;
 
-                context.Items["claims"] = claims; // Giữ nguyên logic lưu trữ context cũ nếu cần dùng trong nội bộ gateway
+                context.Items["claims"] = claims;
 
                 await _next(context);
             }
             catch (AppException ex)
             {
-                // Đồng bộ cấu trúc trả về lỗi JSON chuẩn của hệ thống bạn
+                var response = new Response<object>
+                {
+                    Success = false,
+                    Code = (HttpStatusCode)(int)ex.Code,
+                    Message = ex.Message,
+                    Data = null
+                };
+
                 context.Response.StatusCode = (int)ex.Code;
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(new { code = ex.Code, message = ex.Message });
+                await context.Response.WriteAsync(
+                   JsonSerializer.Serialize(response, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })
+                );
             }
-            //catch (Exception)
-            //{
-            //    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            //    context.Response.ContentType = "application/json";
-            //    await context.Response.WriteAsJsonAsync(new { code = HttpStatusCode.InternalServerError, message = "Internal Server Error at Gateway." });
-            //}
         }
     }
 }

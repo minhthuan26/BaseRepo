@@ -38,7 +38,7 @@ namespace Gateway.Infrastructure.Repositories
             IConfiguration configuration,
             IHttpContextAccessor httpContext,
             JwtSecurityTokenHandler jwtSecurityTokenHandler,
-            GatewayDbContext dbContext, IOptions<ApplicationOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
+            GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
         {
             _jwtSecurityTokenHandler = jwtSecurityTokenHandler;
             _dbContext = dbContext;
@@ -70,14 +70,15 @@ namespace Gateway.Infrastructure.Repositories
                 }
 
                 // Xác thực tài khoản
+                var encryptedPassword = EncryptionUtils.EncryptData(input.Password, _options.ApplicationName, _options.ApplicationId);
                 var user = await _dbContext.QueryFirstOrDefaultAsync<User>(@"
                         Select * From tbl_Users
                         Where UserId = @UserId And Password = @Password
                     ", new
                     {
                         UserId = input.UserId,
-                        Password = Cypher.AesCypher.Encrypt(input.Password, _options.ActualAccessTokenByte).CipherText
-                    }, 
+                        Password = EncryptionUtils.EncryptData(input.Password, _options.ApplicationName, _options.ApplicationId)
+            }, 
                     cancellationToken);
                 if (user == null)
                 {
@@ -86,14 +87,16 @@ namespace Gateway.Infrastructure.Repositories
                 // Tạo access token và refresh token
                 var accessToken = GenerateToken(_options.ActualAccessToken, new List<Claim>
                 {
-                    new Claim(ClaimTypes.NameIdentifier, user.UserId),
-                    new Claim(ClaimTypes.Name, user.UserName)
-                }, DateTime.UtcNow.AddHours(10)).Result;
+                    new(ClaimTypes.NameIdentifier, user.UserId),
+                    new(ClaimTypes.Name, user.UserName),
+                    new(ClaimTypes.Role, "User")
+                }, DateTime.UtcNow.AddHours(1)).Result;
 
                 var refreshToken = GenerateToken(_options.ActualRefreshToken, new List<Claim>
                 {
-                    new Claim(ClaimTypes.NameIdentifier, user.UserId),
-                    new Claim(ClaimTypes.Name, user.UserName)
+                    new(ClaimTypes.NameIdentifier, user.UserId),
+                    new(ClaimTypes.Name, user.UserName),
+                    new(ClaimTypes.Role, "User")
                 }, DateTime.UtcNow.AddDays(7)).Result;
                 // Cập nhật refresh token cho tài khoản
                 user.SetRefreshToken(refreshToken);
@@ -370,8 +373,8 @@ namespace Gateway.Infrastructure.Repositories
                 );
 
                 var tokenDescription = new JwtSecurityToken(
-                    issuer: _configuration["BaseRepo:JWT:Issuer"],
-                    audience: _configuration["BaseRepo:JWT:Audience"],
+                    issuer: _options.ActualIssuer,
+                    audience:_options.ActualAudience,
                     claims: claims,
                     expires: expires,
                     signingCredentials: signingCredential
@@ -399,9 +402,9 @@ namespace Gateway.Infrastructure.Repositories
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _configuration["BaseRepo:JWT:Issuer"],
+                    ValidIssuer = _options.ActualIssuer,
                     ValidateAudience = true,
-                    ValidAudience = _configuration["BaseRepo:JWT:Audience"],
+                    ValidAudience = _options.ActualAudience,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKeys = new List<SecurityKey> { signingKey },
                     ValidateLifetime = true

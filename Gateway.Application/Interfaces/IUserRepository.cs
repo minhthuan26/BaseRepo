@@ -1,4 +1,5 @@
-﻿using Gateway.Domain.DTOs;
+﻿using CommonLibs.DTOs;
+using Gateway.Domain.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +13,9 @@ namespace Gateway.Application.Interfaces
         Task<UserOutputDTO> CreateUser(UserInputDTO input, CancellationToken cancellationToken);
         Task<UserOutputDTO> UpdateUser(UserInputDTO input, CancellationToken cancellationToken);
         Task<UserOutputDTO> GetUserById(string userId, CancellationToken cancellationToken);
-        Task<List<UserOutputDTO>> GetAllUsers(CancellationToken cancellationToken);
-        Task<int> DeleteUser(string userId, CancellationToken cancellationToken);
+        Task<BaseFilterOutput<UserOutputDTO>> GetAllUsers(UserFilterDTO filter, CancellationToken cancellationToken);
+        Task<string> DeleteUser(string userId, CancellationToken cancellationToken);
         Task<List<UserOutputDTO>> ImportUsers(Stream stream);
+        Task<string> ExportUsers(CancellationToken cancellationToken);
     }
 }

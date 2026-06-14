@@ -36,5 +36,10 @@ namespace SystemManagement.Views.Home
         {
 
         }
+
+        public void Responsive()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

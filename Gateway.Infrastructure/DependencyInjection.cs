@@ -1,6 +1,7 @@
 ﻿using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
+using EncryptionLibrary;
 using Gateway.Application.Interfaces;
 using Gateway.Infrastructure.DBContext;
 using Gateway.Infrastructure.Repositories;
@@ -43,6 +44,7 @@ namespace Gateway.Infrastructure
 
             //    return new RabbitMQService(host, user, pass, port);
             //});
+
 
             // 3. Đăng ký các Repository nội bộ
             services.AddScoped<JwtSecurityTokenHandler>();

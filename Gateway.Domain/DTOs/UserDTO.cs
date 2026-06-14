@@ -35,4 +35,12 @@ namespace Gateway.Domain.DTOs
         public string? Email { get; set; }
         public string? QuickCode { get; set; }
     }
+
+    public class UserFilterDTO : BaseFilterDTO
+    {
+        public int? Priority { get; set; }
+        public string? UserName { get; set; }
+        public string? Email { get; set; }
+        public string? QuickCode { get; set; }
+    }
 }

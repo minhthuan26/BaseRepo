@@ -2,11 +2,20 @@
 
 namespace CommonLibs.DTOs
 {
+    public class BaseFilterOutput<T>
+    {
+        public long? TotalRecords { get; set; }
+        public long? TotalPages { get; set; }
+        public long? PageNumber { get; set; }
+        public long? PageSize { get; set; }
+        public List<T> Records { get; set; } = new List<T>();
+    }
+
     public class BaseOutputDTO
     {
         public long AutoId { get; set; }
-        public DateTime UpdatedDate { get; set; }
-        public DateTime CreatedDate { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public DateTime? CreatedDate { get; set; }
         public string? CreatedBy { get; set; }
         public string? UpdatedBy { get; set; }
         public string? Status { get; set; }

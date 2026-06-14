@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Ghi log tập trung hệ thống
 builder.AddSharedSerilog();
 
-builder.Services.Configure<ApplicationOptions>(builder.Configuration.GetSection("Application"));
+builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("Application"));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 

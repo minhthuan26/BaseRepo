@@ -7,23 +7,24 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Context;
+using Serilog.Core;
 using Serilog.Debugging;
+using Serilog.Events;
 using System.Diagnostics;
 using System.Text;
 
 namespace CommonLibs.Logging
 {
-    public sealed class LoggingOptions
+
+    public class LocalTimeEnricher : ILogEventEnricher
     {
-        public bool LogRequestBody { get; set; } = true;
+        public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+        {
+            var localTime = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
 
-        public bool LogResponseBody { get; set; } = true;
-
-        public bool LogSuccessResponse { get; set; } = false;
-
-        public bool LogFailedResponse { get; set; } = true;
-
-        public int MaxBodyLength { get; set; } = 5000;
+            logEvent.AddPropertyIfAbsent(
+                propertyFactory.CreateProperty("LocalTime", localTime));
+        }
     }
 
     public static class SerilogExtension
@@ -56,11 +57,12 @@ namespace CommonLibs.Logging
 
         public static void AddSharedSerilog(this WebApplicationBuilder builder)
         {
-            builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection("Logging"));
+            //builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection("Logging"));
 
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(builder.Configuration)
                 .Enrich.FromLogContext()
+                .Enrich.With<LocalTimeEnricher>()
                 .Enrich.WithDemystifiedStackTraces()
                 .CreateLogger();
 

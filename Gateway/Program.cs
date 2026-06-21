@@ -13,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ==========================================================================
 // ĐĂNG KÝ SERVICES (DI CONTAINER)
 // ==========================================================================
-builder.AddSharedSerilog();
+builder.AddDynamicLogging();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -89,7 +89,7 @@ var app = builder.Build();
 // CẤU HÌNH HTTP REQUEST PIPELINE
 // ==========================================================================
 
-app.UseSharedSerilogRequestLogging();
+app.UseDynamicLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())

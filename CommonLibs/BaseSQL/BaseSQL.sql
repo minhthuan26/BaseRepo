@@ -1,3 +1,6 @@
+USE BaseRepo
+GO
+
 CREATE TABLE tbl_Users (
 	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
 	,UserId VARCHAR(20) NOT NULL UNIQUE
@@ -93,3 +96,37 @@ CREATE UNIQUE INDEX IX_tbl_User_Site_UserId_SiteId ON tbl_User_Site(UserId, Site
 CREATE INDEX IX_tbl_User_Site_SiteId ON tbl_User_Site(SiteId);
 CREATE INDEX IX_tbl_User_Site_UserId ON tbl_User_Site(UserId);
 CREATE INDEX IX_tbl_User_Site_Status_CreatedDate_UpdatedDate ON tbl_User_Site(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_Screens (
+	AutoId bigint IDENTITY(1,1) PRIMARY KEY
+	,ScreenId varchar(20) UNIQUE NOT NULL
+	,ScreenName nvarchar(255) NOT NULL
+	,ModuleId varchar(50) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_Screens_ScreenId ON tbl_Screens(ScreenId)
+CREATE INDEX IX_Screens_ModuleId ON tbl_Screens(ModuleId);
+CREATE INDEX IX_Screens_Status_CreatedDate_UpdatedDate ON tbl_Screens(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_Functions (
+	AutoId bigint IDENTITY(1,1) PRIMARY KEY
+	,FunctionId varchar(20) UNIQUE NOT NULL
+	,FunctionName nvarchar(255) NOT NULL
+	,ScreenId varchar(50) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_Functions_FunctionId ON tbl_Functions(FunctionId)
+CREATE INDEX IX_Functions_ScreenId ON tbl_Functions(ScreenId);
+CREATE INDEX IX_Functions_Status_CreatedDate_UpdatedDate ON tbl_Functions(Status, CreatedDate DESC, UpdatedDate DESC);

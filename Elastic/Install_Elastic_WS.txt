@@ -1,0 +1,115 @@
+================================================================================
+HƯỚNG DẪN CÀI ĐẶT & QUẢN LÝ HỆ THỐNG LOGS (ELASTICSEARCH - FILEBEAT - KIBANA)
+MÔI TRƯỜNG: WINDOWS SERVICE
+================================================================================
+
+1. ĐỊA CHỈ THƯ MỤC CÀI ĐẶT (KHUYÊN DÙNG)
+--------------------------------------------------------------------------------
+- Elasticsearch: D:\Mitalab_Testing\BaseRepo\Elastic\elasticsearch-9.4.2
+- Filebeat     : D:\Mitalab_Testing\BaseRepo\Elastic\filebeat-9.4.2-windows-x86_64
+- Kibana       : D:\Mitalab_Testing\BaseRepo\Elastic\kibana-9.4.2
+
+
+2. LỆNH CÀI ĐẶT WINDOWS SERVICE (YÊU CẦU QUYỀN ADMINISTRATOR)
+--------------------------------------------------------------------------------
+
+A. ELASTICSEARCH (Chạy bằng CMD)
+   > cd /d D:\Mitalab_Testing\BaseRepo\Elastic\elasticsearch-9.4.2\bin
+   > elasticsearch-service.bat install Mitalab_Elasticsearch
+   > elasticsearch-service.bat manager (Đổi Startup sang Automatic & chỉnh RAM Heap)
+   > elasticsearch-service.bat start
+
+B. FILEBEAT (Chạy bằng PowerShell)
+   > cd D:\Mitalab_Testing\BaseRepo\Elastic\filebeat-9.4.2-windows-x86_64
+   > Unblock-File .\install-service-filebeat.ps1
+   > Set-ExecutionPolicy Unrestricted -Scope Process
+   > .\install-service-filebeat.ps1
+   > sc.exe config filebeat DisplayName= "_Filebeat"
+   > sc.exe description filebeat "Service tu dong ghi log vao ElasticSearch"
+   > Set-Service filebeat -StartupType Automatic
+   > Start-Service filebeat
+
+C. KIBANA (Chạy bằng PowerShell/CMD - Sử dụng công cụ NSSM)
+   - Tải nssm.exe cho vào thư mục kibana-9.4.2\bin
+   > cd /d D:\Mitalab_Testing\BaseRepo\Elastic\kibana-9.4.2\bin
+   > .\nssm.exe install _Kibana
+     (Trỏ Path đến file kibana.bat, đặt Display Name là "_Kibana Service")
+   > Set-Service _Kibana -StartupType Automatic
+   > Start-Service _Kibana
+
+
+3. FILE CẤU HÌNH THỰC TẾ FILEBEAT (filebeat.yml)
+--------------------------------------------------------------------------------
+filebeat.inputs:
+  - type: filestream
+    id: gateway
+    enabled: true
+    paths:
+      - "D:\\Mitalab_Testing\\BaseRepo\\Gateway\\Logs\\*.json"
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      service: gateway
+    fields_under_root: true
+    
+  - type: filestream
+    id: site
+    enabled: true
+    paths:
+      - "D:\\Mitalab_Testing\\BaseRepo\\Site\\Logs\\*.json"
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      service: site
+    fields_under_root: true
+
+setup.ilm.enabled: false
+setup.template.enabled: false
+
+output.elasticsearch:
+  hosts: ["localhost:8010"]
+  index: "log-%{[service]}-%{+yyyy.MM.dd}"
+
+setup.kibana:
+  host: "localhost:8011"
+  
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+
+  - copy_fields:
+      fields:
+        - from: "@t"
+          to: "@timestamp"
+      fail_on_error: false
+      ignore_missing: true
+
+  - drop_fields:
+      fields:
+        - "agent"
+        - "host"
+        - "ecs"
+        - "input"
+        - "log"
+      ignore_missing: true
+
+
+4. CÁC LỆNH BẢO TRÌ NHANH TRÊN POWERSHELL
+--------------------------------------------------------------------------------
+- Kiểm tra trạng thái:  Get-Service Mitalab_Elasticsearch, filebeat, _Kibana
+- Khởi động lại nhanh:  Restart-Service filebeat
+- Xóa service Filebeat: sc.exe delete filebeat
+- Xóa service Kibana:   D:\...\kibana-9.4.2\bin\nssm.exe remove _Kibana confirm
+- Xóa Elasticsearch:    D:\...\elasticsearch-9.4.2\bin\elasticsearch-service.bat remove
+================================================================================
+
+
+5. CÀI REDIS WINDOW SERVICE
+- RedisService.exe install -c ./redis_8012.conf --service-name _Redis_8012
+- sc config _Redis_8012 DisplayName= "_Red8012" description "Redis => 8012"

@@ -27,6 +27,22 @@ namespace CommonLibs.Utils
             }
         }
 
+        public static bool IsConnected
+        {
+            get
+            {
+                try
+                {
+                    return _database != null &&
+                           _database.Ping() >= TimeSpan.Zero;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
         private static string KeyWithPrefix(string key) => $"{_instancePrefix}{key}";
 
         #region Các hàm đồng bộ (Sync) - Chạy cực nhanh, không cần await

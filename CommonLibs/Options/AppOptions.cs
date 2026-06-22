@@ -26,5 +26,9 @@ namespace CommonLibs.Options
         public string ActualIssuer { get; set; } = null!;
         public string ActualPrivateKey { get; set; } = null!;
         public string ActualPublicKey { get; set; } = null!;
+
+        public string RedisConnectionString { get; set; } = null!;
+        public string RabbitMqConnectionString{ get; set; } = null!;
+
     }
 }

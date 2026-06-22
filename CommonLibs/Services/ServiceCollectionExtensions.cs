@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,58 @@ namespace CommonLibs.Services
 {
     public static class ServiceCollectionExtensions
     {
+        private static AppOptions LoadOptions(IConfiguration configuration)
+        {
+            var applicationSection = configuration.GetSection("Application");
+
+            var appOptions = new AppOptions();
+            applicationSection.Bind(appOptions);
+
+            appOptions.ActualAccessToken =
+                EnvironmentHelper.Get(appOptions.AccessToken)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.AccessToken}' cho AccessToken bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            appOptions.ActualRefreshToken =
+                EnvironmentHelper.Get(appOptions.RefreshToken)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.RefreshToken}' cho RefreshToken bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            appOptions.ActualAccessTokenByte =
+                Convert.FromBase64String(appOptions.ActualAccessToken);
+
+            appOptions.ActualRefreshTokenByte =
+                Convert.FromBase64String(appOptions.ActualRefreshToken);
+
+            appOptions.ActualAudience =
+                EnvironmentHelper.Get(appOptions.Audience)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.Audience}' cho Audience bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            appOptions.ActualIssuer =
+                EnvironmentHelper.Get(appOptions.Issuer)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.Issuer}' cho Issuer bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            appOptions.ActualPrivateKey =
+                EnvironmentHelper.Get(appOptions.PrivateKey)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.PrivateKey}' cho PrivateKey bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            appOptions.ActualPublicKey =
+                EnvironmentHelper.Get(appOptions.PublicKey)
+                ?? throw new AppException(
+                    $"Biến môi trường '{appOptions.PublicKey}' cho PublicKey bị thiếu.",
+                    HttpStatusCode.InternalServerError);
+
+            return appOptions;
+        }
+
         public static IServiceCollection AddCommonServices<TDbContext>(this IServiceCollection services, IConfiguration configuration, string assembly) where TDbContext : DbContext
         {
             // Bắt buộc phải có để HttpContextAccessor hoạt động
@@ -34,26 +87,26 @@ namespace CommonLibs.Services
             services.AddScoped<IAuditContext, AuditContext>();
 
             // Đọc cấu hình ApplicationOptions từ appsettings.json và bind vào lớp ApplicationOptions
-            var applicationSection = configuration.GetSection("Application");
-            var appOptions = new AppOptions();
-            applicationSection.Bind(appOptions);
-            appOptions.ActualAccessToken = EnvironmentHelper.Get(appOptions.AccessToken ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.AccessToken}' cho AccessToken bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualRefreshToken = EnvironmentHelper.Get(appOptions.RefreshToken ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.RefreshToken}' cho RefreshToken bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualAccessTokenByte = Convert.FromBase64String(EnvironmentHelper.Get(appOptions.AccessToken ?? ""))
-            ?? throw new AppException($"Biến môi trường '{appOptions.AccessToken}' cho AccessToken bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualRefreshTokenByte = Convert.FromBase64String(EnvironmentHelper.Get(appOptions.RefreshToken ?? ""))
-            ?? throw new AppException($"Biến môi trường '{appOptions.RefreshToken}' cho RefreshToken bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualAudience = EnvironmentHelper.Get(appOptions.Audience ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.Audience}' cho Audience bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualIssuer = EnvironmentHelper.Get(appOptions.Issuer ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.Issuer}' cho Issuer bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualPrivateKey = EnvironmentHelper.Get(appOptions.PrivateKey ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.PrivateKey}' cho PrivateKey bị thiếu.", HttpStatusCode.InternalServerError);
-            appOptions.ActualPublicKey = EnvironmentHelper.Get(appOptions.PublicKey ?? "")
-            ?? throw new AppException($"Biến môi trường '{appOptions.PublicKey}' cho PublicKey bị thiếu.", HttpStatusCode.InternalServerError);
-            services.AddSingleton(Microsoft.Extensions.Options.Options.Create(appOptions));
+            var appOptions = LoadOptions(configuration);
+            services.AddSingleton<IOptions<AppOptions>>(Microsoft.Extensions.Options.Options.Create(appOptions));
+            if (!string.IsNullOrEmpty(appOptions.RedisConnectionString) && !string.IsNullOrEmpty(appOptions.RabbitMqConnectionString))
+            {
+                RedisHelper.Initialize(appOptions.RedisConnectionString, appOptions.ApplicationId);
+                // Đăng ký hạ tầng REDIS ASYNC(IDistributedCache) chính chủ Microsoft
+                services.AddStackExchangeRedisCache(options =>
+                {
+                    options.Configuration = appOptions.RedisConnectionString;
+                    options.InstanceName = appOptions.ApplicationId;
+                });
+                services.AddScoped<IRedisService, RedisService>();
+
+                // Đăng ký dịch vụ phát tin nhắn RABBITMQ dạng SINGLETON độc nhất
+                services.AddSingleton<IRabbitMQService>(sp =>
+                {
+                    return new RabbitMQService(appOptions.RabbitMqConnectionString);
+                });
+                AddServiceDiscovery(services);
+            }
 
             // Đăng ký MediatR và AutoMapper, tự động quét các lớp Handler và Profile trong assembly 
             var applicationAssembly = Assembly.Load(assembly);
@@ -67,6 +120,16 @@ namespace CommonLibs.Services
             // Gọi hàm rút gọn từ CommonLibs
             services.AddSharedDbContext<TDbContext>(resolvedConnectionString);
 
+            return services;
+        }
+
+        /// <summary>
+        /// Kích hoạt tính năng Service Discovery (Đăng ký IP/Port lên Redis và bắn sự kiện qua RabbitMQ)
+        /// </summary>
+        public static IServiceCollection AddServiceDiscovery(this IServiceCollection services)
+        {
+            // Đăng ký IHostedService chạy ngầm cùng ứng dụng
+            services.AddHostedService<ServiceDiscoveryHostedService>();
             return services;
         }
 

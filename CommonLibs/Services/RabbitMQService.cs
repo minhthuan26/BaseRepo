@@ -11,6 +11,7 @@ namespace CommonLibs.Services
     public interface IRabbitMQService
     {
         void Publish<T>(string queueName, T message);
+        bool Ping();
     }
 
     public class RabbitMQService : IRabbitMQService, IDisposable
@@ -26,6 +27,30 @@ namespace CommonLibs.Services
                 UserName = userName,
                 Password = password,
                 Port = port
+            };
+
+            _connection = factory.CreateConnection();
+            _channel = _connection.CreateModel();
+        }
+
+        public bool Ping()
+        {
+            try
+            {
+                return _connection?.IsOpen == true &&
+                       _channel?.IsOpen == true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public RabbitMQService(string connectionString)
+        {
+            var factory = new ConnectionFactory
+            {
+                Uri = new Uri(connectionString)
             };
 
             _connection = factory.CreateConnection();

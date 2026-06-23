@@ -38,7 +38,7 @@
   <ItemGroup>
     <Folder Include="Contacts\DTOs\" />
     <Folder Include="Contacts\Interfaces\" />
-    <Folder Include="Comtrollers\" />
+    <Folder Include="Controllers\" />
   </ItemGroup>
 
   <ItemGroup>

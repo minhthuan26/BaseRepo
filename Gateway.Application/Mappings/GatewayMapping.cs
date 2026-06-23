@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace Gateway.Application.Mappings
 {
-    public class UserMapping : Profile
+    public class GatewayMapping : Profile
     {
-        public UserMapping()
+        public GatewayMapping()
         {
             CreateMap<UserInputDTO, UserOutputDTO>()
                 .ForMember(x => x.Status,

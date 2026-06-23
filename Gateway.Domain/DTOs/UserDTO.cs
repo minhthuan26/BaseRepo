@@ -9,19 +9,19 @@ namespace Gateway.Domain.DTOs
 {
     public class UserOutputDTO : BaseOutputDTO
     {
-        public string UserId { get; private set; }
+        public string UserId { get; set; }
 
-        public string UserName { get; private set; }
+        public string UserName { get; set; }
 
-        public int Priority { get; private set; }
+        public int Priority { get; set; }
 
-        public string? RefreshToken { get; private set; }
+        public string? RefreshToken { get; set; }
 
-        public string? Signature { get; private set; }
+        public string? Signature { get; set; }
 
-        public string? Email { get; private set; }
+        public string? Email { get; set; }
 
-        public string? QuickCode { get; private set; }
+        public string? QuickCode { get; set; }
     }
 
     public class UserInputDTO : BaseInputDTO
@@ -34,6 +34,18 @@ namespace Gateway.Domain.DTOs
         public string? Signature { get; set; }
         public string? Email { get; set; }
         public string? QuickCode { get; set; }
+
+        public override Dictionary<string, string> HeaderMappings => new()
+        {
+            ["UserId"] = nameof(UserId),
+            ["UserName"] = nameof(UserName),
+            ["Password"] = nameof(Password),
+            ["Priority"] = nameof(Priority),
+            ["Signature"] = nameof(Signature),
+            ["Email"] = nameof(Email),
+            ["QuickCode"] = nameof(QuickCode),
+            ["Status"] = nameof(Status)
+        };
     }
 
     public class UserFilterDTO : BaseFilterDTO

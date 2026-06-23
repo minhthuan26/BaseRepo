@@ -9,30 +9,30 @@ using System.Threading.Tasks;
 
 namespace Site.Domain.Entities
 {
-    public class UserModule : BaseEntity
+    public class UserRole : BaseEntity
     {
         // --- Properties ---
-        public string ModuleId { get; private set; } = null!;
+        public string RoleId { get; private set; } = null!;
         public string UserId { get; private set; } = null!;
 
         // --- Constructors ---
-        protected UserModule()
+        protected UserRole()
         {
         }
 
-        public UserModule(string moduleId, string userId)
+        public UserRole(string roleId, string userId)
         {
-            SetModuleId(moduleId);
+            SetRoleId(roleId);
             SetUserId(userId);
         }
 
-        public UserModule(DataRow row)
+        public UserRole(DataRow row)
         {
             if (row == null)
                 throw new AppException("DataRow cannot be null");
 
             SetAutoId(row.Field<long>("AutoId"));
-            SetModuleId(row.Field<string>("ModuleId") ?? throw new AppException("ModuleId is required"));
+            SetRoleId(row.Field<string>("RoleId") ?? throw new AppException("RoleId is required"));
             SetUserId(row.Field<string>("UserId") ?? throw new AppException("UserId is required"));
         }
 
@@ -45,12 +45,12 @@ namespace Site.Domain.Entities
             AutoId = autoId;
         }
 
-        public void SetModuleId(string moduleId)
+        public void SetRoleId(string roleId)
         {
-            if (string.IsNullOrWhiteSpace(moduleId))
-                throw new AppException("ModuleId could not be empty");
+            if (string.IsNullOrWhiteSpace(roleId))
+                throw new AppException("RoleId could not be empty");
 
-            ModuleId = moduleId.Trim();
+            RoleId = roleId.Trim();
         }
 
         public void SetUserId(string userId)

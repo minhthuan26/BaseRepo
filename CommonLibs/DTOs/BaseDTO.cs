@@ -24,7 +24,7 @@ namespace CommonLibs.DTOs
         //public string? Type { get; set; }
     }
 
-    public class  BaseInputDTO
+    public class BaseInputDTO
     {
         public DateTime? UpdatedDate { get; set; }
         public DateTime? CreatedDate { get; set; }
@@ -34,6 +34,13 @@ namespace CommonLibs.DTOs
         public string? DeviceName { get; set; }
         public string? DeviceId { get; set; }
         //public string? Type { get; set; }
+        public virtual Dictionary<string, string> HeaderMappings => new();
+
+        public static Dictionary<string, string> GetHeaders<T>()
+            where T : BaseInputDTO, new()
+        {
+            return new T().HeaderMappings;
+        }
 
         public virtual void SetAuditInfo(string? userName, string? deviceId, string? deviceName)
         {

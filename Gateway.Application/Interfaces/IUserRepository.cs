@@ -15,7 +15,7 @@ namespace Gateway.Application.Interfaces
         Task<UserOutputDTO> GetUserById(string userId, CancellationToken cancellationToken);
         Task<BaseFilterOutput<UserOutputDTO>> GetAllUsers(UserFilterDTO filter, CancellationToken cancellationToken);
         Task<string> DeleteUser(string userId, CancellationToken cancellationToken);
-        Task<List<UserOutputDTO>> ImportUsers(Stream stream);
+        Task<List<UserOutputDTO>> ImportUsers(Stream stream, string fileName, CancellationToken cancellationToken);
         Task<string> ExportUsers(CancellationToken cancellationToken);
     }
 }

@@ -41,23 +41,6 @@ CREATE UNIQUE INDEX IX_Modules_ModuleId ON tbl_Modules(ModuleId)
 CREATE INDEX IX_Modules_SiteId ON tbl_Modules(SiteId);
 CREATE INDEX IX_Modules_Status_CreatedDate_UpdatedDate ON tbl_Modules(Status, CreatedDate DESC, UpdatedDate DESC);
 
-CREATE TABLE tbl_User_Module (
-	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
-	,ModuleId varchar(50) NOT NULL
-	,UserId VARCHAR(20) NOT NULL
-	,CreatedDate DATETIME2 NULL
-	,UpdatedDate DATETIME2 NULL
-	,CreatedBy NVARCHAR(20) NULL
-	,UpdatedBy NVARCHAR(20) NULL
-	,[Status] INT NOT NULL DEFAULT 1
-	,DeviceName NVARCHAR(255) NULL
-	,DeviceId NVARCHAR(255) NULL
-)
-CREATE UNIQUE INDEX IX_tbl_User_Module_UserId_ModuleId ON tbl_User_Module(UserId, ModuleId);
-CREATE INDEX IX_tbl_User_Module_ModuleId ON tbl_User_Module(ModuleId);
-CREATE INDEX IX_tbl_User_Module_UserId ON tbl_User_Module(UserId);
-CREATE INDEX IX_tbl_User_Module_Status_CreatedDate_UpdatedDate ON tbl_User_Module(Status, CreatedDate DESC, UpdatedDate DESC);
-
 CREATE TABLE tbl_Site (
 	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
 	,SiteId varchar(20) UNIQUE NOT NULL
@@ -130,3 +113,54 @@ CREATE TABLE tbl_Functions (
 CREATE UNIQUE INDEX IX_Functions_FunctionId ON tbl_Functions(FunctionId)
 CREATE INDEX IX_Functions_ScreenId ON tbl_Functions(ScreenId);
 CREATE INDEX IX_Functions_Status_CreatedDate_UpdatedDate ON tbl_Functions(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_Roles (
+	AutoId bigint IDENTITY(1,1) PRIMARY KEY
+	,RoleId varchar(20) UNIQUE NOT NULL
+	,RoleName nvarchar(255) NOT NULL
+	,SiteId varchar(50) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_Roles_RoleId ON tbl_Roles(RoleId)
+CREATE INDEX IX_Roles_ScreenId ON tbl_Roles(SiteId);
+CREATE INDEX IX_Roles_Status_CreatedDate_UpdatedDate ON tbl_Roles(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_User_Role (
+	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
+	,RoleId varchar(50) NOT NULL
+	,UserId VARCHAR(20) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_tbl_User_Role_UserId_RoleId ON tbl_User_Role(UserId, RoleId);
+CREATE INDEX IX_tbl_User_Role_RoleId ON tbl_User_Role(RoleId);
+CREATE INDEX IX_tbl_User_Role_UserId ON tbl_User_Role(UserId);
+CREATE INDEX IX_tbl_User_Role_Status_CreatedDate_UpdatedDate ON tbl_User_Role(Status, CreatedDate DESC, UpdatedDate DESC);
+
+CREATE TABLE tbl_Role_Function (
+	AutoId BIGINT IDENTITY(1,1) PRIMARY KEY
+	,RoleId varchar(50) NOT NULL
+	,FunctionId VARCHAR(20) NOT NULL
+	,CreatedDate DATETIME2 NULL
+	,UpdatedDate DATETIME2 NULL
+	,CreatedBy NVARCHAR(20) NULL
+	,UpdatedBy NVARCHAR(20) NULL
+	,[Status] INT NOT NULL DEFAULT 1
+	,DeviceName NVARCHAR(255) NULL
+	,DeviceId NVARCHAR(255) NULL
+)
+CREATE UNIQUE INDEX IX_tbl_Role_Function_FunctionId_RoleId ON tbl_Role_Function(FunctionId, RoleId);
+CREATE INDEX IX_tbl_Role_Function_RoleId ON tbl_Role_Function(RoleId);
+CREATE INDEX IX_tbl_Role_Function_FunctionId ON tbl_Role_Function(FunctionId);
+CREATE INDEX IX_tbl_Role_Function_Status_CreatedDate_UpdatedDate ON tbl_Role_Function(Status, CreatedDate DESC, UpdatedDate DESC);

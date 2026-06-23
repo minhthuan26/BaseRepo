@@ -1,5 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ClosedXML.Excel;
+using CsvHelper;
+using CsvHelper.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
+using System.Data;
+using System.Formats.Asn1;
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Xml.Serialization;
@@ -8,6 +14,151 @@ namespace CommonLibs.Utils
 {
     public static class FileHelper
     {
+        public static async Task<List<T>> ReadFile<T>(
+            Stream stream,
+            string fileName,
+            Dictionary<string, string>? headers)
+            where T : class, new()
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
+            stream.Position = 0;
+
+            switch (extension)
+            {
+                case ".csv":
+                    ValidateCsvHeader(stream, headers);
+                    stream.Position = 0;
+                    return await ReadCsv<T>(stream);
+
+                case ".xlsx":
+                case ".xls":
+                    ValidateExcelHeader(stream, headers);
+                    stream.Position = 0;
+                    return await ReadExcel<T>(stream);
+
+                default:
+                    throw new AppException(
+                        $"Unsupported file type '{extension}'.",
+                        HttpStatusCode.BadRequest);
+            }
+        }
+
+        private static void ValidateExcelHeader(
+            Stream stream,
+            Dictionary<string, string>? expectedHeaders)
+        {
+            if (expectedHeaders == null || expectedHeaders.Count == 0)
+                return;
+
+            using var workbook = new XLWorkbook(stream);
+
+            var worksheet = workbook.Worksheet(1);
+
+            var actualHeaders = worksheet.FirstRowUsed()
+                .CellsUsed()
+                .Select(x => x.GetString().Trim())
+                .ToArray();
+
+            ValidateHeaders(actualHeaders, expectedHeaders.Keys);
+        }
+
+        private static void ValidateCsvHeader(
+            Stream stream,
+            Dictionary<string, string>? expectedHeaders)
+        {
+            if (expectedHeaders == null || expectedHeaders.Count == 0)
+                return;
+
+            using var reader = new StreamReader(stream, leaveOpen: true);
+
+            var firstLine = reader.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(firstLine))
+            {
+                throw new AppException(
+                    "File is empty.",
+                    HttpStatusCode.BadRequest);
+            }
+
+            var actualHeaders = firstLine
+                .Split(',')
+                .Select(x => x.Trim())
+                .ToArray();
+
+            ValidateHeaders(actualHeaders, expectedHeaders.Keys);
+        }
+
+        private static void ValidateHeaders(
+            IEnumerable<string> actual,
+            IEnumerable<string> expected)
+        {
+            var missing = expected
+                .Except(actual, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (missing.Any())
+            {
+                throw new AppException(
+                    $"Invalid template. Missing columns: {string.Join(", ", missing)}.",
+                    HttpStatusCode.BadRequest);
+            }
+        }
+
+        private static async Task<List<T>> ReadCsv<T>(Stream stream) where T : class, new()
+        {
+            using var reader = new StreamReader(stream);
+
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true,
+                IgnoreBlankLines = true,
+                TrimOptions = TrimOptions.Trim,
+                MissingFieldFound = null,
+                HeaderValidated = null
+            };
+
+            using var csv = new CsvReader(reader, config);
+
+            return await Task.FromResult(csv.GetRecords<T>().ToList());
+        }
+
+        private static async Task<List<T>> ReadExcel<T>(Stream stream) where T : class, new()
+        {
+            using var workbook = new XLWorkbook(stream);
+
+            var worksheet = workbook.Worksheet(1);
+
+            var table = new DataTable();
+
+            var headerRow = worksheet.FirstRowUsed();
+
+            foreach (var cell in headerRow.CellsUsed())
+            {
+                table.Columns.Add(cell.GetString());
+            }
+
+            foreach (var row in worksheet.RowsUsed().Skip(1))
+            {
+                var dataRow = table.NewRow();
+
+                for (int i = 0; i < table.Columns.Count; i++)
+                {
+                    dataRow[i] = row.Cell(i + 1).Value.ToString();
+                }
+
+                table.Rows.Add(dataRow);
+            }
+
+            var json = JsonSerializer.Serialize(table);
+
+            return JsonSerializer.Deserialize<List<T>>(json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<T>();
+        }
+
         /// <summary>
         /// Writes raw string content to a file. If the directory doesn't exist, it will be created.
         /// </summary>

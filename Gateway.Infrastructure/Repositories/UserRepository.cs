@@ -10,6 +10,7 @@ using Gateway.Domain.DTOs;
 using Gateway.Domain.Entities;
 using Gateway.Infrastructure.DBContext;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.Xml;
@@ -75,19 +77,19 @@ namespace Gateway.Infrastructure.Repositories
                         Insert Into tbl_Users (UserId, UserName, Password, Priority, Signature, Email, QuickCode, CreatedDate, CreatedBy, DeviceName, DeviceId)
                         Values (@UserId, @UserName, @Password, @Priority, @Signature, @Email, @QuickCode, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
                     ", new
-                {
-                    UserId = input.UserId,
-                    UserName = input.UserName,
-                    Password = encryptedPassword,
-                    Priority = input.Priority,
-                    Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
-                    Email = input.Email,
-                    QuickCode = input.QuickCode,
-                    CreatedDate = DateTime.UtcNow,
-                    CreatedBy = input.CreatedBy,
-                    DeviceName = input.DeviceName,
-                    DeviceId = input.DeviceId,
-                },
+                    {
+                        UserId = input.UserId,
+                        UserName = input.UserName,
+                        Password = encryptedPassword,
+                        Priority = input.Priority,
+                        Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
+                        Email = input.Email,
+                        QuickCode = input.QuickCode,
+                        CreatedDate = DateTime.UtcNow,
+                        CreatedBy = input.CreatedBy,
+                        DeviceName = input.DeviceName,
+                        DeviceId = input.DeviceId,
+                    },
                     cancellationToken);
                 if (rowsAffected <= 0)
                 {
@@ -113,16 +115,17 @@ namespace Gateway.Infrastructure.Repositories
                         Delete From tbl_Users
                         Where UserId = @UserId
                         ", new
-                        {
-                            UserId = userId
-                        },
+                {
+                    UserId = userId
+                },
                     cancellationToken);
                 if (rowsAffected <= 0)
                 {
                     throw new AppException($"[{_errorPrefix}DeleteUser-02] User with UserId '{userId}' not found.", HttpStatusCode.NotFound);
                 }
                 return userId;
-            } catch
+            }
+            catch
             {
                 throw;
             }
@@ -198,7 +201,7 @@ namespace Gateway.Infrastructure.Repositories
 
                 string querySql = $"SELECT * FROM tbl_Users {whereBuilder} {orderByClause} OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                parameters.Add("Offset", Math.Max(0, filter.PageNumber - 1) * filter.PageSize); 
+                parameters.Add("Offset", Math.Max(0, filter.PageNumber - 1) * filter.PageSize);
                 parameters.Add("PageSize", filter.PageSize > 0 ? filter.PageSize : 20);
 
                 var users = await _dbContext.QueryAsync<User>(querySql, parameters, cancellationToken);
@@ -210,7 +213,8 @@ namespace Gateway.Infrastructure.Repositories
                 }).ToList();
 
                 return filterOutput;
-            } catch
+            }
+            catch
             {
                 throw;
             }
@@ -231,15 +235,102 @@ namespace Gateway.Infrastructure.Repositories
                 }
                 user.SetRefreshToken(null);
                 return _mapper.Map<UserOutputDTO>(user);
-            } catch
+            }
+            catch
             {
                 throw;
             }
         }
 
-        public Task<List<UserOutputDTO>> ImportUsers(Stream stream)
+        public async Task<List<UserOutputDTO>> ImportUsers(Stream stream, string fileName, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var users = await FileHelper.ReadFile<UserInputDTO>(stream, fileName, BaseInputDTO.GetHeaders<UserInputDTO>());
+
+            if (!users.Any())
+                return new();
+
+            return await _dbContext.ExecuteWithTransactionAsync(async () =>
+            {
+                await _dbContext.ExecuteAsync(@"
+                    CREATE TABLE #TempUsers
+                    (
+                        UserId NVARCHAR(100),
+                        UserName NVARCHAR(255),
+                        Password VARCHAR(255),
+                        Signature VARBINARY(MAX),
+                        Email NVARCHAR(255),
+                        QuickCode NVARCHAR(100),
+                        Status INT,
+                        Priority INT
+                    )
+                    ", cancellationToken: cancellationToken);
+
+                await _dbContext.ExecuteBulkAsync(
+                    users,
+                    "#TempUsers",
+                    cancellationToken: cancellationToken);
+
+                await _dbContext.ExecuteAsync(@"
+                    MERGE tbl_Users AS T
+                    USING #TempUsers AS S
+                    ON T.UserId = S.UserId
+
+                    WHEN MATCHED THEN
+                        UPDATE SET
+                            T.UserName = S.UserName,
+                            T.Email = S.Email,
+                            T.Password = S.Password,
+                            T.Signature = S.Signature,
+                            T.QuickCode = S.QuickCode,
+                            T.Status = S.Status,
+                            T.Priority = S.Priority,
+                            T.UpdatedDate = GETUTCDATE(),
+                            T.UpdatedBy = @UpdatedBy, 
+                            T.DeviceName = @DeviceName, 
+                            T.DeviceId = @DeviceId
+
+                    WHEN NOT MATCHED THEN
+                        INSERT
+                        (
+                            UserId,
+                            UserName,
+                            Email,
+                            Password,
+                            Signature,
+                            QuickCode,
+                            Status,
+                            Priority,
+                            CreatedDate,
+                            CreatedBy, 
+                            DeviceName, 
+                            DeviceId
+                        )
+                        VALUES
+                        (
+                            S.UserId,
+                            S.UserName,
+                            S.Email,
+                            S.Password,
+                            S.Signature,
+                            S.QuickCode,
+                            S.Status,
+                            S.Priority,
+                            GETUTCDATE(),
+                            @CreatedBy,
+                            @DeviceName,
+                            @DeviceId,
+                        );
+                    ", new
+                    {
+                        UpdatedBy = _auditContext.UserName,
+                        CreatedBy = _auditContext.UserName,
+                        DeviceName = _auditContext.DeviceName,
+                        DeviceId = _auditContext.DeviceId,
+                    },
+                    cancellationToken: cancellationToken);
+
+                return _mapper.Map<List<UserOutputDTO>>(users);
+            }, cancellationToken);
         }
 
         public Task<UserOutputDTO> UpdateUser(UserInputDTO input, CancellationToken cancellationToken)

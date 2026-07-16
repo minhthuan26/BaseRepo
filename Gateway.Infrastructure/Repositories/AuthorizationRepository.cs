@@ -293,9 +293,9 @@ namespace Gateway.Infrastructure.Repositories
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _configuration["BaseRepo:JWT:Issuer"],
+                    ValidIssuer = _options.ActualIssuer,
                     ValidateAudience = true,
-                    ValidAudience = _configuration["BaseRepo:JWT:Audience"],
+                    ValidAudience = _options.ActualAudience,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = signingKey,
                     ValidateLifetime = true,
@@ -309,6 +309,10 @@ namespace Gateway.Infrastructure.Repositories
 
             }
             catch (SecurityTokenMalformedException)
+            {
+                throw new AppException("Invalid token.", HttpStatusCode.BadRequest);
+            }
+            catch (ArgumentException)
             {
                 throw new AppException("Invalid token.", HttpStatusCode.BadRequest);
             }

@@ -51,13 +51,13 @@ namespace CommonLibs.Utils
         {
             if (_database == null) return false;
             var json = JsonSerializer.Serialize(value);
-            return _database.StringSet(KeyWithPrefix(key), json, cacheTime);
+            return _database.StringSet(key, json, cacheTime);
         }
 
         public static T? Get<T>(string key)
         {
             if (_database == null) return default;
-            var value = _database.StringGet(KeyWithPrefix(key));
+            var value = _database.StringGet(key);
             if (!value.HasValue) return default;
 
             return JsonSerializer.Deserialize<T>(value!);
@@ -66,13 +66,13 @@ namespace CommonLibs.Utils
         public static bool Remove(string key)
         {
             if (_database == null) return false;
-            return _database.KeyDelete(KeyWithPrefix(key));
+            return _database.KeyDelete(key);
         }
 
         public static bool Exists(string key)
         {
             if (_database == null) return false;
-            return _database.KeyExists(KeyWithPrefix(key));
+            return _database.KeyExists(key);
         }
 
         #endregion
@@ -85,7 +85,7 @@ namespace CommonLibs.Utils
         public static long Increment(string key, long value = 1)
         {
             if (_database == null) return 0;
-            return _database.StringIncrement(KeyWithPrefix(key), value);
+            return _database.StringIncrement(key, value);
         }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace CommonLibs.Utils
         public static bool Expire(string key, TimeSpan expireTime)
         {
             if (_database == null) return false;
-            return _database.KeyExpire(KeyWithPrefix(key), expireTime);
+            return _database.KeyExpire(key, expireTime);
         }
 
         #endregion

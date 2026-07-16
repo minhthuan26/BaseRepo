@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,13 +12,25 @@ namespace CommonLibs.Services
     public interface IRabbitMQService
     {
         void Publish<T>(string queueName, T message);
+        void Subscribe<T>(string queueName, Func<T, Task> onMessage);
         bool Ping();
     }
 
     public class RabbitMQService : IRabbitMQService, IDisposable
     {
         private readonly IConnection _connection;
-        private readonly IModel _channel;
+
+        // Constructor nhận ConnectionString
+        public RabbitMQService(string connectionString)
+        {
+            var factory = new ConnectionFactory
+            {
+                Uri = new Uri(connectionString),
+                DispatchConsumersAsync = true
+            };
+
+            _connection = factory.CreateConnection();
+        }
 
         public RabbitMQService(string hostName, string userName, string password, int port)
         {
@@ -26,19 +39,18 @@ namespace CommonLibs.Services
                 HostName = hostName,
                 UserName = userName,
                 Password = password,
-                Port = port
+                Port = port,
+                DispatchConsumersAsync = true
             };
 
             _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
         }
 
         public bool Ping()
         {
             try
             {
-                return _connection?.IsOpen == true &&
-                       _channel?.IsOpen == true;
+                return _connection?.IsOpen == true;
             }
             catch
             {
@@ -46,49 +58,74 @@ namespace CommonLibs.Services
             }
         }
 
-        public RabbitMQService(string connectionString)
+        public void Publish<T>(string queueName, T message)
         {
-            var factory = new ConnectionFactory
-            {
-                Uri = new Uri(connectionString)
-            };
+            using var channel = _connection.CreateModel();
 
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
-        }
-
-        private void DeclareQueue(string queueName)
-        {
-            _channel.QueueDeclare(
+            channel.QueueDeclare(
                 queue: queueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
                 arguments: null);
-        }
-
-        public void Publish<T>(string queueName, T message)
-        {
-            DeclareQueue(queueName);
 
             var json = JsonConvert.SerializeObject(message);
             var body = Encoding.UTF8.GetBytes(json);
 
-            var properties = _channel.CreateBasicProperties();
-            properties.Persistent = true; // Lưu trữ tin nhắn xuống ổ đĩa, tránh mất khi restart RabbitMQ
+            var properties = channel.CreateBasicProperties();
+            properties.Persistent = true;
 
-            _channel.BasicPublish(
+            channel.BasicPublish(
                 exchange: "",
                 routingKey: queueName,
                 basicProperties: properties,
                 body: body);
         }
 
+        public void Subscribe<T>(string queueName, Func<T, Task> onMessage)
+        {
+            var channel = _connection.CreateModel();
+
+            channel.QueueDeclare(
+                queue: queueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+
+            var consumer = new AsyncEventingBasicConsumer(channel);
+
+            consumer.Received += async (sender, args) =>
+            {
+                try
+                {
+                    var body = args.Body.ToArray();
+                    var json = Encoding.UTF8.GetString(body);
+                    var message = JsonConvert.DeserializeObject<T>(json);
+
+                    if (message != null)
+                    {
+                        await onMessage(message);
+                    }
+
+                    channel.BasicAck(args.DeliveryTag, false);
+                }
+                catch
+                {
+                    // Trả lại tin nhắn về hàng đợi nếu quá trình xử lý (onMessage) bị lỗi
+                    channel.BasicNack(args.DeliveryTag, false, true);
+                }
+            };
+
+            channel.BasicConsume(
+                queue: queueName,
+                autoAck: false,
+                consumer: consumer);
+        }
+
         public void Dispose()
         {
-            _channel?.Close();
             _connection?.Close();
-            _channel?.Dispose();
             _connection?.Dispose();
         }
     }

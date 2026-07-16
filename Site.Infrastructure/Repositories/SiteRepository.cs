@@ -1,14 +1,16 @@
 ﻿using AutoMapper;
+using CommonLibs.Options;
 using CommonLibs.Repositories;
 using CommonLibs.Utils;
-using Site.Domain.Entities;
-using Site.Infrastructure.DBContext;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Site.Domain.Entities;
+using Site.Infrastructure.DBContext;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -26,11 +28,7 @@ namespace Site.Infrastructure.Repositories
         private readonly SiteDbContext _dbContext;
         private readonly string _errorPrefix = "Site_Repo_";
 
-        public SiteRepository(IMapper mapper,
-            ILogger<SiteRepository> logger,
-            IConfiguration configuration,
-            IHttpContextAccessor httpContext,
-            SiteDbContext dbContext) : base(mapper, logger, configuration, httpContext)
+        public SiteRepository(IMapper mapper, ILogger<SiteRepository> logger, IConfiguration configuration, IHttpContextAccessor httpContext, SiteDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
         {
             _dbContext = dbContext;
         }

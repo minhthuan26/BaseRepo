@@ -67,7 +67,7 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}CreateUser-05] User with UserId '{input.UserId}' already exists.", HttpStatusCode.Conflict);
                 }
-                if (string.IsNullOrEmpty(_options.ActualAccessToken))
+                if (string.IsNullOrEmpty(_options.ActualAccessKey))
                 {
                     throw new AppException($"[{_errorPrefix}Login-03] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }

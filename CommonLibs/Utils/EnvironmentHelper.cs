@@ -25,8 +25,12 @@ namespace CommonLibs.Utils
         /// <summary>
         /// Get environment variable by key
         /// </summary>
-        public static string Get(string key, EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
+        public static string? Get(string key, EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine)
         {
+            if (key == null)
+            {
+                return null;
+            }
             return Environment.GetEnvironmentVariable(key, target);
         }
 

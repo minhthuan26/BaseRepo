@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Site.Application.Interfaces
 {
-    public interface IScreenDTO
+    public interface IScreenRepository
     {
         Task<ScreenOutputDTO> CreateScreen(ScreenInputDTO input, CancellationToken cancellationToken);
         Task<ScreenOutputDTO> UpdateScreen(ScreenInputDTO input, CancellationToken cancellationToken);

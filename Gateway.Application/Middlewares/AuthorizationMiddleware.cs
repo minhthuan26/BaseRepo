@@ -81,7 +81,7 @@ namespace Gateway.Application.Middlewares
                 }
 
                 // 4. Xác thực Token thông qua Auth Service
-                List<Claim> claims = await authService.VerifyToken(accessToken, _options.ActualAccessToken);
+                List<Claim> claims = await authService.VerifyToken(accessToken, _options.ActualAccessKey);
 
                 var roleClaim = claims.FirstOrDefault(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role);
                 var userIdClaim = claims.FirstOrDefault(claim => claim.Type == "id" || claim.Type == ClaimTypes.NameIdentifier);

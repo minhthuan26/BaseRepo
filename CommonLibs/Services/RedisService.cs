@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,46 +12,58 @@ namespace CommonLibs.Services
     public interface IRedisService
     {
         Task<T?> GetAsync<T>(string key);
-        Task SetAsync<T>(string key, T value, TimeSpan? expiration = null);
-        Task RemoveAsync(string key);
+        Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null);
+        Task<bool> RemoveAsync(string key);
+        Task<bool> ExistsAsync(string key);
+        Task<long> IncrementAsync(string key, long value = 1);
+        Task<bool> ExpireAsync(string key, TimeSpan expireTime);
     }
 
     public class RedisService : IRedisService
     {
-        private readonly IDistributedCache _cache;
+        private readonly IConnectionMultiplexer _connection;
+        private readonly IDatabase _database;
 
-        public RedisService(IDistributedCache cache)
+        public RedisService(IConnectionMultiplexer connection)
         {
-            _cache = cache;
+            _connection = connection;
+            _database = _connection.GetDatabase();
         }
 
         public async Task<T?> GetAsync<T>(string key)
         {
-            var cachedData = await _cache.GetStringAsync(key);
-            if (string.IsNullOrEmpty(cachedData)) return default;
+            var value = await _database.StringGetAsync(key);
+            if (!value.HasValue) return default;
 
-            return JsonSerializer.Deserialize<T>(cachedData);
+            return JsonSerializer.Deserialize<T>(value!);
         }
 
-        public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+        public async Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null)
         {
-            var options = new DistributedCacheEntryOptions();
-            if (expiration.HasValue)
-            {
-                options.AbsoluteExpirationRelativeToNow = expiration.Value;
-            }
-            else
-            {
-                options.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1); // Mặc định cache 1 ngày
-            }
-
             var json = JsonSerializer.Serialize(value);
-            await _cache.SetStringAsync(key, json, options);
+            return await _database.StringSetAsync(key, json, expiration);
         }
 
-        public async Task RemoveAsync(string key)
+        public async Task<bool> RemoveAsync(string key)
         {
-            await _cache.RemoveAsync(key);
+            return await _database.KeyDeleteAsync(key);
+        }
+
+        public async Task<bool> ExistsAsync(string key)
+        {
+            return await _database.KeyExistsAsync(key);
+        }
+
+        // --- Các hàm nâng cao ---
+
+        public async Task<long> IncrementAsync(string key, long value = 1)
+        {
+            return await _database.StringIncrementAsync(key, value);
+        }
+
+        public async Task<bool> ExpireAsync(string key, TimeSpan expireTime)
+        {
+            return await _database.KeyExpireAsync(key, expireTime);
         }
     }
 }

@@ -46,6 +46,7 @@ namespace CommonLibs.Services
         private Task? _heartbeatTask;
         private readonly AppOptions _options;
         private ServiceDiscoveryInfo _serviceDiscoveryInfo;
+        private readonly IRedisService _redisService;
 
         public ServiceDiscoveryHostedService(
             IHostApplicationLifetime lifetime,
@@ -53,7 +54,8 @@ namespace CommonLibs.Services
             IConfiguration config,
             ILogger<ServiceDiscoveryHostedService> logger,
             IRabbitMQService rabbitMq,
-            IOptions<AppOptions> options)
+            IOptions<AppOptions> options,
+            IRedisService redisService)
         {
             _lifetime = lifetime;
             _server = server;
@@ -67,6 +69,7 @@ namespace CommonLibs.Services
                 ApplicationName = _options.ApplicationName,
                 Version = _options.Version,
             };
+            _redisService = redisService;
         }
 
         private async Task WaitRedisReady(CancellationToken token)
@@ -111,16 +114,16 @@ namespace CommonLibs.Services
             throw new TimeoutException("RabbitMQ not available.");
         }
 
-        private void RegisterService()
+        private async Task RegisterService()
         {
             _serviceDiscoveryInfo.Url = GetServerUrl();
             _serviceDiscoveryInfo.StartedAt = DateTime.UtcNow;
             _serviceDiscoveryInfo.LastHeartbeat = _serviceDiscoveryInfo.StartedAt;
             _serviceDiscoveryInfo.Status = "Running";
 
-            RedisHelper.Set(
-                $"ServiceRegistry_{_serviceDiscoveryInfo.ApplicationId}",
-                _serviceDiscoveryInfo,
+            await _redisService.SetAsync(
+                $"Local_Url:{_serviceDiscoveryInfo.ApplicationId}",
+                GetServerUrl(),
                 TimeSpan.FromMinutes(2));
 
             _rabbitMq.Publish(
@@ -132,12 +135,12 @@ namespace CommonLibs.Services
                 _serviceDiscoveryInfo.ApplicationName);
         }
 
-        private void UnRegisterService()
+        private async Task UnRegisterService()
         {
             _serviceDiscoveryInfo.Status = "Stopped";
             _serviceDiscoveryInfo.LastHeartbeat = DateTime.UtcNow;
 
-            RedisHelper.Remove($"ServiceRegistry_{_serviceDiscoveryInfo.ApplicationId}");
+            await _redisService.RemoveAsync($"Local_Url:{_serviceDiscoveryInfo.ApplicationId}");
 
             _rabbitMq.Publish(
                 "system.service.stopped",
@@ -184,13 +187,13 @@ namespace CommonLibs.Services
             }
         }
 
-        private Task SendHeartbeatAsync(CancellationToken token)
+        private async Task<Task> SendHeartbeatAsync(CancellationToken token)
         {
             _serviceDiscoveryInfo.LastHeartbeat = DateTime.UtcNow;
 
-            RedisHelper.Set(
-                $"ServiceRegistry_{_options.ApplicationId}",
-                _serviceDiscoveryInfo,
+            await _redisService.SetAsync(
+                $"Local_Url:{_serviceDiscoveryInfo.ApplicationId}",
+                GetServerUrl(),
                 TimeSpan.FromMinutes(2));
 
             _rabbitMq.Publish(
@@ -208,18 +211,18 @@ namespace CommonLibs.Services
 
             await WaitRabbitReady(cancellationToken);
 
-            _lifetime.ApplicationStarted.Register(() =>
+            _lifetime.ApplicationStarted.Register(async () =>
             {
-                RegisterService();
+                await RegisterService();
 
                 StartHeartbeat();
             });
 
-            _lifetime.ApplicationStopping.Register(() =>
+            _lifetime.ApplicationStopping.Register(async () =>
             {
                 StopHeartbeat();
 
-                UnRegisterService();
+                await UnRegisterService();
             });
 
             _logger.LogInformation("===== Infrastructure Bootstrap Finished =====");
@@ -238,7 +241,7 @@ namespace CommonLibs.Services
         {
             var feature = _server.Features.Get<IServerAddressesFeature>();
 
-            return feature?.Addresses.FirstOrDefault()
+            return feature?.Addresses.FirstOrDefault()?.Replace("[::]", "localhost")
                    ?? "http://localhost";
         }
     }

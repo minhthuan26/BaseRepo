@@ -20,7 +20,7 @@ builder.Services.AddEndpointsApiExplorer();
 // Gộp cấu hình Swagger
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Gateway API", Version = "v1" });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "App API", Version = "v1" });
     options.CustomSchemaIds(type => type.ToString());
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -45,8 +45,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddGatewayInfrastructure(builder.Configuration);
-// Chạy ngầm để NHẬN TIN từ RabbitMQ
-// builder.Services.AddHostedService<LogQueueConsumer>();
 // Cấu hình Kestrel lắng nghe port 80 và 443
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -95,7 +93,16 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        // 1. Cấu hình đọc Swagger JSON của chính bản thân Gateway (các controller viết tại Gateway)
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Gateway API");
+
+        // 2. Cấu hình đọc Swagger JSON của Service Site thông qua YARP
+        // Lưu ý: "/site-api" là prefix bạn định tuyến trong YARP, nó sẽ proxy xuống /swagger/v1/swagger.json của Site
+        options.SwaggerEndpoint("/site-api/swagger/v1/swagger.json", "Site API");
+
+    });
 }
 
 app.UseHttpsRedirection();

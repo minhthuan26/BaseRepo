@@ -85,14 +85,14 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}Login-03] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
                 }
                 // Tạo access token và refresh token
-                var accessToken = GenerateToken(_options.ActualAccessToken, new List<Claim>
+                var accessToken = GenerateToken(_options.ActualAccessKey, new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, user.UserId),
                     new(ClaimTypes.Name, user.UserName),
                     new(ClaimTypes.Role, "User")
                 }, DateTime.UtcNow.AddHours(1)).Result;
 
-                var refreshToken = GenerateToken(_options.ActualRefreshToken, new List<Claim>
+                var refreshToken = GenerateToken(_options.ActualRefreshKey, new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, user.UserId),
                     new(ClaimTypes.Name, user.UserName),

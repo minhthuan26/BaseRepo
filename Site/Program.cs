@@ -1,17 +1,15 @@
 using CommonLibs.Logging;
+using CommonLibs.Middlewares;
 using CommonLibs.Options;
 using Microsoft.OpenApi.Models;
+using Site.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ==========================================================================
 // ĐĂNG KÝ SERVICES (DI CONTAINER)
 // ==========================================================================
-
-// Ghi log tập trung hệ thống
-builder.AddSharedSerilog();
-
-builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("Application"));
+builder.AddDynamicLogging();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -43,18 +41,34 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddSiteInfrastructure(builder.Configuration);
 
-// Cấu hình Xác thực JWT bảo mật cho riêng Service con
+/// Cấu hình Kestrel lắng nghe port 80 và 443
+builder.WebHost.ConfigureKestrel(options =>
+{
+    // Lắng nghe HTTP thông thường
+    options.ListenAnyIP(8001);
+
+    // Lắng nghe HTTPS bảo mật (Yêu cầu Server cần cài sẵn chứng chỉ SSL hợp lệ)
+    //options.ListenAnyIP(443, listenOptions =>
+    //{
+    //    listenOptions.UseHttps();
+    //});
+});
+// Cấu hình Bảo mật
 builder.Services.AddAuthentication("Bearer").AddJwtBearer();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("UserOrAdminPolicy", policy => policy.RequireRole("User", "Admin"));
+});
 
 // Cấu hình CORS nới lỏng cho môi trường Dev/Gateway gọi nội bộ mượt mà
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.SetIsOriginAllowed(origin => true) // Cho phép Gateway hoặc FE gọi trực tiếp khi debug
+        policy.SetIsOriginAllowed(origin => true)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -67,14 +81,14 @@ var app = builder.Build();
 // CẤU HÌNH HTTP REQUEST PIPELINE
 // ==========================================================================
 
-app.UseSharedSerilogRequestLogging();
+app.UseDynamicLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Luôn bật Swagger ở Dev để Gateway có thể bóc tách và map route
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    //app.UseSwaggerUI();
 }
 
 // BẬT định tuyến đường dẫn

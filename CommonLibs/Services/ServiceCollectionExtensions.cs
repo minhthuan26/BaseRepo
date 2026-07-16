@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,23 +28,23 @@ namespace CommonLibs.Services
             var appOptions = new AppOptions();
             applicationSection.Bind(appOptions);
 
-            appOptions.ActualAccessToken =
-                EnvironmentHelper.Get(appOptions.AccessToken)
+            appOptions.ActualAccessKey =
+                EnvironmentHelper.Get(appOptions.AccessKey)
                 ?? throw new AppException(
-                    $"Biến môi trường '{appOptions.AccessToken}' cho AccessToken bị thiếu.",
+                    $"Biến môi trường '{appOptions.AccessKey}' cho AccessKey bị thiếu.",
                     HttpStatusCode.InternalServerError);
 
-            appOptions.ActualRefreshToken =
-                EnvironmentHelper.Get(appOptions.RefreshToken)
+            appOptions.ActualRefreshKey =
+                EnvironmentHelper.Get(appOptions.RefreshKey)
                 ?? throw new AppException(
-                    $"Biến môi trường '{appOptions.RefreshToken}' cho RefreshToken bị thiếu.",
+                    $"Biến môi trường '{appOptions.RefreshKey}' cho RefreshKey bị thiếu.",
                     HttpStatusCode.InternalServerError);
 
-            appOptions.ActualAccessTokenByte =
-                Convert.FromBase64String(appOptions.ActualAccessToken);
+            appOptions.ActualAccessKeyByte =
+                Convert.FromBase64String(appOptions.ActualAccessKey);
 
-            appOptions.ActualRefreshTokenByte =
-                Convert.FromBase64String(appOptions.ActualRefreshToken);
+            appOptions.ActualRefreshKeyByte =
+                Convert.FromBase64String(appOptions.ActualRefreshKey);
 
             appOptions.ActualAudience =
                 EnvironmentHelper.Get(appOptions.Audience)
@@ -89,17 +90,21 @@ namespace CommonLibs.Services
             // Đọc cấu hình ApplicationOptions từ appsettings.json và bind vào lớp ApplicationOptions
             var appOptions = LoadOptions(configuration);
             services.AddSingleton<IOptions<AppOptions>>(Microsoft.Extensions.Options.Options.Create(appOptions));
-            if (!string.IsNullOrEmpty(appOptions.RedisConnectionString) && !string.IsNullOrEmpty(appOptions.RabbitMqConnectionString))
+            if (!string.IsNullOrEmpty(appOptions.RedisConnectionString))
             {
                 RedisHelper.Initialize(appOptions.RedisConnectionString, appOptions.ApplicationId);
-                // Đăng ký hạ tầng REDIS ASYNC(IDistributedCache) chính chủ Microsoft
-                services.AddStackExchangeRedisCache(options =>
-                {
-                    options.Configuration = appOptions.RedisConnectionString;
-                    options.InstanceName = appOptions.ApplicationId;
-                });
-                services.AddScoped<IRedisService, RedisService>();
+                // 1. Đăng ký IConnectionMultiplexer (Bắt buộc là Singleton)
+                // Dùng Lazy để tránh block luồng khởi động của ứng dụng nếu Redis tạm thời chưa up
+                services.AddSingleton<IConnectionMultiplexer>(sp =>
+                    ConnectionMultiplexer.Connect(appOptions.RedisConnectionString));
 
+                // 2. Đăng ký IRedisService mới đã gộp
+                // Đổi từ Scoped sang Singleton vì Multiplexer là Singleton, dùng chung toàn hệ thống rất an toàn
+                services.AddSingleton<IRedisService, RedisService>();
+            }
+
+            if (!string.IsNullOrEmpty(appOptions.RabbitMqConnectionString))
+            {
                 // Đăng ký dịch vụ phát tin nhắn RABBITMQ dạng SINGLETON độc nhất
                 services.AddSingleton<IRabbitMQService>(sp =>
                 {

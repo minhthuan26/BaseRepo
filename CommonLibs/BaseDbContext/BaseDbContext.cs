@@ -22,6 +22,16 @@ namespace CommonLibs.BaseDbContext
             : base(options)
         {
             _logger = logger;
+            string connectionMessage;
+            bool isSuccess = DatabaseHelper.TestSqlConnection(Database.GetDbConnection().ConnectionString, out connectionMessage);
+            if (isSuccess)
+            {
+                _logger.LogInformation("Try testing connect to database: {Message}", connectionMessage);
+            }
+            else
+            {
+                _logger.LogError("Try testing connect to database: {Message}", connectionMessage);
+            }
         }
 
         #region Bulk

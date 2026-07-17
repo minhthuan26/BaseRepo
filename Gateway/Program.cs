@@ -5,7 +5,6 @@ using CommonLibs.Services;
 using CommonLibs.Utils;
 using Gateway.Application.Middlewares;
 using Gateway.Infrastructure;
-using Gateway.Infrastructure.DBContext;
 using Gateway.Utils;
 using Microsoft.OpenApi.Models;
 
@@ -87,9 +86,6 @@ var app = builder.Build();
 // ==========================================================================
 // CẤU HÌNH HTTP REQUEST PIPELINE
 // ==========================================================================
-
-// Kiểm tra kết nối Database ngay khi khởi động ứng dụng
-app.ValidateDatabaseConnection<GatewayDbContext>();
 
 app.UseDynamicLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();

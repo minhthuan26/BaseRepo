@@ -1,7 +1,9 @@
 ﻿using CommonLibs.Options;
 using EncryptionLibrary;
+using log4net.Core;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -21,10 +23,12 @@ namespace CommonLibs.Utils
     public class SqlConnectionFactory : ISqlConnectionFactory
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<SqlConnectionFactory> _logger;
 
-        public SqlConnectionFactory(IConfiguration configuration)
+        public SqlConnectionFactory(IConfiguration configuration, ILogger<SqlConnectionFactory> logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -77,16 +81,22 @@ namespace CommonLibs.Utils
             {
                 throw new InvalidOperationException("Password configuration is missing.");
             }
-            string connectionString = "server=" + host + ";database=" + database +
-                    ";uid=" + userName +
-                    ";pwd=" + password +
-                    ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";encrypt=true;TrustServerCertificate=true";
+
+            string connectionString = string.Empty;
             if (isEncrypt)
             {
+                _logger.LogInformation($"Building connection string from configuration with uid: {EncryptionUtils.EncryptData("lishn", applicationName, applicationId)} - pwd: {EncryptionUtils.EncryptData("lclliss1hn", applicationName, applicationId)}");
                 connectionString = "server=" + host + ";database=" + database +
                     ";uid=" + EncryptionUtils.Decrypt(userName, applicationName, applicationId) +
                     ";pwd=" + EncryptionUtils.Decrypt(password, applicationName, applicationId) +
                     ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";encrypt=true;TrustServerCertificate=true";
+            } else
+            {
+                _logger.LogInformation($"Building connection string from configuration with uid: {userName} - pwd: {password}");
+                connectionString = "server=" + host + ";database=" + database +
+                        ";uid=" + userName +
+                        ";pwd=" + password +
+                        ";MultipleActiveResultSets=true;Application Name=" + applicationName + ";encrypt=true;TrustServerCertificate=true";
             }
 
             return connectionString;

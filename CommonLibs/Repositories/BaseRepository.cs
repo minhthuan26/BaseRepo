@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using CommonLibs.Options;
+using CommonLibs.Services;
 using CommonLibs.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
@@ -21,7 +22,8 @@ namespace CommonLibs.Repositories
         protected IHttpContextAccessor _httpContext;
         protected AppOptions _options;
         protected IAuditContext _auditContext;
-        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext, IOptions<AppOptions> options, IAuditContext auditContext)
+        protected IJwtTokenService _jwtTokenService;
+        protected BaseRepository(IMapper mapper, ILogger<T> logger, IConfiguration configuration, IHttpContextAccessor httpContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService)
         {
             _mapper = mapper;
             _logger = logger;
@@ -29,6 +31,7 @@ namespace CommonLibs.Repositories
             _httpContext = httpContext;
             _options = options.Value;
             _auditContext = auditContext;
+            _jwtTokenService = jwtTokenService;
         }
 
         protected async Task<DataTable> ExecuteProcAsync(

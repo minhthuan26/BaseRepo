@@ -3,10 +3,12 @@ using CommonLibs.Entities;
 using CommonLibs.Utils;
 using Dapper;
 using FastMember;
+using log4net.Core;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Data;
 using System.Net;
@@ -15,9 +17,21 @@ namespace CommonLibs.BaseDbContext
 {
     public class BaseContext : DbContext
     {
-        public BaseContext(DbContextOptions options)
+        private readonly ILogger<BaseContext> _logger;
+        public BaseContext(DbContextOptions options, ILogger<BaseContext> logger)
             : base(options)
         {
+            _logger = logger;
+            string connectionMessage;
+            bool isSuccess = DatabaseHelper.TestSqlConnection(Database.GetDbConnection().ConnectionString, out connectionMessage);
+            if (isSuccess)
+            {
+                _logger.LogInformation("Try testing connect to database: {Message}", connectionMessage);
+            }
+            else
+            {
+                _logger.LogError("Try testing connect to database: {Message}", connectionMessage);
+            }
         }
 
         #region Bulk

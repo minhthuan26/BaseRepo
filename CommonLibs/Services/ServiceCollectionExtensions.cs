@@ -2,7 +2,9 @@
 using CommonLibs.Consul;
 using CommonLibs.Options;
 using CommonLibs.Utils;
+using Consul;
 using Microsoft.AspNetCore.Builder.Extensions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,7 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -89,17 +92,28 @@ namespace CommonLibs.Services
 
             // Đọc cấu hình ApplicationOptions từ appsettings.json và bind vào lớp ApplicationOptions
             var appOptions = LoadOptions(configuration);
+
+            // Đăng ký AppOptions để có thể inject vào các lớp khác
             services.AddSingleton<IOptions<AppOptions>>(Microsoft.Extensions.Options.Options.Create(appOptions));
+
+            // Đăng ký JwtService để tạo và xác thực JWT Token
+            services.AddScoped<IJwtTokenService>(sp =>
+            {
+                var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+                var options = sp.GetRequiredService<IOptions<AppOptions>>();
+                var tokenHandler = new JwtSecurityTokenHandler();
+                return new JwtTokenService(tokenHandler, httpContextAccessor, options, appOptions.ApplicationId);
+            });
+
             if (!string.IsNullOrEmpty(appOptions.RedisConnectionString))
             {
                 RedisHelper.Initialize(appOptions.RedisConnectionString, appOptions.ApplicationId);
-                // 1. Đăng ký IConnectionMultiplexer (Bắt buộc là Singleton)
+                // Đăng ký IConnectionMultiplexer (Bắt buộc là Singleton)
                 // Dùng Lazy để tránh block luồng khởi động của ứng dụng nếu Redis tạm thời chưa up
                 services.AddSingleton<IConnectionMultiplexer>(sp =>
                     ConnectionMultiplexer.Connect(appOptions.RedisConnectionString));
 
-                // 2. Đăng ký IRedisService mới đã gộp
-                // Đổi từ Scoped sang Singleton vì Multiplexer là Singleton, dùng chung toàn hệ thống rất an toàn
+                // Đăng ký IRedisService 
                 services.AddSingleton<IRedisService, RedisService>();
             }
 
@@ -120,7 +134,9 @@ namespace CommonLibs.Services
 
             // Sử dụng hàm giải quyết ConnectionString và DbContext chung từ CommonLibs
             services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
-            var temporaryFactory = new SqlConnectionFactory(configuration);
+            using var loggerFactory = LoggerFactory.Create(loggingBuilder => loggingBuilder.AddConsole());
+            var tempLogger = loggerFactory.CreateLogger<SqlConnectionFactory>();
+            var temporaryFactory = new SqlConnectionFactory(configuration, tempLogger);
             string resolvedConnectionString = temporaryFactory.GetConnectionString();
             // Gọi hàm rút gọn từ CommonLibs
             services.AddSharedDbContext<TDbContext>(resolvedConnectionString);

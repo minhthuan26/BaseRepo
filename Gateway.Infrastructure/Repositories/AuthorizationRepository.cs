@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using CommonLibs.Options;
 using CommonLibs.Repositories;
+using CommonLibs.Services;
 using CommonLibs.Utils;
 using EncryptionLibrary;
 using Gateway.Application.Interfaces;
@@ -38,7 +39,7 @@ namespace Gateway.Infrastructure.Repositories
             IConfiguration configuration,
             IHttpContextAccessor httpContext,
             JwtSecurityTokenHandler jwtSecurityTokenHandler,
-            GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
+            GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService) : base(mapper, logger, configuration, httpContext, options, auditContext, jwtTokenService)
         {
             _jwtSecurityTokenHandler = jwtSecurityTokenHandler;
             _dbContext = dbContext;
@@ -85,14 +86,14 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}Login-03] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
                 }
                 // Tạo access token và refresh token
-                var accessToken = GenerateToken(_options.ActualAccessKey, new List<Claim>
+                var accessToken = _jwtTokenService.GenerateToken(_options.ActualAccessKey, new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, user.UserId),
                     new(ClaimTypes.Name, user.UserName),
                     new(ClaimTypes.Role, "User")
                 }, DateTime.UtcNow.AddHours(1)).Result;
 
-                var refreshToken = GenerateToken(_options.ActualRefreshKey, new List<Claim>
+                var refreshToken = _jwtTokenService.GenerateToken(_options.ActualRefreshKey, new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, user.UserId),
                     new(ClaimTypes.Name, user.UserName),
@@ -139,7 +140,7 @@ namespace Gateway.Infrastructure.Repositories
             try
             {
                 // Lấy access token từ header
-                var accessToken = GetAuthorizattionHeader();
+                var accessToken = _jwtTokenService.GetAuthorizattionHeader();    
                 // Lấy access key từ cấu hình
                 var accessKey = _configuration["BaseRepo:JWT:AccessKey"];
                 if (string.IsNullOrEmpty(accessKey))
@@ -147,8 +148,8 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}Logout-01] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
                 // Lấy thông tin tài khoản từ access token
-                List<Claim> claims = await VerifyToken(accessToken, accessKey);
-                var userId = GetClaim(claims, ClaimTypes.NameIdentifier).ToString();
+                List<Claim> claims = await _jwtTokenService.VerifyToken(accessToken, accessKey);
+                var userId = _jwtTokenService.GetClaim(claims, ClaimTypes.NameIdentifier).ToString();
                 if (string.IsNullOrEmpty(userId))
                 {
                     throw new AppException($"[{_errorPrefix}Logout-02] UserId is missing in token claims.", HttpStatusCode.BadRequest);
@@ -192,7 +193,7 @@ namespace Gateway.Infrastructure.Repositories
             try
             {
                 // Lấy access token từ header
-                var accessToken = GetAuthorizattionHeader();
+                var accessToken = _jwtTokenService.GetAuthorizattionHeader();
 
                 // Lấy refresh token từ cookie
                 string refreshToken = _httpContext.HttpContext.Request.Cookies["RefreshToken"];
@@ -213,7 +214,7 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}RenewToken-07] RefreshKey key is missing in configuration.", HttpStatusCode.InternalServerError);
                 }
                 // Kiểm tra access token đã hết hạn chưa
-                if (!IsTokenExpired(accessToken, accessKey))
+                if (!_jwtTokenService.IsTokenExpired(accessToken, accessKey))
                 {
                     throw new AppException($"[{_errorPrefix}RenewToken-08] Access token is not expired.");
                 }
@@ -231,16 +232,16 @@ namespace Gateway.Infrastructure.Repositories
                 }
 
                 // Kiểm tra refresh token đã hết hạn chưa
-                if (IsTokenExpired(refreshToken, refreshKey))
+                if (_jwtTokenService.IsTokenExpired(refreshToken, refreshKey))
                 {
                     throw new AppException($"[{_errorPrefix}RenewToken-10] Refresh token has been expired. Please signin again.");
                 }
 
                 // Kiểm tra refresh token có khớp với tài khoản không
-                var claims = await VerifyToken(refreshToken, refreshKey);
+                var claims = await _jwtTokenService.VerifyToken(refreshToken, refreshKey);
                 // Tạo mới access token và refresh token
-                accessToken = await GenerateToken(accessKey, claims, DateTime.UtcNow.AddHours(1));
-                refreshToken = await GenerateToken(refreshKey, claims, DateTime.UtcNow.AddDays(7));
+                accessToken = await _jwtTokenService.GenerateToken(accessKey, claims, DateTime.UtcNow.AddHours(1));
+                refreshToken = await _jwtTokenService.GenerateToken(refreshKey, claims, DateTime.UtcNow.AddDays(7));
 
                 // Cập nhật refresh token cho tài khoản
                 await _dbContext.ExecuteAsync(@"
@@ -334,148 +335,6 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        #endregion
-
-        #region Helpers
-        private string GetAuthorizattionHeader()
-        {
-            try
-            {
-                // Kiểm tra header và lấy Authorization
-                var httpContext = _httpContext.HttpContext ?? throw new AppException($"[{_errorPrefix}RenewToken-01] Http context is unavailable.", HttpStatusCode.Unauthorized);
-                if (!httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-02] Authorization header is missing.", HttpStatusCode.Unauthorized);
-                }
-                // Kiểm tra Bearer token hợp lệ
-                var authorization = authHeader.ToString();
-                if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-03] Invalid authorization scheme.", HttpStatusCode.Unauthorized);
-                }
-                // Tách Bearer và kiểm tra hợp lệ
-                var accessToken = authorization["Bearer ".Length..].Trim();
-                if (string.IsNullOrWhiteSpace(accessToken))
-                {
-                    throw new AppException($"[{_errorPrefix}RenewToken-04] Access token is missing.", HttpStatusCode.Unauthorized);
-                }
-                return accessToken;
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-        private async Task<string> GenerateToken(string key, List<Claim> claims, DateTime expires)
-        {
-            try
-            {
-                var signingCredential = new SigningCredentials(
-                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
-                    SecurityAlgorithms.HmacSha512Signature
-                );
-
-                var tokenDescription = new JwtSecurityToken(
-                    issuer: _options.ActualIssuer,
-                    audience:_options.ActualAudience,
-                    claims: claims,
-                    expires: expires,
-                    signingCredentials: signingCredential
-                );
-
-                var token = _jwtSecurityTokenHandler.WriteToken(tokenDescription);
-                if (token == null)
-                {
-                    throw new AppException($"[{_errorPrefix}GenerateToken-01] Failed to generate JWT token.", HttpStatusCode.InternalServerError);
-                }
-                return token;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private bool IsTokenExpired(string token, string key)
-        {
-            try
-            {
-                var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-
-                var validationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidIssuer = _options.ActualIssuer,
-                    ValidateAudience = true,
-                    ValidAudience = _options.ActualAudience,
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKeys = new List<SecurityKey> { signingKey },
-                    ValidateLifetime = true
-                };
-
-                _jwtSecurityTokenHandler.ValidateToken(token, validationParameters, out _);
-
-                return false;
-            }
-            catch (SecurityTokenException ex)
-            {
-                switch (ex)
-                {
-                    case SecurityTokenExpiredException:
-                        return true;
-                    case SecurityTokenValidationException:
-                        throw new AppException("Token is not valid.", HttpStatusCode.BadRequest);
-                    default:
-                        throw new AppException(ex.Message, HttpStatusCode.BadRequest);
-                }
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        public object GetClaim(string type)
-        {
-            try
-            {
-                var claims = (List<Claim>)_httpContext.HttpContext.Items["claims"];
-                if (claims == null || claims.Count == 0)
-                {
-                    throw new AppException("Missing token claims", HttpStatusCode.BadRequest);
-                }
-                var claimsIdentity = new ClaimsIdentity(claims);
-                var claim = claimsIdentity.Claims.FirstOrDefault(claim => claim.Type == type)?.Value;
-                if (claim == null)
-                {
-                    throw new AppException($"Missing claim type: {type}", HttpStatusCode.BadRequest);
-                }
-                return claim;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        public object GetClaim(List<Claim> claims, string type)
-        {
-            try
-            {
-                var claimsIdentity = new ClaimsIdentity(claims);
-                var claim = claimsIdentity.Claims.FirstOrDefault(claim => claim.Type == type)?.Value;
-                if (claim == null)
-                {
-                    throw new AppException($"Missing claim type: {type}", HttpStatusCode.BadRequest);
-                }
-                return claim;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
         #endregion
     }
 }

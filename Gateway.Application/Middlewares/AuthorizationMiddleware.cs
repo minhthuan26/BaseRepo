@@ -1,4 +1,5 @@
 ﻿using CommonLibs.Options;
+using CommonLibs.Services;
 using CommonLibs.Utils;
 using Gateway.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +31,7 @@ namespace Gateway.Application.Middlewares
             _options = options.Value;
         }
 
-        public async Task Invoke(HttpContext context, IAuthorizationRepository authService)
+        public async Task Invoke(HttpContext context, IJwtTokenService jwtTokenService)
         {
             try
             {
@@ -81,7 +82,7 @@ namespace Gateway.Application.Middlewares
                 }
 
                 // 4. Xác thực Token thông qua Auth Service
-                List<Claim> claims = await authService.VerifyToken(accessToken, _options.ActualAccessKey);
+                List<Claim> claims = await jwtTokenService.VerifyToken(accessToken, _options.ActualAccessKey);
 
                 var roleClaim = claims.FirstOrDefault(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role);
                 var userIdClaim = claims.FirstOrDefault(claim => claim.Type == "id" || claim.Type == ClaimTypes.NameIdentifier);

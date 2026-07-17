@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using CommonLibs.Options;
 using CommonLibs.Repositories;
+using CommonLibs.Services;
 using CommonLibs.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
@@ -28,7 +29,7 @@ namespace Site.Infrastructure.Repositories
         private readonly SiteDbContext _dbContext;
         private readonly string _errorPrefix = "Site_Repo_";
 
-        public SiteRepository(IMapper mapper, ILogger<SiteRepository> logger, IConfiguration configuration, IHttpContextAccessor httpContext, SiteDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
+        public SiteRepository(IMapper mapper, ILogger<SiteRepository> logger, IConfiguration configuration, IHttpContextAccessor httpContext, SiteDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService) : base(mapper, logger, configuration, httpContext, options, auditContext, jwtTokenService)
         {
             _dbContext = dbContext;
         }

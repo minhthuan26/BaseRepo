@@ -1,12 +1,13 @@
 ﻿using Gateway.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using CommonLibs.BaseDbContext;
+using Microsoft.Extensions.Logging;
 
 namespace Gateway.Infrastructure.DBContext
 {
     public class GatewayDbContext : BaseContext
     {
-        public GatewayDbContext(DbContextOptions<GatewayDbContext> options): base(options)
+        public GatewayDbContext(DbContextOptions<GatewayDbContext> options, ILogger<GatewayDbContext> logger): base(options, logger)
         {
         }
 

@@ -2,6 +2,7 @@
 using CommonLibs.DTOs;
 using CommonLibs.Options;
 using CommonLibs.Repositories;
+using CommonLibs.Services;
 using CommonLibs.Utils;
 using Dapper;
 using EncryptionLibrary;
@@ -32,7 +33,7 @@ namespace Gateway.Infrastructure.Repositories
     {
         private readonly GatewayDbContext _dbContext;
         private readonly string _errorPrefix = "User_Repo_";
-        public UserRepository(IMapper mapper, ILogger<UserRepository> logger, IConfiguration configuration, IHttpContextAccessor httpContext, GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext) : base(mapper, logger, configuration, httpContext, options, auditContext)
+        public UserRepository(IMapper mapper, ILogger<UserRepository> logger, IConfiguration configuration, IHttpContextAccessor httpContext, GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService) : base(mapper, logger, configuration, httpContext, options, auditContext, jwtTokenService)
         {
             _dbContext = dbContext;
         }

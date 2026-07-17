@@ -1,0 +1,3 @@
+VHOST: /
+QUEUE: system.service.heartbeat
+INDEX: v2

@@ -1,8 +1,10 @@
 using CommonLibs.Logging;
 using CommonLibs.Middlewares;
 using CommonLibs.Options;
+using CommonLibs.Utils;
 using Microsoft.OpenApi.Models;
 using Site.Infrastructure;
+using Site.Infrastructure.DBContext;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,6 +82,9 @@ var app = builder.Build();
 // ==========================================================================
 // CẤU HÌNH HTTP REQUEST PIPELINE
 // ==========================================================================
+
+// Kiểm tra kết nối Database ngay khi khởi động ứng dụng
+app.ValidateDatabaseConnection<SiteDbContext>();
 
 app.UseDynamicLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();

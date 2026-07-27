@@ -1,0 +1,46 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (web) - Gateway",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/Gateway/bin/Debug/net6.0/Gateway.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Gateway",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": ".NET Core Launch (web) - Site",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/Site/bin/Debug/net6.0/Site.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Site",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Run All Projects",
+            "configurations": [
+                ".NET Core Launch (web) - Gateway",
+                ".NET Core Launch (web) - Site"
+            ]
+        }
+    ]
+}

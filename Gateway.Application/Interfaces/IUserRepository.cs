@@ -1,4 +1,4 @@
-﻿using CommonLibs.DTOs;
+using CommonLibs.DTOs;
 using Gateway.Domain.DTOs;
 using System;
 using System.Collections.Generic;
@@ -17,5 +17,6 @@ namespace Gateway.Application.Interfaces
         Task<string> DeleteUser(string userId, CancellationToken cancellationToken);
         Task<List<UserOutputDTO>> ImportUsers(Stream stream, string fileName, CancellationToken cancellationToken);
         Task<string> ExportUsers(CancellationToken cancellationToken);
+        Task<UserOutputDTO> ChangePassword(ChangePasswordInputDTO input, CancellationToken cancellationToken);
     }
 }

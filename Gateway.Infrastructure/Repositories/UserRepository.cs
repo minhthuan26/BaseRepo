@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using CommonLibs.DTOs;
 using CommonLibs.Options;
 using CommonLibs.Repositories;
@@ -334,9 +334,132 @@ namespace Gateway.Infrastructure.Repositories
             }, cancellationToken);
         }
 
-        public Task<UserOutputDTO> UpdateUser(UserInputDTO input, CancellationToken cancellationToken)
+        public async Task<UserOutputDTO> UpdateUser(UserInputDTO input, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            try
+            {
+                if (input == null)
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateUser-01] Input is null.", HttpStatusCode.BadRequest);
+                }
+                
+                if (string.IsNullOrWhiteSpace(input.UserId))
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateUser-02] UserId is required.", HttpStatusCode.BadRequest);
+                }
+                
+                if (!await CheckUserExists(input.UserId, cancellationToken))
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateUser-03] User with UserId '{input.UserId}' not found.", HttpStatusCode.NotFound);
+                }
+
+                input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
+
+                string updateQuery = @"
+                        Update tbl_Users
+                        Set UserName = @UserName,
+                            Priority = @Priority,
+                            Signature = @Signature,
+                            Email = @Email,
+                            QuickCode = @QuickCode,
+                            Status = @Status,
+                            UpdatedDate = @UpdatedDate,
+                            UpdatedBy = @UpdatedBy,
+                            DeviceName = @DeviceName,
+                            DeviceId = @DeviceId";
+                updateQuery += " Where UserId = @UserId";
+
+                int rowsAffected = await _dbContext.ExecuteAsync(updateQuery, new
+                {
+                    UserId = input.UserId,
+                    UserName = input.UserName,
+                    Priority = input.Priority,
+                    Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
+                    Email = input.Email,
+                    QuickCode = input.QuickCode,
+                    Status = input.Status.HasValue ? (int)input.Status.Value : 1,
+                    UpdatedDate = DateTime.UtcNow,
+                    UpdatedBy = input.UpdatedBy,
+                    DeviceName = input.DeviceName,
+                    DeviceId = input.DeviceId,
+                }, cancellationToken);
+
+                if (rowsAffected <= 0)
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateUser-05] Failed to update user.", HttpStatusCode.InternalServerError);
+                }
+
+                return _mapper.Map<UserOutputDTO>(input);
+            }
+            catch
+            {
+                throw;
+            }
+        }
+        public async Task<UserOutputDTO> ChangePassword(ChangePasswordInputDTO input, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (input == null)
+                    throw new AppException($"[{_errorPrefix}ChangePassword-01] Input is null.", HttpStatusCode.BadRequest);
+
+                if (string.IsNullOrWhiteSpace(input.UserId))
+                    throw new AppException($"[{_errorPrefix}ChangePassword-02] UserId is required.", HttpStatusCode.BadRequest);
+
+                if (string.IsNullOrWhiteSpace(input.OldPassword))
+                    throw new AppException($"[{_errorPrefix}ChangePassword-03] OldPassword is required.", HttpStatusCode.BadRequest);
+
+                if (string.IsNullOrWhiteSpace(input.NewPassword))
+                    throw new AppException($"[{_errorPrefix}ChangePassword-04] NewPassword is required.", HttpStatusCode.BadRequest);
+
+                if (input.NewPassword != input.ConfirmNewPassword)
+                    throw new AppException($"[{_errorPrefix}ChangePassword-05] NewPassword and ConfirmNewPassword do not match.", HttpStatusCode.BadRequest);
+
+                var user = await _dbContext.QueryFirstOrDefaultAsync<User>(
+                    @"Select * From tbl_Users Where UserId = @UserId",
+                    new { UserId = input.UserId },
+                    cancellationToken);
+
+                if (user == null)
+                    throw new AppException($"[{_errorPrefix}ChangePassword-06] User not found.", HttpStatusCode.NotFound);
+
+                if (string.IsNullOrEmpty(_options.ActualAccessKey))
+                    throw new AppException($"[{_errorPrefix}ChangePassword-07] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
+
+                string encryptedOldPassword = EncryptionUtils.EncryptData(input.OldPassword, _options.ApplicationName, _options.ApplicationId);
+                
+                if (user.Password != encryptedOldPassword)
+                    throw new AppException($"[{_errorPrefix}ChangePassword-08] OldPassword is incorrect.", HttpStatusCode.BadRequest);
+
+                string encryptedNewPassword = EncryptionUtils.EncryptData(input.NewPassword, _options.ApplicationName, _options.ApplicationId);
+
+                int rowsAffected = await _dbContext.ExecuteAsync(@"
+                    Update tbl_Users
+                    Set Password = @Password,
+                        UpdatedDate = @UpdatedDate,
+                        UpdatedBy = @UpdatedBy,
+                        DeviceName = @DeviceName,
+                        DeviceId = @DeviceId
+                    Where UserId = @UserId",
+                    new
+                    {
+                        Password = encryptedNewPassword,
+                        UpdatedDate = DateTime.UtcNow,
+                        UpdatedBy = _auditContext.UserName,
+                        DeviceName = _auditContext.DeviceName,
+                        DeviceId = _auditContext.DeviceId,
+                        UserId = input.UserId
+                    }, cancellationToken);
+
+                if (rowsAffected <= 0)
+                    throw new AppException($"[{_errorPrefix}ChangePassword-09] Failed to change password.", HttpStatusCode.InternalServerError);
+
+                return _mapper.Map<UserOutputDTO>(user);
+            }
+            catch
+            {
+                throw;
+            }
         }
         #endregion
 

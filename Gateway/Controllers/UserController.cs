@@ -1,6 +1,7 @@
-﻿using CommonLibs.Comtrollers;
+using CommonLibs.Comtrollers;
 using CommonLibs.DTOs;
 using CommonLibs.Utils;
+using Gateway.Application.Features.User.ChangePassword;
 using Gateway.Application.Features.User.CreateUser;
 using Gateway.Application.Features.User.GetAllUsers;
 using Gateway.Application.Features.User.GetUserById;
@@ -65,6 +66,23 @@ namespace Gateway.Controllers
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<BaseFilterOutput<UserOutputDTO>>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Successfully",
+                Data = result
+            });
+        }
+        [HttpPost("{userId}/change-password")]
+        public async Task<IActionResult> ChangePassword([FromRoute] string userId, [FromBody] ChangePasswordInputDTO data)
+        {
+            data.UserId = userId;
+            ChangePasswordCommand command = new()
+            {
+                Data = data
+            };
+            var result = await _mediator.Send(command);
+            return Ok(new Response<UserOutputDTO>()
             {
                 Success = true,
                 Code = System.Net.HttpStatusCode.OK,

@@ -1,7 +1,6 @@
-﻿using CommonLibs.Options;
+using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
-using Gateway.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -16,7 +15,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Gateway.Application.Middlewares
+namespace CommonLibs.Middlewares
 {
     public class AuthorizationMiddleware
     {

@@ -4,6 +4,8 @@ using CommonLibs.Options;
 using CommonLibs.Repositories;
 using CommonLibs.Services;
 using CommonLibs.Utils;
+using CsvHelper;
+using CsvHelper.Configuration;
 using Dapper;
 using EncryptionLibrary;
 using Gateway.Application.Interfaces;
@@ -20,6 +22,7 @@ using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography.Xml;
@@ -78,19 +81,19 @@ namespace Gateway.Infrastructure.Repositories
                         Insert Into tbl_Users (UserId, UserName, Password, Priority, Signature, Email, QuickCode, CreatedDate, CreatedBy, DeviceName, DeviceId)
                         Values (@UserId, @UserName, @Password, @Priority, @Signature, @Email, @QuickCode, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
                     ", new
-                    {
-                        UserId = input.UserId,
-                        UserName = input.UserName,
-                        Password = encryptedPassword,
-                        Priority = input.Priority,
-                        Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
-                        Email = input.Email,
-                        QuickCode = input.QuickCode,
-                        CreatedDate = DateTime.UtcNow,
-                        CreatedBy = input.CreatedBy,
-                        DeviceName = input.DeviceName,
-                        DeviceId = input.DeviceId,
-                    },
+                {
+                    UserId = input.UserId,
+                    UserName = input.UserName,
+                    Password = encryptedPassword,
+                    Priority = input.Priority,
+                    Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
+                    Email = input.Email,
+                    QuickCode = input.QuickCode,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = input.CreatedBy,
+                    DeviceName = input.DeviceName,
+                    DeviceId = input.DeviceId,
+                },
                     cancellationToken);
                 if (rowsAffected <= 0)
                 {
@@ -104,27 +107,55 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        public async Task<string> DeleteUser(string userId, CancellationToken cancellationToken)
+        public async Task<string> DeleteUser(DeleteUserInputDTO input, CancellationToken cancellationToken)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(userId))
+                if (string.IsNullOrWhiteSpace(input.UserId))
                 {
                     throw new AppException($"[{_errorPrefix}DeleteUser-01] UserId is required.", HttpStatusCode.BadRequest);
                 }
-                int rowsAffected = await _dbContext.ExecuteAsync(@"
+                if (input.IsSoftDelete)
+                {
+                    int rowsAffected = await _dbContext.ExecuteAsync(@"
+                        Update tbl_Users
+                        Set Status = -1,
+                            UpdatedDate = @UpdatedDate,
+                            UpdatedBy = @UpdatedBy,
+                            DeviceName = @DeviceName,
+                            DeviceId = @DeviceId
+                        Where UserId = @UserId
+                        ", new
+                    {
+                        UserId = input.UserId,
+                        UpdatedDate = DateTime.UtcNow,
+                        UpdatedBy = _auditContext.UserName,
+                        DeviceName = _auditContext.DeviceName,
+                        DeviceId = _auditContext.DeviceId
+                    },
+                        cancellationToken);
+                    if (rowsAffected <= 0)
+                    {
+                        throw new AppException($"[{_errorPrefix}DeleteUser-02] User with UserId '{input.UserId}' not found.", HttpStatusCode.NotFound);
+                    }
+                    return input.UserId;
+                }
+                else
+                {
+                    int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Delete From tbl_Users
                         Where UserId = @UserId
                         ", new
-                {
-                    UserId = userId
-                },
+                    {
+                        UserId = input.UserId
+                    },
                     cancellationToken);
-                if (rowsAffected <= 0)
-                {
-                    throw new AppException($"[{_errorPrefix}DeleteUser-02] User with UserId '{userId}' not found.", HttpStatusCode.NotFound);
+                    if (rowsAffected <= 0)
+                    {
+                        throw new AppException($"[{_errorPrefix}DeleteUser-02] User with UserId '{input.UserId}' not found.", HttpStatusCode.NotFound);
+                    }
+                    return input.UserId;
                 }
-                return userId;
             }
             catch
             {
@@ -132,9 +163,34 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        public Task<string> ExportUsers(CancellationToken cancellationToken)
+        public async Task<string> ExportUsers(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var users = await _dbContext.QueryAsync<User>(
+                    @"Select * From tbl_Users Order By AutoId Asc",
+                    cancellationToken: cancellationToken);
+
+                var records = users.Select(u =>
+                {
+                    u.SetRefreshToken(null);
+                    return _mapper.Map<UserOutputDTO>(u);
+                }).ToList();
+
+                using var memoryStream = new MemoryStream();
+                using (var streamWriter = new StreamWriter(memoryStream, leaveOpen: true))
+                using (var csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
+                {
+                    csvWriter.Context.RegisterClassMap<UserExportMap>();
+                    await csvWriter.WriteRecordsAsync(records, cancellationToken);
+                }
+
+                return Convert.ToBase64String(memoryStream.ToArray());
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         public async Task<BaseFilterOutput<UserOutputDTO>> GetAllUsers(UserFilterDTO filter, CancellationToken cancellationToken)
@@ -250,6 +306,19 @@ namespace Gateway.Infrastructure.Repositories
             if (!users.Any())
                 return new();
 
+            if (string.IsNullOrEmpty(_options.ActualAccessKey))
+            {
+                throw new AppException($"[{_errorPrefix}ImportUsers-01] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
+            }
+
+            foreach (var user in users)
+            {
+                if (!string.IsNullOrWhiteSpace(user.Password))
+                {
+                    user.Password = EncryptionUtils.EncryptData(user.Password, _options.ApplicationName, _options.ApplicationId);
+                }
+            }
+
             return await _dbContext.ExecuteWithTransactionAsync(async () =>
             {
                 await _dbContext.ExecuteAsync(@"
@@ -319,15 +388,15 @@ namespace Gateway.Infrastructure.Repositories
                             GETUTCDATE(),
                             @CreatedBy,
                             @DeviceName,
-                            @DeviceId,
+                            @DeviceId
                         );
                     ", new
-                    {
-                        UpdatedBy = _auditContext.UserName,
-                        CreatedBy = _auditContext.UserName,
-                        DeviceName = _auditContext.DeviceName,
-                        DeviceId = _auditContext.DeviceId,
-                    },
+                {
+                    UpdatedBy = _auditContext.UserName,
+                    CreatedBy = _auditContext.UserName,
+                    DeviceName = _auditContext.DeviceName,
+                    DeviceId = _auditContext.DeviceId,
+                },
                     cancellationToken: cancellationToken);
 
                 return _mapper.Map<List<UserOutputDTO>>(users);
@@ -342,12 +411,12 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}UpdateUser-01] Input is null.", HttpStatusCode.BadRequest);
                 }
-                
+
                 if (string.IsNullOrWhiteSpace(input.UserId))
                 {
                     throw new AppException($"[{_errorPrefix}UpdateUser-02] UserId is required.", HttpStatusCode.BadRequest);
                 }
-                
+
                 if (!await CheckUserExists(input.UserId, cancellationToken))
                 {
                     throw new AppException($"[{_errorPrefix}UpdateUser-03] User with UserId '{input.UserId}' not found.", HttpStatusCode.NotFound);
@@ -427,7 +496,7 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}ChangePassword-07] Access key is missing in configuration.", HttpStatusCode.InternalServerError);
 
                 string encryptedOldPassword = EncryptionUtils.EncryptData(input.OldPassword, _options.ApplicationName, _options.ApplicationId);
-                
+
                 if (user.Password != encryptedOldPassword)
                     throw new AppException($"[{_errorPrefix}ChangePassword-08] OldPassword is incorrect.", HttpStatusCode.BadRequest);
 
@@ -480,6 +549,23 @@ namespace Gateway.Infrastructure.Repositories
             {
                 Console.WriteLine(ex.ToString());
                 throw;
+            }
+        }
+
+        private sealed class UserExportMap : ClassMap<UserOutputDTO>
+        {
+            public UserExportMap()
+            {
+                Map(m => m.UserId);
+                Map(m => m.UserName);
+                Map(m => m.Priority);
+                Map(m => m.Email);
+                Map(m => m.QuickCode);
+                Map(m => m.Status);
+                Map(m => m.CreatedDate);
+                Map(m => m.CreatedBy);
+                Map(m => m.UpdatedDate);
+                Map(m => m.UpdatedBy);
             }
         }
         #endregion

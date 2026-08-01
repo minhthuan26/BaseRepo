@@ -3,7 +3,6 @@ using CommonLibs.Middlewares;
 using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
-using Gateway.Application.Middlewares;
 using Gateway.Infrastructure;
 using Gateway.Utils;
 using Microsoft.OpenApi.Models;
@@ -99,8 +98,9 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Gateway API");
 
         // 2. Cấu hình đọc Swagger JSON của Service Site thông qua YARP
-        // Lưu ý: "/site-api" là prefix bạn định tuyến trong YARP, nó sẽ proxy xuống /swagger/v1/swagger.json của Site
-        options.SwaggerEndpoint("/site-api/swagger/v1/swagger.json", "Site API");
+        // Lưu ý: "/site-swagger" khớp với route "site-swagger-route" trong appsettings.json (ReverseProxy),
+        // route này sẽ proxy và rewrite thành /swagger/v1/swagger.json khi gọi xuống Site.
+        options.SwaggerEndpoint("/site-swagger/v1/swagger.json", "Site API");
 
     });
 }

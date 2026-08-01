@@ -42,6 +42,7 @@
     <Folder Include="Contacts\DTOs\" />
     <Folder Include="Contacts\Interfaces\" />
     <Folder Include="Controllers\" />
+    <Folder Include="TemplatesImport\" />
   </ItemGroup>
 
   <ItemGroup>

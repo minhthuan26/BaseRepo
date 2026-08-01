@@ -1,4 +1,5 @@
 ﻿using ClosedXML.Excel;
+using CommonLibs.DTOs;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +8,7 @@ using System.Data;
 using System.Formats.Asn1;
 using System.Globalization;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Xml.Serialization;
 
@@ -123,40 +125,151 @@ namespace CommonLibs.Utils
             return await Task.FromResult(csv.GetRecords<T>().ToList());
         }
 
-        private static async Task<List<T>> ReadExcel<T>(Stream stream) where T : class, new()
+        private static Task<List<T>> ReadExcel<T>(Stream stream) where T : class, new()
         {
             using var workbook = new XLWorkbook(stream);
-
             var worksheet = workbook.Worksheet(1);
-
-            var table = new DataTable();
 
             var headerRow = worksheet.FirstRowUsed();
 
-            foreach (var cell in headerRow.CellsUsed())
+            if (headerRow == null)
+                return Task.FromResult(new List<T>());
+
+            // Header trong Excel
+            var excelHeaders = headerRow.CellsUsed()
+                .Select((c, i) => new
+                {
+                    Index = i + 1,
+                    Name = c.GetString().Trim()
+                })
+                .ToList();
+
+            // Property của DTO
+            var properties = typeof(T)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
+
+            // Lấy HeaderMappings nếu DTO kế thừa BaseInputDTO
+            Dictionary<string, string>? headerMappings = null;
+
+            if (Activator.CreateInstance<T>() is BaseInputDTO dto)
             {
-                table.Columns.Add(cell.GetString());
+                headerMappings = dto.HeaderMappings;
             }
+
+            List<T> result = new();
 
             foreach (var row in worksheet.RowsUsed().Skip(1))
             {
-                var dataRow = table.NewRow();
+                T item = new();
 
-                for (int i = 0; i < table.Columns.Count; i++)
+                foreach (var header in excelHeaders)
                 {
-                    dataRow[i] = row.Cell(i + 1).Value.ToString();
+                    string propertyName = header.Name;
+
+                    if (headerMappings != null &&
+                        headerMappings.TryGetValue(header.Name, out var mappedProperty))
+                    {
+                        propertyName = mappedProperty;
+                    }
+
+                    if (!properties.TryGetValue(propertyName, out var property))
+                        continue;
+
+                    var value = row.Cell(header.Index).GetFormattedString().Trim();
+
+                    if (string.IsNullOrWhiteSpace(value))
+                        continue;
+
+                    try
+                    {
+                        property.SetValue(
+                            item,
+                            ConvertValue(value, property.PropertyType));
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new AppException(
+                            $"Invalid value '{value}' for column '{header.Name}' at row {row.RowNumber()}. {ex.Message}",
+                            HttpStatusCode.BadRequest);
+                    }
                 }
 
-                table.Rows.Add(dataRow);
+                result.Add(item);
             }
 
-            var json = JsonSerializer.Serialize(table);
+            return Task.FromResult(result);
+        }
 
-            return JsonSerializer.Deserialize<List<T>>(json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new List<T>();
+        private static object? ConvertValue(string value, Type propertyType)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            Type targetType =
+                Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+
+            if (targetType == typeof(string))
+                return value;
+
+            if (targetType.IsEnum)
+            {
+                if (int.TryParse(value, out var enumInt))
+                    return Enum.ToObject(targetType, enumInt);
+
+                if (Enum.TryParse(targetType, value, true, out var enumValue))
+                    return enumValue;
+
+                throw new Exception($"'{value}' is not a valid {targetType.Name}.");
+            }
+
+            if (targetType == typeof(Guid))
+                return Guid.Parse(value);
+
+            if (targetType == typeof(DateTime))
+            {
+                if (DateTime.TryParse(value, out var date))
+                    return date;
+
+                throw new Exception($"'{value}' is not a valid DateTime.");
+            }
+
+            if (targetType == typeof(bool))
+            {
+                if (bool.TryParse(value, out var b))
+                    return b;
+
+                if (value == "1")
+                    return true;
+
+                if (value == "0")
+                    return false;
+
+                throw new Exception($"'{value}' is not a valid Boolean.");
+            }
+
+            if (targetType == typeof(int))
+                return int.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(long))
+                return long.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(short))
+                return short.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(decimal))
+                return decimal.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(double))
+                return double.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(float))
+                return float.Parse(value, CultureInfo.InvariantCulture);
+
+            if (targetType == typeof(byte))
+                return byte.Parse(value, CultureInfo.InvariantCulture);
+
+            return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
         }
 
         /// <summary>

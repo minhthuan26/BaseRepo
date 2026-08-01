@@ -299,73 +299,82 @@ namespace CommonLibs.BaseDbContext
             bool saveChanges = true,
             CancellationToken cancellationToken = default)
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(cancellationToken);
+            var strategy = Database.CreateExecutionStrategy();
 
-            try
+            return await strategy.ExecuteAsync(async () =>
             {
-                var result = await action();
+                await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
 
-                if (saveChanges)
+                try
                 {
-                    await SaveChangesAsync(cancellationToken);
+                    var result = await action();
+
+                    if (saveChanges)
+                    {
+                        await SaveChangesAsync(cancellationToken);
+                    }
+
+                    await transaction.CommitAsync(cancellationToken);
+
+                    return result;
                 }
-
-                await transaction.CommitAsync(cancellationToken);
-
-                return result;
-            }
-            catch
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
         }
 
         public async Task ExecuteWithTransactionAsync(
             Func<Task> action,
             CancellationToken cancellationToken = default)
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(cancellationToken);
-
-            try
+            var strategy = Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                await action();
+                await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+                try
+                {
+                    await action();
 
-                await SaveChangesAsync(cancellationToken);
+                    await SaveChangesAsync(cancellationToken);
 
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                throw;
-            }
+                    await transaction.CommitAsync(cancellationToken);
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
         }
 
         public async Task<TResult> ExecuteWithTransactionAsync<TResult>(
             Func<Task<TResult>> action,
             CancellationToken cancellationToken = default)
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(cancellationToken);
-
-            try
+            var strategy = Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                var result = await action();
+                await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
 
-                await SaveChangesAsync(cancellationToken);
+                try
+                {
+                    var result = await action();
 
-                await transaction.CommitAsync(cancellationToken);
+                    await SaveChangesAsync(cancellationToken);
 
-                return result;
-            }
-            catch
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                throw;
-            }
+                    await transaction.CommitAsync(cancellationToken);
+
+                    return result;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
         }
 
         #endregion

@@ -3,8 +3,12 @@ using CommonLibs.DTOs;
 using CommonLibs.Utils;
 using Gateway.Application.Features.User.ChangePassword;
 using Gateway.Application.Features.User.CreateUser;
+using Gateway.Application.Features.User.DeleteUser;
+using Gateway.Application.Features.User.ExportUsers;
+using Gateway.Application.Features.User.ImportUsers;
 using Gateway.Application.Features.User.GetAllUsers;
 using Gateway.Application.Features.User.GetUserById;
+using Gateway.Application.Features.User.UpdateUser;
 using Gateway.Domain.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -27,6 +31,24 @@ namespace Gateway.Controllers
         public async Task<IActionResult> CreateUser([FromBody] UserInputDTO data)
         {
             CreateUserCommand command = new()
+            {
+                Data = data
+            };
+            var result = await _mediator.Send(command);
+            return Ok(new Response<UserOutputDTO>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Successfully",
+                Data = result
+            });
+        }
+
+        [HttpPut("{userId}")]
+        public async Task<IActionResult> UpdateUser([FromRoute] string userId, [FromBody] UserInputDTO data)
+        {
+            data.UserId = userId;
+            UpdateUserCommand command = new()
             {
                 Data = data
             };
@@ -73,6 +95,64 @@ namespace Gateway.Controllers
                 Data = result
             });
         }
+        
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportUsers()
+        {
+            ExportUsersQuery query = new();
+            var result = await _mediator.Send(query);
+            return Ok(new Response<string>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Successfully",
+                Data = result
+            });
+        }
+
+        [HttpDelete("{userId}")]
+        public async Task<IActionResult> DeleteUser([FromRoute] string userId, [FromBody] DeleteUserInputDTO data)
+        {
+            data.UserId = userId;
+            DeleteUserCommand command = new()
+            {
+                Data = data
+            };
+            var result = await _mediator.Send(command);
+            return Ok(new Response<string>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Successfully",
+                Data = result
+            });
+        }
+
+        [HttpPost("import-users")]
+        public async Task<IActionResult> ImportUsers([FromForm] ImportUsersInputDTO data)
+        {
+            var file = data.File;
+            if (file == null || file.Length == 0)
+            {
+                throw new AppException("File is required.", System.Net.HttpStatusCode.BadRequest);
+            }
+
+            using var stream = file.OpenReadStream();
+            ImportUsersCommand command = new()
+            {
+                Data = stream,
+                FileName = file.FileName
+            };
+            var result = await _mediator.Send(command);
+            return Ok(new Response<List<UserOutputDTO>>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Successfully",
+                Data = result
+            });
+        }
+
         [HttpPost("{userId}/change-password")]
         public async Task<IActionResult> ChangePassword([FromRoute] string userId, [FromBody] ChangePasswordInputDTO data)
         {

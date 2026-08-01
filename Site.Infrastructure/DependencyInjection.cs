@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Site.Application.Interfaces;
 using Site.Infrastructure.DBContext;
+using Site.Infrastructure.Repositories;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 
@@ -23,6 +25,7 @@ namespace Site.Infrastructure
 
             // 3. Đăng ký các Repository nội bộ
             services.AddScoped<JwtSecurityTokenHandler>();
+            services.AddScoped<ISiteRepository, SiteRepository>();
 
             return services;
         }

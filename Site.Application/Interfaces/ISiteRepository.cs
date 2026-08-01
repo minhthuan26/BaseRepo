@@ -1,4 +1,4 @@
-﻿using CommonLibs.DTOs;
+using CommonLibs.DTOs;
 using Site.Domain.DTOs;
 using System;
 using System.Collections.Generic;
@@ -14,8 +14,8 @@ namespace Site.Application.Interfaces
         Task<SiteOutputDTO> UpdateSite(SiteInputDTO input, CancellationToken cancellationToken);
         Task<SiteOutputDTO> GetSiteById(string siteId, CancellationToken cancellationToken);
         Task<BaseFilterOutput<SiteOutputDTO>> GetAllSites(SiteFilterDTO filter, CancellationToken cancellationToken);
-        Task<string> DeleteSite(string siteId, CancellationToken cancellationToken);
-        Task<List<SiteOutputDTO>> ImportSites(Stream stream);
+        Task<string> DeleteSite(DeleteSiteInputDTO input, CancellationToken cancellationToken);
+        Task<List<SiteOutputDTO>> ImportSites(Stream stream, string fileName, CancellationToken cancellationToken);
         Task<string> ExportSites(CancellationToken cancellationToken);
     }
 }

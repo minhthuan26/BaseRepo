@@ -3,6 +3,7 @@ using CommonLibs.Middlewares;
 using CommonLibs.Options;
 using Microsoft.OpenApi.Models;
 using Site.Infrastructure;
+using Site.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,7 @@ builder.Services.AddSwaggerGen(options =>
             new string[]{}
         }
     });
+    options.OperationFilter<AddRequiredHeaderParameter>();
 });
 
 builder.Services.AddSiteInfrastructure(builder.Configuration);
@@ -98,6 +100,7 @@ app.UseRouting();
 app.UseCors("AllowSpecificOrigins");
 
 app.UseAuthentication();
+app.UseMiddleware<AuthorizationMiddleware>();
 app.UseAuthorization();
 
 // Chỉ Map các API Controller nội tại của chính Service này

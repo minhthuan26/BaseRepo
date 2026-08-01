@@ -1,4 +1,5 @@
 using CommonLibs.DTOs;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,23 +8,7 @@ using System.Threading.Tasks;
 
 namespace Gateway.Domain.DTOs
 {
-    public class UserOutputDTO : BaseOutputDTO
-    {
-        public string UserId { get; set; }
-
-        public string UserName { get; set; }
-
-        public int Priority { get; set; }
-
-        public string? RefreshToken { get; set; }
-
-        public string? Signature { get; set; }
-
-        public string? Email { get; set; }
-
-        public string? QuickCode { get; set; }
-    }
-
+    #region Input DTOs
     public class UserInputDTO : BaseInputDTO
     {
         public string UserId { get; set; }
@@ -48,6 +33,46 @@ namespace Gateway.Domain.DTOs
         };
     }
 
+    public class ChangePasswordInputDTO : BaseInputDTO
+    {
+        public string? UserId { get; set; }
+        public string OldPassword { get; set; }
+        public string NewPassword { get; set; }
+        public string ConfirmNewPassword { get; set; }
+    }
+
+    public class ImportUsersInputDTO : BaseInputDTO
+    {
+        public IFormFile File { get; set; }
+    }
+
+    public class DeleteUserInputDTO : BaseInputDTO
+    {
+        public string? UserId { get; set; }
+        public bool IsSoftDelete { get; set; } = true;
+    }
+    #endregion
+
+    #region Output DTOs
+    public class UserOutputDTO : BaseOutputDTO
+    {
+        public string UserId { get; set; }
+
+        public string UserName { get; set; }
+
+        public int Priority { get; set; }
+
+        public string? RefreshToken { get; set; }
+
+        public string? Signature { get; set; }
+
+        public string? Email { get; set; }
+
+        public string? QuickCode { get; set; }
+    }
+    #endregion
+
+    #region Filter DTOs
     public class UserFilterDTO : BaseFilterDTO
     {
         public int? Priority { get; set; }
@@ -55,12 +80,5 @@ namespace Gateway.Domain.DTOs
         public string? Email { get; set; }
         public string? QuickCode { get; set; }
     }
-
-    public class ChangePasswordInputDTO
-    {
-        public string? UserId { get; set; }
-        public string OldPassword { get; set; }
-        public string NewPassword { get; set; }
-        public string ConfirmNewPassword { get; set; }
-    }
+    #endregion
 }

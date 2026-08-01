@@ -406,3 +406,57 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
    - Đăng ký DI trong `DependencyInjection.cs`
 4. **Presentation Layer**:
    - Tạo Controller sử dụng MediatR
+
+---
+
+## 📌 Tiến độ công việc (Progress Log)
+
+> Section này ghi lại các công việc đã làm và việc còn tồn đọng, để phiên làm việc sau đọc và tiếp tục thay vì
+> hỏi lại từ đầu. Cập nhật section này sau khi hoàn thành công việc đáng kể — thêm mục mới lên đầu phần
+> "Đã hoàn thành", dọn/cập nhật lại phần "Việc tiếp theo" cho khớp thực tế.
+
+*Cập nhật gần nhất: 2026-08-02*
+
+### Đã hoàn thành
+
+- **User API (Gateway)**:
+  - Mã hóa password khi `ImportUsers` (dùng `EncryptionUtils`, cùng cách `CreateUser`/`ChangePassword`).
+  - `POST /api/user/import-users` (nhận file csv/xlsx qua `IFormFile`) + `ImportUsersCommand`/`Handler`.
+  - Template import mẫu tại `CommonLibs/TemplatesImport/Import_User_mau.xlsx`.
+  - `DELETE /api/user/{userId}` (soft/hard delete qua `DeleteUserInputDTO.IsSoftDelete`) + `DeleteUserCommand`/`Handler`.
+  - `PUT /api/user/{userId}` (Update) + `UpdateUserCommand`/`Handler`.
+- **Site API (service Site)** — chỉ mới làm entity `Site` (Module/Role/Screen/Function/RoleFunction/UserRole/UserSite
+  **chưa làm**, xem phần "Việc tiếp theo"):
+  - Domain: bổ sung `HeaderMappings`, `ImportSitesInputDTO`, `DeleteSiteInputDTO` vào `SiteDTO.cs`.
+  - Application: đầy đủ CQRS tại `Features/Site/{CreateSite,UpdateSite,GetSiteById,GetAllSites,DeleteSite,ImportSites,ExportSites}`.
+  - Infrastructure: implement đầy đủ `SiteRepository.cs` (trước đó toàn `NotImplementedException`), đăng ký DI.
+  - Presentation: `Site/Controllers/SiteController.cs` (mới) — CRUD + import/export, theo đúng pattern `UserController`.
+- **Fix bug build**: `CommonLibs/BaseDbContext/BaseDbContext.cs` — lỗi CS1997 do `return await strategy.ExecuteAsync(...)`
+  trong method trả về `Task` (non-generic, không được `return` kèm giá trị).
+- **Fix Swagger gộp qua Gateway (YARP)**:
+  - `Gateway/appsettings.json`: cluster `site-cluster` dùng sai giao thức `https://localhost:8001/` (Site chỉ chạy
+    HTTP) → sửa thành `http://`.
+  - `Gateway/Program.cs`: `SwaggerEndpoint` trỏ sai path `/site-api/swagger/...` (không khớp route YARP nào) → sửa
+    thành `/site-swagger/v1/swagger.json` cho khớp route `site-swagger-route`.
+- **Swagger Site**: thêm tự động header `X-Device-ID`/`X-Device-Name` giống Gateway — tạo
+  `Site/Utils/AddRequiredHeaderParameter.cs` + đăng ký `OperationFilter` trong `Site/Program.cs`.
+- **Fix lỗi 401 khi Gateway proxy sang Site**: chuyển `AuthorizationMiddleware` từ
+  `Gateway.Application/Middlewares/` sang dùng chung tại `CommonLibs/Middlewares/AuthorizationMiddleware.cs`,
+  đăng ký ở cả `Gateway/Program.cs` và `Site/Program.cs` (sau `UseAuthentication`, trước `UseAuthorization`) —
+  mỗi service tự verify JWT + role + device độc lập (defense in depth), không đánh đổi bảo mật dù client luôn đi
+  qua Gateway.
+
+### Việc tiếp theo / còn tồn đọng
+
+- Site service: các entity còn lại (Module, Role, Screen, Function, RoleFunction, UserRole, UserSite) mới chỉ có
+  Interface (`I{Name}Repository`) trong `Site.Application/Interfaces/`, **chưa có Repository implementation,
+  chưa có Controller** — làm tương tự như đã làm cho `Site` khi được yêu cầu (dùng skill `create-api-feature`
+  nếu cần quy trình đầy đủ).
+- Route YARP `site-route` trong `Gateway/appsettings.json` có `Match.Path: "api/site/{**catch-all}"` thiếu dấu
+  `/` đầu so với các route khác (`/site-swagger/...`) — chưa xác nhận có gây lỗi thật hay không, cần kiểm tra khi
+  test end-to-end qua Gateway.
+- Port 8001 của Site đang `ListenAnyIP` (mở trên mọi network interface) — cần đảm bảo ở tầng hạ tầng/firewall
+  không public port này ra ngoài, chỉ cho phép gọi nội bộ (không phải việc code có thể tự fix).
+- Các API mới thêm (Import/Delete/Update User, toàn bộ Site CRUD, luồng Gateway → Site sau khi thêm
+  `AuthorizationMiddleware`) đang chờ người dùng tự test lại theo `06-testing.md` (tài khoản `admin/admin2604`),
+  chưa có xác nhận kết quả test cuối cùng.

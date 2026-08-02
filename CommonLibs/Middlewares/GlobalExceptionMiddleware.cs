@@ -74,25 +74,41 @@ public sealed class GlobalExceptionMiddleware
 
         context.Response.Clear();
         context.Response.ContentType = "application/json; charset=utf-8";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        Log.ForContext("CorrelationId", correlationId)
+        // AppException là lỗi nghiệp vụ đã được service tự throw kèm đúng HttpStatusCode + message dành cho
+        // client (VD 400 sai mật khẩu, 404 không tìm thấy...) - phải trả nguyên Code/Message đó thay vì luôn
+        // ép về 500, nếu không FE không cách nào phân biệt được lỗi nghiệp vụ với lỗi hệ thống thật.
+        var isBusinessException = exception is AppException;
+        var statusCode = isBusinessException ? ((AppException)exception).Code : HttpStatusCode.InternalServerError;
+        context.Response.StatusCode = (int)statusCode;
+
+        var logContext = Log.ForContext("CorrelationId", correlationId)
            .ForContext("TraceId", traceId)
            .ForContext("RequestMethod", context.Request.Method)
            .ForContext("RequestPath", context.Request.Path.ToString())
            .ForContext("QueryString", context.Request.QueryString.ToString())
            .ForContext("RequestHeaders", requestHeaders, true)
            .ForContext("RequestBody", requestBody, destructureObjects: true)
-           .ForContext("StatusCode", context.Response.StatusCode)
-           .Error(exception, "HTTP Request Fatal Error");
+           .ForContext("StatusCode", context.Response.StatusCode);
 
         var response = new Response<object>
         {
             Success = false,
-            Code = HttpStatusCode.InternalServerError,
-            Message = $"Hệ thống có sự cố. Vui lòng liên hệ Admin và cung cấp TraceId: {traceId}",
+            Code = statusCode,
+            Message = isBusinessException
+                ? exception.Message
+                : $"Hệ thống có sự cố. Vui lòng liên hệ Admin và cung cấp TraceId: {traceId}",
             Data = null
         };
+
+        if (isBusinessException)
+        {
+            logContext.Warning(exception, "HTTP Request Business Exception");
+        }
+        else
+        {
+            logContext.Error(exception, "HTTP Request Fatal Error");
+        }
 
         await context.Response.WriteAsync(
             JsonSerializer.Serialize(

@@ -4,6 +4,7 @@ using CommonLibs.Options;
 using Microsoft.OpenApi.Models;
 using Site.Infrastructure;
 using Site.Utils;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,7 +63,11 @@ builder.Services.AddAuthentication("Bearer").AddJwtBearer();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("UserOrAdminPolicy", policy => policy.RequireRole("User", "Admin"));
+    // Không so khớp literal "User"/"Admin" nữa - chỉ cần user đã đăng nhập và có ít nhất 1 Role claim
+    // (Role thật, VD "Ký thuật viên"), việc chặn cụ thể theo Function do RequireFunction/AdminPolicy đảm nhiệm.
+    options.AddPolicy("UserOrAdminPolicy", policy => policy.RequireAssertion(context =>
+        context.User.Identity?.IsAuthenticated == true
+        && context.User.Claims.Any(c => c.Type == ClaimTypes.Role)));
 });
 
 // Cấu hình CORS nới lỏng cho môi trường Dev/Gateway gọi nội bộ mượt mà

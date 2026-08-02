@@ -419,6 +419,25 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Fix `UserOrAdminPolicy` chặn nhầm user có Role tuỳ ý (không phải literal "User"/"Admin")** — phát hiện qua
+  bug thực tế: gọi `GET /api/permission/{siteId}?roleId=...` bằng token của user `ktv_1` (Role claim
+  `"Ký thuật viên"`, RoleName thật của Role "ktv") thì nhận **response rỗng, không đúng chuẩn `Response<T>`**
+  (`content-length: 0`, không có JSON). Debug bằng log (`Gateway/Logs`) xác nhận request bị **chặn 403 ngay tại
+  Gateway** (route `permission-route`), **chưa từng tới được** `PermissionController` bên Site (không có log
+  tương ứng ở `Site/Logs`) — do đó không đi qua `Response<T>` wrapper hay `GlobalExceptionMiddleware`, chỉ là
+  response 403 mặc định rỗng của ASP.NET Core khi `[Authorize(Policy=...)]` fail.
+  - **Root cause**: `UserOrAdminPolicy = policy.RequireRole("User", "Admin")` so khớp **literal** giá trị claim
+    Role. Từ khi RBAC đọc đúng `RoleName` thật làm claim Role (xem mục "Kết nối RBAC..." bên dưới), bất kỳ Role
+    nào có tên khác `"User"`/`"Admin"` (VD `"Ký thuật viên"`) sẽ luôn fail policy này ngay từ tầng Gateway/Site
+    `[Authorize]`, **trước khi** `RequireFunction` hay bất kỳ logic nghiệp vụ nào kịp chạy.
+  - **Fix**: đổi định nghĩa `UserOrAdminPolicy` (`Gateway/Program.cs`, `Site/Program.cs`) từ `RequireRole` sang
+    `RequireAssertion` — chỉ cần user **đã đăng nhập và có ít nhất 1 Role claim** (không quan tâm RoleName cụ
+    thể là gì), đúng tinh thần đã ghi trong mục RBAC bên dưới ("Class-level Authorize... bắt buộc phải login +
+    có ít nhất 1 Role", việc chặn cụ thể theo hành động do `RequireFunction`/`AdminPolicy` đảm nhiệm).
+    `AdminPolicy` giữ nguyên `RequireRole("Admin")` (literal, không đổi).
+  - Build solution: 0 Error (chỉ warning nullable có sẵn từ trước, không liên quan).
+  - **Chưa test lại end-to-end** (người dùng chủ động test sau) — cần **restart cả Gateway và Site** để thay đổi
+    có hiệu lực (2 process đang chạy vẫn dùng policy cũ trong bộ nhớ).
 - **Permission API (service Site)** — không phải entity/bảng mới, mà là **1 API tổng hợp giúp gán quyền nhanh**,
   làm rõ qua brainstorm: người dùng muốn 1 API "phân quyền từ site vào role/screen/function" thay vì phải gọi
   từng `CreateRoleFunction`/`DeleteRoleFunction` một. Route `api/permission`, dùng lại hoàn toàn
@@ -652,6 +671,11 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
+- **Fix `UserOrAdminPolicy` (mục mới nhất phía trên) chưa được test lại** — cần **restart cả Gateway và Site**
+  rồi gọi lại đúng request đã fail (`GET /api/permission/{siteId}?roleId=...` với token user có Role không phải
+  literal "Admin", VD "Ký thuật viên") để xác nhận response giờ vào tới controller và trả đúng chuẩn
+  `Response<T>` thay vì 403 rỗng. Sau khi fix này, lưu ý các test case cũ giả định user cần Role literal
+  `"User"` mới qua được `UserOrAdminPolicy` sẽ không còn đúng nữa — giờ chỉ cần có **bất kỳ** Role claim nào.
 - **Toàn bộ 8/8 entity của Site service đã có API đầy đủ** (Site, Module, Role, Function, RoleFunction, Screen,
   UserRole, UserSite) — không còn entity nào thiếu Repository/Controller trong service Site nữa.
 - Route YARP `site-route` trong `Gateway/appsettings.json` có `Match.Path: "api/site/{**catch-all}"` thiếu dấu

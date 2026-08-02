@@ -120,7 +120,10 @@ namespace CommonLibs.Middlewares
 
                 // 7. ENRICH DATA (Đóng gói thông tin sạch đẩy xuống Service con)
                 context.Request.Headers["X-User-Id"] = userId;
-                context.Request.Headers["X-User-Role"] = string.Join(",", roleNames);
+                // Uri.EscapeDataString: RoleName lấy từ DB (VD "Ký thuật viên") có thể chứa ký tự Unicode -
+                // HTTP header value bắt buộc chỉ ASCII, gửi thẳng sẽ làm YARP forward request tới Site lỗi
+                // "Request headers must contain only ASCII characters" (502).
+                context.Request.Headers["X-User-Role"] = Uri.EscapeDataString(string.Join(",", roleNames));
                 context.Request.Headers["X-Validated-Device-Id"] = deviceId;
                 context.Request.Headers["X-Validated-Device-Name"] = deviceName;
 
@@ -153,7 +156,7 @@ namespace CommonLibs.Middlewares
                 }
 
                 context.Items["allowedFunctions"] = allowedFunctionIds;
-                context.Request.Headers["X-User-Functions"] = string.Join(",", allowedFunctionIds);
+                context.Request.Headers["X-User-Functions"] = Uri.EscapeDataString(string.Join(",", allowedFunctionIds));
 
                 // 9. CHẶN THEO FUNCTION CỤ THỂ — action nào gắn [RequireFunction("FunctionId")] thì user phải có
                 // đúng FunctionId đó trong allowedFunctionIds (gán qua Role -> Role_Function) mới được đi tiếp.

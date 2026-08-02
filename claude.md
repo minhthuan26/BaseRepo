@@ -419,6 +419,43 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Thêm API refresh token vào `AuthorizationController`** — `POST /api/authorization/renew-token`. Phần logic
+  khó nhất (verify access token đã hết hạn, verify refresh token còn hợp lệ trong `tbl_Users.RefreshToken`,
+  generate access+refresh token mới, update DB) **đã có sẵn từ trước** ở `IAuthorizationRepository.RenewToken()`
+  / `AuthorizationRepository.RenewToken()` — chỉ thiếu Application layer + Presentation layer để expose ra
+  ngoài, nên chỉ cần "nối dây" theo đúng CQRS checklist:
+  - Mới: `Gateway.Application/Features/Authorization/RenewToken/{RenewTokenCommand,RenewTokenCommandHandler}.cs`
+    (không có property `Data` vì `RenewToken()` không nhận input DTO, tự đọc access token từ header + refresh
+    token từ cookie bên trong, giống pattern `LogoutCommand`).
+  - `Gateway/Controllers/AuthorizationController.cs` — thêm action `RenewToken()`, **không** gắn
+    `[Authorize(...)]` (giống `Login`/`Logout`, vì access token gửi lên có thể đã hết hạn nên không thể gate
+    bằng Policy chuẩn).
+  - **Refactor nhỏ trong phạm vi task** (đã hỏi và được xác nhận): `AuthorizationRepository.RenewToken()` trước
+    đó tự set Cookie `RefreshToken` thẳng trong Infrastructure layer (dùng `_httpContext.HttpContext.Response
+    .Cookies.Append`, vi phạm Clean Architecture — Infrastructure không nên đụng HTTP response, khác pattern
+    `Login` set cookie ở Controller) — đã bỏ đoạn set cookie đó ra khỏi Repository, chuyển sang set ở
+    `AuthorizationController.RenewToken()` sau khi nhận kết quả từ mediator, nhất quán với `Login`.
+  - Không cần sửa `IAuthorizationRepository` (đã có sẵn method), DTO, DI, `appsettings.json` (Controller nằm
+    trực tiếp ở Gateway, không proxy qua YARP).
+  - **Lưu ý hành vi có sẵn (không đổi)**: API yêu cầu access token gửi lên (header `Authorization`) phải **đã
+    hết hạn** mới cho renew — nếu còn hạn sẽ bị từ chối với lỗi `[Authorization_Repo_RenewToken-08] Access token
+    is not expired.`. Chưa test lại end-to-end (người dùng chủ động test sau).
+- **Fix 502 khi Gateway forward header chứa ký tự Unicode sang Site (lộ ra sau khi fix `UserOrAdminPolicy` bên
+  dưới)** — test lại `GET /api/permission/{siteId}?roleId=...` bằng token Role `"Ký thuật viên"` sau khi
+  `UserOrAdminPolicy` đã cho qua thì gặp lỗi mới: **502 Bad Gateway**. Debug qua `Gateway/Logs` thấy chính xác
+  exception `System.Net.Http.HttpRequestException: Request headers must contain only ASCII characters` tại
+  `Yarp.ReverseProxy.Forwarder.HttpForwarder.SendAsync`.
+  - **Root cause**: `CommonLibs/Middlewares/AuthorizationMiddleware.cs` (dòng set header `X-User-Role`) gán
+    thẳng RoleName gốc từ DB (có thể chứa Unicode có dấu, VD `"Ký thuật viên"`) vào HTTP header, rồi YARP
+    forward header đó sang Site qua `HttpClient` — `HttpClient` bắt buộc header value chỉ ASCII nên ném
+    exception, YARP trả 502. Đây là bug có sẵn từ trước, chỉ bị che khuất vì trước đó `UserOrAdminPolicy` (bug
+    ở mục dưới) đã chặn 403 các request loại này từ sớm hơn, chưa từng chạm tới bước forward.
+  - **Fix**: bọc `Uri.EscapeDataString(...)` cho cả `X-User-Role` và `X-User-Functions` trước khi gán vào
+    header (percent-encode ASCII-safe, decode lại được bằng `Uri.UnescapeDataString` nếu sau này có chỗ đọc).
+    Xác nhận qua `grep` là 2 header này **hiện không được đọc ở bất kỳ đâu khác** trong code (chỉ set, không
+    consume), nên fix không đổi hành vi nghiệp vụ nào, chỉ đảm bảo request không crash khi forward.
+  - Build solution: 0 Error. Chưa test lại end-to-end (người dùng chủ động test sau, cần restart cả Gateway và
+    Site).
 - **Fix `UserOrAdminPolicy` chặn nhầm user có Role tuỳ ý (không phải literal "User"/"Admin")** — phát hiện qua
   bug thực tế: gọi `GET /api/permission/{siteId}?roleId=...` bằng token của user `ktv_1` (Role claim
   `"Ký thuật viên"`, RoleName thật của Role "ktv") thì nhận **response rỗng, không đúng chuẩn `Response<T>`**
@@ -671,11 +708,16 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
-- **Fix `UserOrAdminPolicy` (mục mới nhất phía trên) chưa được test lại** — cần **restart cả Gateway và Site**
-  rồi gọi lại đúng request đã fail (`GET /api/permission/{siteId}?roleId=...` với token user có Role không phải
-  literal "Admin", VD "Ký thuật viên") để xác nhận response giờ vào tới controller và trả đúng chuẩn
-  `Response<T>` thay vì 403 rỗng. Sau khi fix này, lưu ý các test case cũ giả định user cần Role literal
-  `"User"` mới qua được `UserOrAdminPolicy` sẽ không còn đúng nữa — giờ chỉ cần có **bất kỳ** Role claim nào.
+- **API refresh token (`POST /api/authorization/renew-token`, mục mới nhất phía trên) chưa được test lại** —
+  cần restart Gateway rồi test cả happy path (access token hết hạn + refresh token còn hạn trong cookie → nhận
+  access+refresh token mới) lẫn edge case (access token còn hạn → phải bị từ chối; refresh token sai/hết hạn →
+  phải bị từ chối).
+- **Fix 502 ASCII header + fix `UserOrAdminPolicy` (2 mục phía trên) chưa được test lại cùng nhau** — cần
+  **restart cả Gateway và Site** rồi gọi lại đúng request đã fail 2 lần liên tiếp (`GET /api/permission/{siteId}
+  ?roleId=...` với token user có Role không phải literal "Admin", VD "Ký thuật viên") để xác nhận lần này response
+  vào tới controller và trả đúng chuẩn `Response<T>` (không còn 403 rỗng, không còn 502). Sau khi fix
+  `UserOrAdminPolicy`, lưu ý các test case cũ giả định user cần Role literal `"User"` mới qua được policy này sẽ
+  không còn đúng nữa — giờ chỉ cần có **bất kỳ** Role claim nào.
 - **Toàn bộ 8/8 entity của Site service đã có API đầy đủ** (Site, Module, Role, Function, RoleFunction, Screen,
   UserRole, UserSite) — không còn entity nào thiếu Repository/Controller trong service Site nữa.
 - Route YARP `site-route` trong `Gateway/appsettings.json` có `Match.Path: "api/site/{**catch-all}"` thiếu dấu

@@ -5,6 +5,7 @@ using CommonLibs.Utils;
 using CommonLibs.Comtrollers;
 using Gateway.Application.Features.Authorization.Login;
 using Gateway.Application.Features.Authorization.Logout;
+using Gateway.Application.Features.Authorization.RenewToken;
 
 namespace Gateway.Controllers
 {
@@ -73,6 +74,35 @@ namespace Gateway.Controllers
                 Success = true,
                 Code = System.Net.HttpStatusCode.OK,
                 Message = "Logout successfully",
+                Data = result
+            });
+        }
+
+        /// <summary>
+        /// Làm mới access token bằng refresh token. Client gửi kèm access token cũ (đã hết hạn) qua header
+        /// Authorization và refresh token qua cookie HttpOnly. Nếu hợp lệ, trả về access token + refresh token
+        /// mới và cập nhật lại cookie RefreshToken.
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("renew-token")]
+        public async Task<IActionResult> RenewToken()
+        {
+            RenewTokenCommand command = new();
+            var result = await _mediator.Send(command);
+            // Lưu refresh token mới vào cookie
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Strict,
+                Secure = false,
+                Path = "/"
+            };
+            _httpContext.HttpContext?.Response.Cookies.Append("RefreshToken", result.RefreshToken, cookieOptions);
+            return Ok(new Response<AuthorizationOutputDTO>()
+            {
+                Success = true,
+                Code = System.Net.HttpStatusCode.OK,
+                Message = "Renew token successfully",
                 Data = result
             });
         }

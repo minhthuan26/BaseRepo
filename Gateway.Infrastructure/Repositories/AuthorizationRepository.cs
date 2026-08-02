@@ -289,16 +289,6 @@ namespace Gateway.Infrastructure.Repositories
                         UserId = currentUser.UserId
                     }, cancellationToken);
 
-                // Lưu refresh token vào cookie
-                var cookieOptions = new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Strict,
-                    Path = "/"
-                };
-                _httpContext.HttpContext?.Response.Cookies.Append("RefreshToken", refreshToken, cookieOptions);
-
                 return new AuthorizationOutputDTO
                 {
                     AutoId = currentUser.AutoId,

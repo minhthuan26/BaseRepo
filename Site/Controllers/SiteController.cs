@@ -26,6 +26,7 @@ namespace Site.Controllers
         }
 
         [HttpPost("")]
+        [RequireFunction("CreateSite")]
         public async Task<IActionResult> CreateSite([FromBody] SiteInputDTO data)
         {
             CreateSiteCommand command = new()
@@ -45,6 +46,11 @@ namespace Site.Controllers
         [HttpPut("{siteId}")]
         public async Task<IActionResult> UpdateSite([FromRoute] string siteId, [FromBody] SiteInputDTO data)
         {
+            if (!IsSiteAdmin(siteId))
+            {
+                throw new AppException("Access denied. You must be an Admin of this site.", System.Net.HttpStatusCode.Forbidden);
+            }
+
             data.SiteId = siteId;
             UpdateSiteCommand command = new()
             {
@@ -111,6 +117,11 @@ namespace Site.Controllers
         [HttpDelete("{siteId}")]
         public async Task<IActionResult> DeleteSite([FromRoute] string siteId, [FromBody] DeleteSiteInputDTO data)
         {
+            if (!IsSiteAdmin(siteId))
+            {
+                throw new AppException("Access denied. You must be an Admin of this site.", System.Net.HttpStatusCode.Forbidden);
+            }
+
             data.SiteId = siteId;
             DeleteSiteCommand command = new()
             {
@@ -127,6 +138,7 @@ namespace Site.Controllers
         }
 
         [HttpPost("import-sites")]
+        [RequireFunction("ImportSites")]
         public async Task<IActionResult> ImportSites([FromForm] ImportSitesInputDTO data)
         {
             var file = data.File;

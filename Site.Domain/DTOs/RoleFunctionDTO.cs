@@ -1,4 +1,5 @@
-﻿using CommonLibs.DTOs;
+using CommonLibs.DTOs;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,21 +8,46 @@ using System.Threading.Tasks;
 
 namespace Site.Domain.DTOs
 {
+    #region Input DTOs
     public class RoleFunctionInputDTO : BaseInputDTO
     {
         public string RoleId { get; set; }
         public string FunctionId { get; set; }
+
+        public override Dictionary<string, string> HeaderMappings => new()
+        {
+            ["RoleId"] = nameof(RoleId),
+            ["FunctionId"] = nameof(FunctionId),
+            ["Status"] = nameof(Status)
+        };
     }
 
+    public class ImportRoleFunctionsInputDTO : BaseInputDTO
+    {
+        public IFormFile File { get; set; }
+    }
+
+    public class DeleteRoleFunctionInputDTO : BaseInputDTO
+    {
+        public string? RoleId { get; set; }
+        public string? FunctionId { get; set; }
+        public bool IsSoftDelete { get; set; } = true;
+    }
+    #endregion
+
+    #region Output DTOs
     public class RoleFunctionOutputDTO : BaseOutputDTO
     {
         public string RoleId { get; set; }
         public string FunctionId { get; set; }
     }
+    #endregion
 
+    #region Filter DTOs
     public class RoleFunctionFilterDTO : BaseFilterDTO
     {
         public string? RoleId { get; set; }
         public string? FunctionId { get; set; }
     }
+    #endregion
 }

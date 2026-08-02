@@ -1,6 +1,7 @@
 using CommonLibs.Options;
 using CommonLibs.Services;
 using CommonLibs.Utils;
+using Dapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -30,7 +31,7 @@ namespace CommonLibs.Middlewares
             _options = options.Value;
         }
 
-        public async Task Invoke(HttpContext context, IJwtTokenService jwtTokenService)
+        public async Task Invoke(HttpContext context, IJwtTokenService jwtTokenService, ISqlConnectionFactory sqlConnectionFactory, IRedisService redisService)
         {
             try
             {
@@ -83,15 +84,14 @@ namespace CommonLibs.Middlewares
                 // 4. Xác thực Token thông qua Auth Service
                 List<Claim> claims = await jwtTokenService.VerifyToken(accessToken, _options.ActualAccessKey);
 
-                var roleClaim = claims.FirstOrDefault(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role);
+                var roleNames = claims.Where(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role).Select(claim => claim.Value).ToList();
                 var userIdClaim = claims.FirstOrDefault(claim => claim.Type == "id" || claim.Type == ClaimTypes.NameIdentifier);
 
-                if (roleClaim == null || userIdClaim == null)
+                if (roleNames.Count == 0 || userIdClaim == null)
                 {
                     throw new AppException("Token payload is not valid.", HttpStatusCode.BadRequest);
                 }
 
-                string roleName = roleClaim.Value;
                 string userId = userIdClaim.Value;
 
                 // ==================== THÊM ĐOẠN NÀY ĐỂ FIX LỖI 401 ====================
@@ -105,7 +105,7 @@ namespace CommonLibs.Middlewares
                 if (authData != null && !string.IsNullOrEmpty(authData.Roles))
                 {
                     var acceptedRoles = authData.Roles.Split(',');
-                    if (!acceptedRoles.Contains(roleName))
+                    if (!roleNames.Any(roleName => acceptedRoles.Contains(roleName)))
                     {
                         throw new AppException("Access denied. You do not have permission.", HttpStatusCode.Forbidden);
                     }
@@ -120,9 +120,53 @@ namespace CommonLibs.Middlewares
 
                 // 7. ENRICH DATA (Đóng gói thông tin sạch đẩy xuống Service con)
                 context.Request.Headers["X-User-Id"] = userId;
-                context.Request.Headers["X-User-Role"] = roleName;
+                context.Request.Headers["X-User-Role"] = string.Join(",", roleNames);
                 context.Request.Headers["X-Validated-Device-Id"] = deviceId;
                 context.Request.Headers["X-Validated-Device-Name"] = deviceName;
+
+                // 8. NẠP DANH SÁCH FUNCTION ĐƯỢC PHÉP — ưu tiên đọc từ Redis (đã được Login() cache sẵn), chỉ query
+                // SQL trực tiếp (User_Role -> Roles -> Role_Function -> Functions) khi cache miss/hết hạn, sau đó
+                // ghi lại vào Redis cho các request kế tiếp. Chưa dùng để chặn cứng từng endpoint (Function hiện
+                // chưa gắn với route cụ thể nào) — chỉ nạp sẵn hạ tầng để controller/service tự kiểm tra khi cần.
+                string cacheKey = UserPermissionCache.GetCacheKey(userId);
+                var cached = await redisService.GetAsync<UserPermissionCache>(cacheKey);
+                List<string> allowedFunctionIds;
+                if (cached != null)
+                {
+                    allowedFunctionIds = cached.Functions;
+                }
+                else
+                {
+                    using var connection = sqlConnectionFactory.CreateConnection();
+                    allowedFunctionIds = (await connection.QueryAsync<string>(@"
+                            Select Distinct RF.FunctionId
+                            From tbl_User_Role UR
+                            Inner Join tbl_Roles R On R.RoleId = UR.RoleId
+                            Inner Join tbl_Role_Function RF On RF.RoleId = R.RoleId
+                            Where UR.UserId = @UserId And UR.Status = 1 And R.Status = 1 And RF.Status = 1
+                        ", new { UserId = userId })).ToList();
+
+                    await redisService.SetAsync(
+                        cacheKey,
+                        new UserPermissionCache { Roles = roleNames, Functions = allowedFunctionIds },
+                        TimeSpan.FromHours(1));
+                }
+
+                context.Items["allowedFunctions"] = allowedFunctionIds;
+                context.Request.Headers["X-User-Functions"] = string.Join(",", allowedFunctionIds);
+
+                // 9. CHẶN THEO FUNCTION CỤ THỂ — action nào gắn [RequireFunction("FunctionId")] thì user phải có
+                // đúng FunctionId đó trong allowedFunctionIds (gán qua Role -> Role_Function) mới được đi tiếp.
+                // Admin toàn hệ thống (Role "Admin") luôn được bỏ qua kiểm tra này.
+                var requireFunction = endpoint?.Metadata.GetMetadata<RequireFunctionAttribute>();
+                if (requireFunction != null)
+                {
+                    bool isGlobalAdmin = roleNames.Any(roleName => roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                    if (!isGlobalAdmin && !allowedFunctionIds.Contains(requireFunction.FunctionId))
+                    {
+                        throw new AppException($"Access denied. Missing required function permission: '{requireFunction.FunctionId}'.", HttpStatusCode.Forbidden);
+                    }
+                }
 
                 context.Items["claims"] = claims;
 

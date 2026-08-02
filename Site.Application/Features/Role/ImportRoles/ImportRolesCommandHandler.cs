@@ -1,0 +1,22 @@
+using MediatR;
+using Site.Application.Interfaces;
+using Site.Domain.DTOs;
+
+namespace Site.Application.Features.Role.ImportRoles
+{
+    public class ImportRolesCommandHandler : IRequestHandler<ImportRolesCommand, List<RoleOutputDTO>>
+    {
+        private readonly IRoleRepository _repository;
+
+        public ImportRolesCommandHandler(IRoleRepository repository)
+        {
+            _repository = repository;
+        }
+
+        public async Task<List<RoleOutputDTO>> Handle(ImportRolesCommand request, CancellationToken cancellationToken)
+        {
+            var result = await _repository.ImportRoles(request.Data, request.FileName, cancellationToken);
+            return result;
+        }
+    }
+}

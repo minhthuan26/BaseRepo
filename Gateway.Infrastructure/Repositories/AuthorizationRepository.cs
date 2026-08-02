@@ -32,6 +32,7 @@ namespace Gateway.Infrastructure.Repositories
     {
         private readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler;
         private readonly GatewayDbContext _dbContext;
+        private readonly IRedisService _redisService;
         private readonly string _errorPrefix = "Authorization_Repo_";
 
         public AuthorizationRepository(IMapper mapper,
@@ -39,10 +40,11 @@ namespace Gateway.Infrastructure.Repositories
             IConfiguration configuration,
             IHttpContextAccessor httpContext,
             JwtSecurityTokenHandler jwtSecurityTokenHandler,
-            GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService) : base(mapper, logger, configuration, httpContext, options, auditContext, jwtTokenService)
+            GatewayDbContext dbContext, IOptions<AppOptions> options, IAuditContext auditContext, IJwtTokenService jwtTokenService, IRedisService redisService) : base(mapper, logger, configuration, httpContext, options, auditContext, jwtTokenService)
         {
             _jwtSecurityTokenHandler = jwtSecurityTokenHandler;
             _dbContext = dbContext;
+            _redisService = redisService;
         }
 
         #region Stored Procedure
@@ -85,20 +87,53 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}Login-03] Invalid UserId or Password.", HttpStatusCode.Unauthorized);
                 }
-                // Tạo access token và refresh token
-                var accessToken = _jwtTokenService.GenerateToken(_options.ActualAccessKey, new List<Claim>
-                {
-                    new(ClaimTypes.NameIdentifier, user.UserId),
-                    new(ClaimTypes.Name, user.UserName),
-                    new(ClaimTypes.Role, "User")
-                }, DateTime.UtcNow.AddHours(1)).Result;
 
-                var refreshToken = _jwtTokenService.GenerateToken(_options.ActualRefreshKey, new List<Claim>
+                // Lấy đúng các Role đang active mà user thực sự được gán qua tbl_User_Role (không hard-code, không suy đoán),
+                // kèm SiteId của từng Role để xác định user là Admin riêng của Site nào (không chỉ Admin toàn hệ thống).
+                var roleAssignments = (await _dbContext.QueryAsync<RoleAssignment>(@"
+                        Select R.RoleName, R.SiteId
+                        From tbl_User_Role UR
+                        Inner Join tbl_Roles R On R.RoleId = UR.RoleId
+                        Where UR.UserId = @UserId And UR.Status = 1 And R.Status = 1
+                    ", new { UserId = user.UserId }, cancellationToken)).ToList();
+
+                var roleNames = roleAssignments.Select(ra => ra.RoleName).ToList();
+
+                // SiteId của các Site mà user có Role tên "Admin" (không phân biệt hoa/thường) -> Admin riêng của site đó.
+                var adminSiteIds = roleAssignments
+                    .Where(ra => ra.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                    .Select(ra => ra.SiteId)
+                    .Distinct()
+                    .ToList();
+
+                // Lấy các Function mà user được phép thao tác, suy ra từ toàn bộ Role đang active ở trên.
+                var functionIds = (await _dbContext.QueryAsync<string>(@"
+                        Select Distinct RF.FunctionId
+                        From tbl_User_Role UR
+                        Inner Join tbl_Roles R On R.RoleId = UR.RoleId
+                        Inner Join tbl_Role_Function RF On RF.RoleId = R.RoleId
+                        Where UR.UserId = @UserId And UR.Status = 1 And R.Status = 1 And RF.Status = 1
+                    ", new { UserId = user.UserId }, cancellationToken)).ToList();
+
+                // Mỗi Role đang active của user tương ứng 1 claim Role riêng (ClaimsPrincipal hỗ trợ nhiều Role claim cùng lúc).
+                var tokenClaims = new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, user.UserId),
-                    new(ClaimTypes.Name, user.UserName),
-                    new(ClaimTypes.Role, "User")
-                }, DateTime.UtcNow.AddDays(7)).Result;
+                    new(ClaimTypes.Name, user.UserName)
+                };
+                tokenClaims.AddRange(roleNames.Select(roleName => new Claim(ClaimTypes.Role, roleName)));
+                tokenClaims.AddRange(adminSiteIds.Select(siteId => new Claim("admin_site", siteId)));
+
+                // Cache Role + Function + AdminSiteIds vào Redis để AuthorizationMiddleware đọc lại thay vì phải query SQL mỗi request.
+                await _redisService.SetAsync(
+                    UserPermissionCache.GetCacheKey(user.UserId),
+                    new UserPermissionCache { Roles = roleNames, Functions = functionIds, AdminSiteIds = adminSiteIds },
+                    TimeSpan.FromHours(1));
+
+                // Tạo access token và refresh token
+                var accessToken = _jwtTokenService.GenerateToken(_options.ActualAccessKey, tokenClaims, DateTime.UtcNow.AddHours(1)).Result;
+
+                var refreshToken = _jwtTokenService.GenerateToken(_options.ActualRefreshKey, tokenClaims, DateTime.UtcNow.AddDays(7)).Result;
                 // Cập nhật refresh token cho tài khoản
                 user.SetRefreshToken(refreshToken);
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
@@ -335,6 +370,14 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
+        #endregion
+
+        #region Helpers
+        private sealed class RoleAssignment
+        {
+            public string RoleName { get; set; } = string.Empty;
+            public string SiteId { get; set; } = string.Empty;
+        }
         #endregion
     }
 }

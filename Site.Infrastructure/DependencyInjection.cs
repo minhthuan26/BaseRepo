@@ -26,6 +26,14 @@ namespace Site.Infrastructure
             // 3. Đăng ký các Repository nội bộ
             services.AddScoped<JwtSecurityTokenHandler>();
             services.AddScoped<ISiteRepository, SiteRepository>();
+            services.AddScoped<IModuleRepository, ModuleRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IFunctionRepository, FunctionRepository>();
+            services.AddScoped<IRoleFunctionRepository, RoleFunctionRepository>();
+            services.AddScoped<IScreenRepository, ScreenRepository>();
+            services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+            services.AddScoped<IUserSiteRepository, UserSiteRepository>();
+            services.AddScoped<IPermissionRepository, PermissionRepository>();
 
             return services;
         }

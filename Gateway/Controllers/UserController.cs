@@ -28,6 +28,7 @@ namespace Gateway.Controllers
         }
 
         [HttpPost("")]
+        [RequireFunction("CreateUser")]
         public async Task<IActionResult> CreateUser([FromBody] UserInputDTO data)
         {
             CreateUserCommand command = new()
@@ -45,6 +46,7 @@ namespace Gateway.Controllers
         }
 
         [HttpPut("{userId}")]
+        [RequireFunction("UpdateUser")]
         public async Task<IActionResult> UpdateUser([FromRoute] string userId, [FromBody] UserInputDTO data)
         {
             data.UserId = userId;
@@ -111,6 +113,7 @@ namespace Gateway.Controllers
         }
 
         [HttpDelete("{userId}")]
+        [RequireFunction("DeleteUser")]
         public async Task<IActionResult> DeleteUser([FromRoute] string userId, [FromBody] DeleteUserInputDTO data)
         {
             data.UserId = userId;
@@ -129,6 +132,7 @@ namespace Gateway.Controllers
         }
 
         [HttpPost("import-users")]
+        [RequireFunction("ImportUsers")]
         public async Task<IActionResult> ImportUsers([FromForm] ImportUsersInputDTO data)
         {
             var file = data.File;

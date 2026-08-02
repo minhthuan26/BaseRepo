@@ -419,6 +419,44 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Thêm microservice mới `AdministrativeUnit`** (Province + Ward) — tách riêng thành 1 module đầy đủ 4 layer
+  giống `Site`/`Gateway`, theo checklist chuẩn (`05-checklist.md`) + skill `create-api-feature`. Dựa trên schema
+  có sẵn `CommonLibs/BaseSQL/administrative-unit/BaseAdministrativeUnit.sql` (2 bảng `Province`/`Ward`, không có
+  `tbl_` prefix, PK là `Code` chứ không phải `AutoId` như mọi entity khác) + pipeline seed dữ liệu đã có sẵn từ
+  trước (`01_migrate_schema.sql` → `05_cleanup_staging.sql`, seed ~34 Province/3321 Ward từ nguồn mở theo Nghị
+  quyết 202/2025/QH15). Đã brainstorm và chốt 3 quyết định thiết kế quan trọng trước khi code:
+  1. **Phạm vi API**: đầy đủ CRUD + Import/Export cho cả Province và Ward (không phải chỉ đọc), giống hệt pattern
+     `Module`/`Role`/`Screen`... Thêm 1 API tiện ích `GET /api/ward/by-province/{provinceCode}`
+     (`GetWardsByProvince`, giống `GetFunctionsByRole`) để lấy danh sách Ward theo Province.
+  2. **Authorization**: vì đây là dữ liệu tham chiếu công khai (tên tỉnh/phường dùng cho dropdown địa chỉ), các
+     action đọc (`GetById`/`GetAll`/`Export`/`GetWardsByProvince`) **cố tình không gắn `[Authorize]`** (anonymous)
+     — khác với mọi controller khác trong repo (luôn class-level `UserOrAdminPolicy`). Action mutating
+     (Create/Update/Delete/Import) vẫn gắn `[Authorize(Policy="UserOrAdminPolicy")]` + `[RequireFunction("...")]`
+     như bình thường. Hệ quả: `Gateway/appsettings.json` phải tách **2 route YARP riêng theo Methods** cho mỗi
+     entity (`province-read-route`/`ward-read-route` chỉ `GET`, không `AuthorizationPolicy` ; `province-write-route`/
+     `ward-write-route` chỉ `POST/PUT/DELETE`, có `AuthorizationPolicy: UserOrAdminPolicy`) — vì
+     `AuthorizationMiddleware` bỏ qua toàn bộ xác thực khi route không có `IAuthorizeData` metadata, nếu gộp
+     chung 1 route như các entity khác thì Gateway sẽ chặn nhầm cả action đọc.
+  3. **Database riêng**: service mới kết nối DB SQL Server riêng tên `AdministrativeUnit` (không dùng chung
+     `BaseRepo` với Gateway/Site) — đúng theo `USE AdministrativeUnit` đã có sẵn trong script. Tạm dùng chung
+     UserName/Password đã mã hoá với Site (cùng SQL Server instance `localhost,1433`) — **cần xác nhận lại** nếu
+     login DB thực tế khác.
+  - **Vá lệch convention AutoId (đã sửa lại lần 2 theo yêu cầu)**: ban đầu schema gốc không có cột `AutoId`
+    (chỉ PK `Code`), khác mọi bảng khác trong `BaseSQL.sql` (luôn `AutoId BIGINT IDENTITY(1,1) PRIMARY KEY`,
+    business key chỉ là `UNIQUE`). Lần đầu đã vá tạm bằng 1 migration ALTER TABLE riêng (thêm `AutoId` như cột
+    thường, giữ `Code` làm PK) — sau đó theo yêu cầu, đã **sửa thẳng vào `BaseAdministrativeUnit.sql`** cho đúng
+    100% convention `BaseSQL.sql`: `Province`/`Ward` giờ có `[AutoId] BIGINT IDENTITY(1,1)` làm
+    `PRIMARY KEY CLUSTERED`, `Code` đổi thành `CONSTRAINT UQ_..._Code UNIQUE` (không còn là PK). Đã xoá file
+    migration ALTER TABLE cũ (không cần nữa vì AutoId giờ nằm sẵn trong script tạo bảng gốc). Không cần sửa gì
+    ở tầng code C# (Entity/Repository vẫn `Select *`/lọc theo `Code` như cũ, không quan tâm cột nào là PK).
+  - Port **8002**, Consul `administrativeunit-service`. Đã thêm 4 project mới vào `BaseRepo.slnx`
+    (`AdministrativeUnit`, `.Application`, `.Domain`, `.Infrastructure`), route + swagger doc tại Gateway.
+  - Đã review bằng code-reviewer subagent (đối chiếu SQL/CQRS/DI/route/YARP config với pattern `Module`/`Site`
+    có sẵn) — không phát hiện bug, chỉ thiếu 2 file template import mẫu (`Import_Provinces_mau.xlsx`,
+    `Import_Wards_mau.xlsx`, không ảnh hưởng runtime, chỉ là tài liệu mẫu). `dotnet build BaseRepo.slnx` thành
+    công, 0 Error.
+  - **Chưa test end-to-end** (người dùng chủ động test sau, cần xác nhận theo `06-testing.md` trước khi test).
+
 - **Thêm API refresh token vào `AuthorizationController`** — `POST /api/authorization/renew-token`. Phần logic
   khó nhất (verify access token đã hết hạn, verify refresh token còn hợp lệ trong `tbl_Users.RefreshToken`,
   generate access+refresh token mới, update DB) **đã có sẵn từ trước** ở `IAuthorizationRepository.RenewToken()`
@@ -708,6 +746,18 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
+- **Microservice `AdministrativeUnit` (mục mới nhất phía trên) chưa được test lại** — trước khi test cần:
+  (1) chạy `BaseAdministrativeUnit.sql` (đã sửa lại: `AutoId` giờ là PRIMARY KEY, `Code` là UNIQUE) trên DB
+  `AdministrativeUnit` — **nếu DB đã tồn tại từ trước theo schema PK `Code` cũ (đã lỡ chạy bản trước khi sửa),
+  cần xoá/tạo lại bảng `Province`/`Ward`** vì đổi PK không thể ALTER an toàn khi bảng đã có dữ liệu/PK khác; nếu
+  DB chưa từng tạo thì chạy thẳng bản mới là đủ, (2) chạy tiếp `01`-`05` để seed dữ liệu (34 Province/3321 Ward)
+  nếu chưa có, (3) xác nhận UserName/Password kết nối DB trong `AdministrativeUnit/appsettings.json` đúng (đang
+  tạm dùng chung với Site). Theo `06-testing.md`, cần hỏi xác nhận trước khi test và chỉ test riêng API này. Lưu
+  ý API đọc (`GetById`/`GetAll`/`Export`/`GetWardsByProvince`) không cần token (anonymous), chỉ API mutating mới
+  cần. Test account cần Function `CreateProvince`/`UpdateProvince`/`DeleteProvince`/`ImportProvinces` (và tương
+  tự cho Ward) qua `Role_Function`, hoặc là Role literal "Admin", mới gọi được action mutating.
+- Thiếu 2 file template import mẫu `Import_Provinces_mau.xlsx`/`Import_Wards_mau.xlsx` trong
+  `CommonLibs/TemplatesImport/` (không ảnh hưởng runtime, chỉ thiếu tài liệu mẫu) — có thể bổ sung sau nếu cần.
 - **API refresh token (`POST /api/authorization/renew-token`, mục mới nhất phía trên) chưa được test lại** —
   cần restart Gateway rồi test cả happy path (access token hết hạn + refresh token còn hạn trong cookie → nhận
   access+refresh token mới) lẫn edge case (access token còn hạn → phải bị từ chối; refresh token sai/hết hạn →

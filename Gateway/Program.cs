@@ -107,6 +107,9 @@ if (app.Environment.IsDevelopment())
         // route này sẽ proxy và rewrite thành /swagger/v1/swagger.json khi gọi xuống Site.
         options.SwaggerEndpoint("/site-swagger/v1/swagger.json", "Site API");
 
+        // 3. Cấu hình đọc Swagger JSON của Service AdministrativeUnit thông qua YARP
+        options.SwaggerEndpoint("/administrativeunit-swagger/v1/swagger.json", "AdministrativeUnit API");
+
     });
 }
 

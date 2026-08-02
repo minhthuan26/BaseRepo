@@ -86,4 +86,4 @@ node.name: node-1
 network.host: 0.0.0.0
 http.port: 8010
 discovery.type: single-node
-xpack.security.enabled: false
+xpack.security.enabled: true #true nếu cần login

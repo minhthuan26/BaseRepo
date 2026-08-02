@@ -184,3 +184,5 @@ server.port: 8011
 server.host: "0.0.0.0"
 elasticsearch.hosts:
   - "http://localhost:8010"
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "r_VD9lspIG5G_v+gy*XQ"

@@ -28,6 +28,20 @@ filebeat.inputs:
       service: site
     fields_under_root: true
 
+  - type: filestream
+    id: administrativeunit
+    enabled: true
+    paths:
+      - "D:\\Mitalab_Testing\\BaseRepo\\AdministrativeUnit\\Logs\\*.json"
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          overwrite_keys: true
+          add_error_key: true
+    fields:
+      service: administrativeunit
+    fields_under_root: true
+
 # ============================== Global Setup =============================
 # Đẩy các cấu hình quản lý cấu trúc index ra ngoài root level
 setup.ilm.enabled: false
@@ -36,6 +50,8 @@ setup.template.enabled: false
 # ============================== Filebeat Outputs =============================
 output.elasticsearch:
   hosts: ["localhost:8010"]
+  username: "elastic"
+  password: "U-RVT_ibwYdB1MuXw0mg"
   index: "log-%{[service]}-%{+yyyy.MM.dd}"
 
 # =================================== Kibana ===================================

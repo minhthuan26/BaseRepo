@@ -4,5 +4,6 @@ namespace Site.Application.Features.Role.ExportRoles
 {
     public class ExportRolesQuery : IRequest<string>
     {
+        public string SiteId { get; set; }
     }
 }

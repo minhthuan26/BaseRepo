@@ -67,9 +67,16 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}CreateUser-04] Password is required.", HttpStatusCode.BadRequest);
                 }
-                if (await CheckUserExists(input.UserId, cancellationToken))
+                if (string.IsNullOrWhiteSpace(input.SiteId))
                 {
-                    throw new AppException($"[{_errorPrefix}CreateUser-05] User with UserId '{input.UserId}' already exists.", HttpStatusCode.Conflict);
+                    throw new AppException($"[{_errorPrefix}CreateUser-07] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+                // UserId chỉ unique TRONG PHẠM VI 1 SITE (không còn unique toàn cục) - check trùng phải lọc theo
+                // đúng SiteId đang tạo, nếu không User ở Site B sẽ bị chặn nhầm "already exists" chỉ vì Site A
+                // tình cờ có cùng UserId (đúng kịch bản test cách ly 2 Site).
+                if (await CheckUserExists(input.UserId, input.SiteId, cancellationToken))
+                {
+                    throw new AppException($"[{_errorPrefix}CreateUser-05] User with UserId '{input.UserId}' already exists in Site '{input.SiteId}'.", HttpStatusCode.Conflict);
                 }
                 if (string.IsNullOrEmpty(_options.ActualAccessKey))
                 {
@@ -78,11 +85,12 @@ namespace Gateway.Infrastructure.Repositories
                 string encryptedPassword = EncryptionUtils.EncryptData(input.Password, _options.ApplicationName, _options.ApplicationId);
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
-                        Insert Into tbl_Users (UserId, UserName, Password, Priority, Signature, Email, QuickCode, CreatedDate, CreatedBy, DeviceName, DeviceId)
-                        Values (@UserId, @UserName, @Password, @Priority, @Signature, @Email, @QuickCode, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
+                        Insert Into tbl_Users (UserId, SiteId, UserName, Password, Priority, Signature, Email, QuickCode, CreatedDate, CreatedBy, DeviceName, DeviceId)
+                        Values (@UserId, @SiteId, @UserName, @Password, @Priority, @Signature, @Email, @QuickCode, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
                     ", new
                 {
                     UserId = input.UserId,
+                    SiteId = input.SiteId,
                     UserName = input.UserName,
                     Password = encryptedPassword,
                     Priority = input.Priority,
@@ -115,8 +123,14 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}DeleteUser-01] UserId is required.", HttpStatusCode.BadRequest);
                 }
+                if (string.IsNullOrWhiteSpace(input.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}DeleteUser-03] SiteId is required.", HttpStatusCode.BadRequest);
+                }
                 if (input.IsSoftDelete)
                 {
+                    // Lọc thêm SiteId - UserId không còn unique toàn cục, thiếu điều kiện này có thể xoá nhầm
+                    // User trùng UserId ở Site khác.
                     int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Update tbl_Users
                         Set Status = -1,
@@ -124,10 +138,11 @@ namespace Gateway.Infrastructure.Repositories
                             UpdatedBy = @UpdatedBy,
                             DeviceName = @DeviceName,
                             DeviceId = @DeviceId
-                        Where UserId = @UserId
+                        Where UserId = @UserId And SiteId = @SiteId
                         ", new
                     {
                         UserId = input.UserId,
+                        SiteId = input.SiteId,
                         UpdatedDate = DateTime.UtcNow,
                         UpdatedBy = _auditContext.UserName,
                         DeviceName = _auditContext.DeviceName,
@@ -144,10 +159,11 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Delete From tbl_Users
-                        Where UserId = @UserId
+                        Where UserId = @UserId And SiteId = @SiteId
                         ", new
                     {
-                        UserId = input.UserId
+                        UserId = input.UserId,
+                        SiteId = input.SiteId
                     },
                     cancellationToken);
                     if (rowsAffected <= 0)
@@ -163,12 +179,18 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        public async Task<string> ExportUsers(CancellationToken cancellationToken)
+        public async Task<string> ExportUsers(string siteId, CancellationToken cancellationToken)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    throw new AppException($"[{_errorPrefix}ExportUsers-01] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
                 var users = await _dbContext.QueryAsync<User>(
-                    @"Select * From tbl_Users Order By AutoId Asc",
+                    @"Select * From tbl_Users Where SiteId = @SiteId Order By AutoId Asc",
+                    new { SiteId = siteId },
                     cancellationToken: cancellationToken);
 
                 var records = users.Select(u =>
@@ -197,8 +219,14 @@ namespace Gateway.Infrastructure.Repositories
         {
             try
             {
-                var whereBuilder = new StringBuilder(" WHERE 1=1 ");
+                if (string.IsNullOrWhiteSpace(filter.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}GetAllUsers-01] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
+                var whereBuilder = new StringBuilder(" WHERE SiteId = @SiteId ");
                 var parameters = new DynamicParameters();
+                parameters.Add("SiteId", filter.SiteId.Trim());
                 if (filter.Status.HasValue)
                 {
                     whereBuilder.Append(" AND [Status] = @Status ");
@@ -277,14 +305,18 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        public async Task<UserOutputDTO> GetUserById(string userId, CancellationToken cancellationToken)
+        public async Task<UserOutputDTO> GetUserById(string userId, string siteId, CancellationToken cancellationToken)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    throw new AppException($"[{_errorPrefix}GetUserById-02] SiteId is required.", HttpStatusCode.BadRequest);
+                }
                 var user = await _dbContext.QueryFirstOrDefaultAsync<User>(
                     @"Select * From tbl_Users
-                    Where UserId = @UserId",
-                    new { UserId = userId },
+                    Where UserId = @UserId And SiteId = @SiteId",
+                    new { UserId = userId, SiteId = siteId },
                     cancellationToken);
                 if (user == null)
                 {
@@ -299,8 +331,13 @@ namespace Gateway.Infrastructure.Repositories
             }
         }
 
-        public async Task<List<UserOutputDTO>> ImportUsers(Stream stream, string fileName, CancellationToken cancellationToken)
+        public async Task<List<UserOutputDTO>> ImportUsers(Stream stream, string fileName, string siteId, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(siteId))
+            {
+                throw new AppException($"[{_errorPrefix}ImportUsers-02] SiteId is required.", HttpStatusCode.BadRequest);
+            }
+
             var users = await FileHelper.ReadFile<UserInputDTO>(stream, fileName, BaseInputDTO.GetHeaders<UserInputDTO>());
 
             if (!users.Any())
@@ -317,6 +354,9 @@ namespace Gateway.Infrastructure.Repositories
                 {
                     user.Password = EncryptionUtils.EncryptData(user.Password, _options.ApplicationName, _options.ApplicationId);
                 }
+                // Toàn bộ batch import luôn thuộc đúng Site của người gọi - không đọc/tin theo SiteId trong file
+                // CSV (nếu người dùng có nhét cột đó vào cũng bị bỏ qua) để chặn import chéo Site.
+                user.SiteId = siteId;
             }
 
             return await _dbContext.ExecuteWithTransactionAsync(async () =>
@@ -325,6 +365,7 @@ namespace Gateway.Infrastructure.Repositories
                     CREATE TABLE #TempUsers
                     (
                         UserId NVARCHAR(100),
+                        SiteId NVARCHAR(20),
                         UserName NVARCHAR(255),
                         Password VARCHAR(255),
                         Signature VARBINARY(MAX),
@@ -340,10 +381,14 @@ namespace Gateway.Infrastructure.Repositories
                     "#TempUsers",
                     cancellationToken: cancellationToken);
 
+                // ON T.UserId = S.UserId AND T.SiteId = S.SiteId (KHÔNG chỉ UserId) - UserId không còn unique
+                // toàn cục, nếu chỉ so khớp UserId thì 1 dòng CSV của Site A có thể vô tình MERGE trúng bản ghi
+                // của 1 User trùng UserId ở Site B đã tồn tại từ trước và GHI ĐÈ dữ liệu (mật khẩu, email...) của
+                // User đó - đây là lỗi ghi đè chéo Site nghiêm trọng hơn cả đọc nhầm.
                 await _dbContext.ExecuteAsync(@"
                     MERGE tbl_Users AS T
                     USING #TempUsers AS S
-                    ON T.UserId = S.UserId
+                    ON T.UserId = S.UserId AND T.SiteId = S.SiteId
 
                     WHEN MATCHED THEN
                         UPDATE SET
@@ -355,14 +400,15 @@ namespace Gateway.Infrastructure.Repositories
                             T.Status = S.Status,
                             T.Priority = S.Priority,
                             T.UpdatedDate = GETUTCDATE(),
-                            T.UpdatedBy = @UpdatedBy, 
-                            T.DeviceName = @DeviceName, 
+                            T.UpdatedBy = @UpdatedBy,
+                            T.DeviceName = @DeviceName,
                             T.DeviceId = @DeviceId
 
                     WHEN NOT MATCHED THEN
                         INSERT
                         (
                             UserId,
+                            SiteId,
                             UserName,
                             Email,
                             Password,
@@ -371,13 +417,14 @@ namespace Gateway.Infrastructure.Repositories
                             Status,
                             Priority,
                             CreatedDate,
-                            CreatedBy, 
-                            DeviceName, 
+                            CreatedBy,
+                            DeviceName,
                             DeviceId
                         )
                         VALUES
                         (
                             S.UserId,
+                            S.SiteId,
                             S.UserName,
                             S.Email,
                             S.Password,
@@ -417,13 +464,20 @@ namespace Gateway.Infrastructure.Repositories
                     throw new AppException($"[{_errorPrefix}UpdateUser-02] UserId is required.", HttpStatusCode.BadRequest);
                 }
 
-                if (!await CheckUserExists(input.UserId, cancellationToken))
+                if (string.IsNullOrWhiteSpace(input.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateUser-06] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
+                if (!await CheckUserExists(input.UserId, input.SiteId, cancellationToken))
                 {
                     throw new AppException($"[{_errorPrefix}UpdateUser-03] User with UserId '{input.UserId}' not found.", HttpStatusCode.NotFound);
                 }
 
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
 
+                // Lọc thêm SiteId ở WHERE - UserId không còn unique toàn cục, thiếu điều kiện này có thể sửa
+                // nhầm/ghi đè User trùng UserId ở Site khác.
                 string updateQuery = @"
                         Update tbl_Users
                         Set UserName = @UserName,
@@ -436,11 +490,12 @@ namespace Gateway.Infrastructure.Repositories
                             UpdatedBy = @UpdatedBy,
                             DeviceName = @DeviceName,
                             DeviceId = @DeviceId";
-                updateQuery += " Where UserId = @UserId";
+                updateQuery += " Where UserId = @UserId And SiteId = @SiteId";
 
                 int rowsAffected = await _dbContext.ExecuteAsync(updateQuery, new
                 {
                     UserId = input.UserId,
+                    SiteId = input.SiteId,
                     UserName = input.UserName,
                     Priority = input.Priority,
                     Signature = input.Signature != null ? Convert.FromBase64String(input.Signature) : null,
@@ -484,9 +539,14 @@ namespace Gateway.Infrastructure.Repositories
                 if (input.NewPassword != input.ConfirmNewPassword)
                     throw new AppException($"[{_errorPrefix}ChangePassword-05] NewPassword and ConfirmNewPassword do not match.", HttpStatusCode.BadRequest);
 
+                if (string.IsNullOrWhiteSpace(input.SiteId))
+                    throw new AppException($"[{_errorPrefix}ChangePassword-10] SiteId is required.", HttpStatusCode.BadRequest);
+
+                // Lọc thêm SiteId - UserId không còn unique toàn cục, thiếu điều kiện này có thể đổi nhầm mật
+                // khẩu của User trùng UserId ở Site khác.
                 var user = await _dbContext.QueryFirstOrDefaultAsync<User>(
-                    @"Select * From tbl_Users Where UserId = @UserId",
-                    new { UserId = input.UserId },
+                    @"Select * From tbl_Users Where UserId = @UserId And SiteId = @SiteId",
+                    new { UserId = input.UserId, SiteId = input.SiteId },
                     cancellationToken);
 
                 if (user == null)
@@ -509,7 +569,7 @@ namespace Gateway.Infrastructure.Repositories
                         UpdatedBy = @UpdatedBy,
                         DeviceName = @DeviceName,
                         DeviceId = @DeviceId
-                    Where UserId = @UserId",
+                    Where UserId = @UserId And SiteId = @SiteId",
                     new
                     {
                         Password = encryptedNewPassword,
@@ -517,7 +577,8 @@ namespace Gateway.Infrastructure.Repositories
                         UpdatedBy = _auditContext.UserName,
                         DeviceName = _auditContext.DeviceName,
                         DeviceId = _auditContext.DeviceId,
-                        UserId = input.UserId
+                        UserId = input.UserId,
+                        SiteId = input.SiteId
                     }, cancellationToken);
 
                 if (rowsAffected <= 0)
@@ -533,14 +594,14 @@ namespace Gateway.Infrastructure.Repositories
         #endregion
 
         #region Helpers
-        private async Task<bool> CheckUserExists(string userId, CancellationToken cancellationToken)
+        private async Task<bool> CheckUserExists(string userId, string siteId, CancellationToken cancellationToken)
         {
             try
             {
                 var user = await _dbContext.QueryFirstOrDefaultAsync<User>(
                     @"Select * From tbl_Users
-                    Where UserId = @UserId",
-                    new { UserId = userId },
+                    Where UserId = @UserId And SiteId = @SiteId",
+                    new { UserId = userId, SiteId = siteId },
                     cancellationToken);
 
                 return user != null;
@@ -557,6 +618,7 @@ namespace Gateway.Infrastructure.Repositories
             public UserExportMap()
             {
                 Map(m => m.UserId);
+                Map(m => m.SiteId);
                 Map(m => m.UserName);
                 Map(m => m.Priority);
                 Map(m => m.Email);

@@ -31,6 +31,9 @@ namespace Gateway.Controllers
         [RequireFunction("CreateUser")]
         public async Task<IActionResult> CreateUser([FromBody] UserInputDTO data)
         {
+            // User mới luôn được tạo trong đúng Site của người gọi (claim "site_id") - không cho client tự
+            // truyền SiteId khác trong body để tạo User ở Site khác.
+            data.SiteId = CurrentSiteId;
             CreateUserCommand command = new()
             {
                 Data = data
@@ -50,6 +53,9 @@ namespace Gateway.Controllers
         public async Task<IActionResult> UpdateUser([FromRoute] string userId, [FromBody] UserInputDTO data)
         {
             data.UserId = userId;
+            // Chỉ được sửa User thuộc đúng Site của người gọi - không cho sửa nhầm/cố ý User trùng UserId ở Site
+            // khác bằng cách so khớp thêm SiteId ở tầng Repository.
+            data.SiteId = CurrentSiteId;
             UpdateUserCommand command = new()
             {
                 Data = data
@@ -69,7 +75,8 @@ namespace Gateway.Controllers
         {
             GetUserByIdQuery query = new GetUserByIdQuery()
             {
-                Data = userId
+                Data = userId,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<UserOutputDTO>()
@@ -84,6 +91,9 @@ namespace Gateway.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetAllUsers([FromQuery] UserFilterDTO filter)
         {
+            // Ghi đè SiteId bằng claim của người gọi - không cho client tự truyền SiteId khác qua query string để
+            // liệt kê User của Site khác.
+            filter.SiteId = CurrentSiteId;
             GetAllUsersQuery query = new GetAllUsersQuery()
             {
                 Filter = filter
@@ -101,7 +111,10 @@ namespace Gateway.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportUsers()
         {
-            ExportUsersQuery query = new();
+            ExportUsersQuery query = new()
+            {
+                SiteId = CurrentSiteId
+            };
             var result = await _mediator.Send(query);
             return Ok(new Response<string>()
             {
@@ -117,6 +130,7 @@ namespace Gateway.Controllers
         public async Task<IActionResult> DeleteUser([FromRoute] string userId, [FromBody] DeleteUserInputDTO data)
         {
             data.UserId = userId;
+            data.SiteId = CurrentSiteId;
             DeleteUserCommand command = new()
             {
                 Data = data
@@ -145,7 +159,8 @@ namespace Gateway.Controllers
             ImportUsersCommand command = new()
             {
                 Data = stream,
-                FileName = file.FileName
+                FileName = file.FileName,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(command);
             return Ok(new Response<List<UserOutputDTO>>()
@@ -161,6 +176,7 @@ namespace Gateway.Controllers
         public async Task<IActionResult> ChangePassword([FromRoute] string userId, [FromBody] ChangePasswordInputDTO data)
         {
             data.UserId = userId;
+            data.SiteId = CurrentSiteId;
             ChangePasswordCommand command = new()
             {
                 Data = data

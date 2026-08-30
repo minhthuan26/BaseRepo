@@ -56,24 +56,25 @@ namespace Site.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}CreateModule-03] ModuleName is required.", HttpStatusCode.BadRequest);
                 }
-                if (string.IsNullOrWhiteSpace(input.SiteId))
-                {
-                    throw new AppException($"[{_errorPrefix}CreateModule-04] SiteId is required.", HttpStatusCode.BadRequest);
-                }
                 if (await CheckModuleExists(input.ModuleId, cancellationToken))
                 {
                     throw new AppException($"[{_errorPrefix}CreateModule-05] Module with ModuleId '{input.ModuleId}' already exists.", HttpStatusCode.Conflict);
                 }
 
+                // Module là danh mục dùng chung toàn hệ thống (tbl_Modules.SiteId đã bị xoá - xem
+                // CommonLibs/BaseSQL/multi-tenant/04_globalize_module_catalog.sql), không còn SiteId khi tạo mới.
+                // Đây là API quản trị danh mục toàn cục (thêm loại Module MỚI cho cả hệ thống) - KHÔNG tự động
+                // bật Module cho Site nào cả; muốn Site nào dùng được Module này phải provision riêng qua
+                // tbl_Site_Module (xem SiteModuleController, đúng ý "provisioning là việc của đội vận hành" đã
+                // ghi trong 03_create_site_module.sql).
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
-                        Insert Into tbl_Modules (ModuleId, ModuleName, SiteId, CreatedDate, CreatedBy, DeviceName, DeviceId)
-                        Values (@ModuleId, @ModuleName, @SiteId, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
+                        Insert Into tbl_Modules (ModuleId, ModuleName, CreatedDate, CreatedBy, DeviceName, DeviceId)
+                        Values (@ModuleId, @ModuleName, @CreatedDate, @CreatedBy, @DeviceName, @DeviceId)
                     ", new
                 {
                     ModuleId = input.ModuleId,
                     ModuleName = input.ModuleName,
-                    SiteId = input.SiteId,
                     CreatedDate = DateTime.UtcNow,
                     CreatedBy = input.CreatedBy,
                     DeviceName = input.DeviceName,
@@ -114,7 +115,6 @@ namespace Site.Infrastructure.Repositories
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Update tbl_Modules
                         Set ModuleName = @ModuleName,
-                            SiteId = @SiteId,
                             Status = @Status,
                             UpdatedDate = @UpdatedDate,
                             UpdatedBy = @UpdatedBy,
@@ -125,7 +125,6 @@ namespace Site.Infrastructure.Repositories
                 {
                     ModuleId = input.ModuleId,
                     ModuleName = input.ModuleName,
-                    SiteId = input.SiteId,
                     Status = input.Status.HasValue ? (int)input.Status.Value : 1,
                     UpdatedDate = DateTime.UtcNow,
                     UpdatedBy = input.UpdatedBy,
@@ -182,11 +181,6 @@ namespace Site.Infrastructure.Repositories
                 {
                     whereBuilder.Append(" AND ModuleName like @ModuleName ");
                     parameters.Add("ModuleName", $"%{filter.ModuleName.Trim()}%", System.Data.DbType.String);
-                }
-                if (!string.IsNullOrWhiteSpace(filter.SiteId))
-                {
-                    whereBuilder.Append(" AND SiteId = @SiteId ");
-                    parameters.Add("SiteId", filter.SiteId.Trim());
                 }
                 if (filter.FromDate.HasValue)
                 {
@@ -307,7 +301,6 @@ namespace Site.Infrastructure.Repositories
                     (
                         ModuleId NVARCHAR(50),
                         ModuleName NVARCHAR(MAX),
-                        SiteId NVARCHAR(20),
                         Status INT
                     )
                     ", cancellationToken: cancellationToken);
@@ -325,7 +318,6 @@ namespace Site.Infrastructure.Repositories
                     WHEN MATCHED THEN
                         UPDATE SET
                             T.ModuleName = S.ModuleName,
-                            T.SiteId = S.SiteId,
                             T.Status = S.Status,
                             T.UpdatedDate = GETUTCDATE(),
                             T.UpdatedBy = @UpdatedBy,
@@ -337,7 +329,6 @@ namespace Site.Infrastructure.Repositories
                         (
                             ModuleId,
                             ModuleName,
-                            SiteId,
                             Status,
                             CreatedDate,
                             CreatedBy,
@@ -348,7 +339,6 @@ namespace Site.Infrastructure.Repositories
                         (
                             S.ModuleId,
                             S.ModuleName,
-                            S.SiteId,
                             S.Status,
                             GETUTCDATE(),
                             @CreatedBy,
@@ -421,7 +411,6 @@ namespace Site.Infrastructure.Repositories
             {
                 Map(m => m.ModuleId);
                 Map(m => m.ModuleName);
-                Map(m => m.SiteId);
                 Map(m => m.Status);
                 Map(m => m.CreatedDate);
                 Map(m => m.CreatedBy);

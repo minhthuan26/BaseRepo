@@ -15,7 +15,7 @@ namespace Site.Application.Features.UserRole.GetUserRoleById
 
         public async Task<UserRoleOutputDTO> Handle(GetUserRoleByIdQuery request, CancellationToken cancellationToken)
         {
-            var result = await _repository.GetUserRoleById(request.UserId, request.RoleId, cancellationToken);
+            var result = await _repository.GetUserRoleById(request.UserId, request.RoleId, request.SiteId, cancellationToken);
             return result;
         }
     }

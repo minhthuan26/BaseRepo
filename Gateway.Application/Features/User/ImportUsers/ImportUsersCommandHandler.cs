@@ -15,7 +15,7 @@ namespace Gateway.Application.Features.User.ImportUsers
 
         public async Task<List<UserOutputDTO>> Handle(ImportUsersCommand request, CancellationToken cancellationToken)
         {
-            var result = await _repository.ImportUsers(request.Data, request.FileName, cancellationToken);
+            var result = await _repository.ImportUsers(request.Data, request.FileName, request.SiteId, cancellationToken);
             return result;
         }
     }

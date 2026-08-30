@@ -86,13 +86,21 @@ namespace CommonLibs.Middlewares
 
                 var roleNames = claims.Where(claim => claim.Type == "role" || claim.Type == ClaimTypes.Role).Select(claim => claim.Value).ToList();
                 var userIdClaim = claims.FirstOrDefault(claim => claim.Type == "id" || claim.Type == ClaimTypes.NameIdentifier);
+                // "auto_id" và "site_id" được Login() (Gateway.Infrastructure/Repositories/AuthorizationRepository.cs)
+                // gán vào token - auto_id là khoá cache Redis (UserId giờ chỉ unique trong phạm vi 1 Site nên không còn
+                // dùng UserId làm khoá cache được, dễ đụng nhau giữa 2 Site khác nhau), site_id dùng để lọc dữ liệu khi
+                // Redis cache miss phải query thẳng SQL.
+                var autoIdClaim = claims.FirstOrDefault(claim => claim.Type == "auto_id");
+                var siteIdClaim = claims.FirstOrDefault(claim => claim.Type == "site_id");
 
-                if (roleNames.Count == 0 || userIdClaim == null)
+                if (roleNames.Count == 0 || userIdClaim == null || autoIdClaim == null || siteIdClaim == null)
                 {
                     throw new AppException("Token payload is not valid.", HttpStatusCode.BadRequest);
                 }
 
                 string userId = userIdClaim.Value;
+                string autoId = autoIdClaim.Value;
+                string siteId = siteIdClaim.Value;
 
                 // ==================== THÊM ĐOẠN NÀY ĐỂ FIX LỖI 401 ====================
                 // Tạo danh tính chính thức để các Middleware hệ thống (.NET Core Authorization) công nhận
@@ -101,6 +109,11 @@ namespace CommonLibs.Middlewares
                 // ======================================================================
 
                 // 5. PHÂN QUYỀN THEO ROUTE YARP
+                // CẢNH BÁO: KHÔNG cấu hình "Roles": "Admin" (hay bất kỳ tên Role nào khác) trên route YARP trong
+                // appsettings.json (hiện chưa route nào dùng field này - chỉ dùng "AuthorizationPolicy"). so khớp
+                // RoleName ở đây cũng literal/site-blind y hệt lỗi "Admin toàn hệ thống" đã fix (xem README
+                // CommonLibs/BaseSQL/multi-tenant/) - Admin của Site A sẽ tự động pass check này trên route lẽ ra
+                // chỉ dành cho Site B. Muốn giới hạn theo quyền cụ thể, dùng [RequireFunction(...)] trên action.
                 var authData = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>();
                 if (authData != null && !string.IsNullOrEmpty(authData.Roles))
                 {
@@ -120,6 +133,10 @@ namespace CommonLibs.Middlewares
 
                 // 7. ENRICH DATA (Đóng gói thông tin sạch đẩy xuống Service con)
                 context.Request.Headers["X-User-Id"] = userId;
+                // Site mà user hiện tại thuộc về (ranh giới tenant) - service con dùng để tự lọc dữ liệu theo Site
+                // của chính user (VD SiteModuleController.GetMySiteModules) mà không cần tin theo SiteId client tự
+                // truyền lên trong query/body.
+                context.Request.Headers["X-Site-Id"] = siteId;
                 // Uri.EscapeDataString: RoleName lấy từ DB (VD "Ký thuật viên") có thể chứa ký tự Unicode -
                 // HTTP header value bắt buộc chỉ ASCII, gửi thẳng sẽ làm YARP forward request tới Site lỗi
                 // "Request headers must contain only ASCII characters" (502).
@@ -131,7 +148,7 @@ namespace CommonLibs.Middlewares
                 // SQL trực tiếp (User_Role -> Roles -> Role_Function -> Functions) khi cache miss/hết hạn, sau đó
                 // ghi lại vào Redis cho các request kế tiếp. Chưa dùng để chặn cứng từng endpoint (Function hiện
                 // chưa gắn với route cụ thể nào) — chỉ nạp sẵn hạ tầng để controller/service tự kiểm tra khi cần.
-                string cacheKey = UserPermissionCache.GetCacheKey(userId);
+                string cacheKey = UserPermissionCache.GetCacheKey(autoId);
                 var cached = await redisService.GetAsync<UserPermissionCache>(cacheKey);
                 List<string> allowedFunctionIds;
                 if (cached != null)
@@ -141,13 +158,16 @@ namespace CommonLibs.Middlewares
                 else
                 {
                     using var connection = sqlConnectionFactory.CreateConnection();
+                    // Bắt buộc lọc thêm And UR.SiteId = @SiteId: UserId không còn unique toàn hệ thống (chỉ unique
+                    // trong phạm vi 1 Site), thiếu điều kiện này khi cache miss có thể vô tình gộp cả Function của
+                    // một User trùng UserId ở Site khác vào - rò rỉ quyền chéo Site.
                     allowedFunctionIds = (await connection.QueryAsync<string>(@"
                             Select Distinct RF.FunctionId
                             From tbl_User_Role UR
                             Inner Join tbl_Roles R On R.RoleId = UR.RoleId
                             Inner Join tbl_Role_Function RF On RF.RoleId = R.RoleId
-                            Where UR.UserId = @UserId And UR.Status = 1 And R.Status = 1 And RF.Status = 1
-                        ", new { UserId = userId })).ToList();
+                            Where UR.UserId = @UserId And UR.SiteId = @SiteId And UR.Status = 1 And R.Status = 1 And RF.Status = 1
+                        ", new { UserId = userId, SiteId = siteId })).ToList();
 
                     await redisService.SetAsync(
                         cacheKey,
@@ -160,15 +180,16 @@ namespace CommonLibs.Middlewares
 
                 // 9. CHẶN THEO FUNCTION CỤ THỂ — action nào gắn [RequireFunction("FunctionId")] thì user phải có
                 // đúng FunctionId đó trong allowedFunctionIds (gán qua Role -> Role_Function) mới được đi tiếp.
-                // Admin toàn hệ thống (Role "Admin") luôn được bỏ qua kiểm tra này.
+                // KHÔNG còn khái niệm "Admin toàn hệ thống" nào được bỏ qua kiểm tra này (đã bỏ chủ ý - trước đây
+                // so khớp literal RoleName == "Admin" để bypass, nhưng từ khi mỗi Site tự có Role "Admin" riêng
+                // (multi-tenant), việc này vô tình cho phép Admin của Site A bỏ qua RequireFunction trên tài
+                // nguyên của Site B. Role "Admin" của mỗi Site giờ phải được cấp Function tường minh qua
+                // tbl_Role_Function như mọi Role khác - xem CommonLibs/BaseSQL/multi-tenant/07_backfill_admin_role_functions.sql
+                // để không bị mất quyền đột ngột ngay khi bật đợt fix này.
                 var requireFunction = endpoint?.Metadata.GetMetadata<RequireFunctionAttribute>();
-                if (requireFunction != null)
+                if (requireFunction != null && !allowedFunctionIds.Contains(requireFunction.FunctionId))
                 {
-                    bool isGlobalAdmin = roleNames.Any(roleName => roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase));
-                    if (!isGlobalAdmin && !allowedFunctionIds.Contains(requireFunction.FunctionId))
-                    {
-                        throw new AppException($"Access denied. Missing required function permission: '{requireFunction.FunctionId}'.", HttpStatusCode.Forbidden);
-                    }
+                    throw new AppException($"Access denied. Missing required function permission: '{requireFunction.FunctionId}'.", HttpStatusCode.Forbidden);
                 }
 
                 context.Items["claims"] = claims;

@@ -22,9 +22,12 @@ namespace Site.Controllers
         [HttpGet("{siteId}")]
         public async Task<IActionResult> GetPermissionTree([FromRoute] string siteId, [FromQuery] string? roleId)
         {
+            // Bỏ qua siteId client truyền trên route - luôn dùng đúng Site của người gọi (claim "site_id"), tránh
+            // để bất kỳ user đã đăng nhập nào (route này không có [RequireFunction]) xem được cây quyền/Role-Function
+            // của Site khác chỉ bằng cách đổi siteId trên URL.
             GetPermissionTreeQuery query = new GetPermissionTreeQuery()
             {
-                SiteId = siteId,
+                SiteId = CurrentSiteId,
                 RoleId = roleId
             };
             var result = await _mediator.Send(query);
@@ -44,7 +47,9 @@ namespace Site.Controllers
             AssignRolePermissionsCommand command = new()
             {
                 RoleId = roleId,
-                FunctionIds = data.FunctionIds
+                FunctionIds = data.FunctionIds,
+                // Chỉ được cấp quyền cho Role thuộc đúng Site của người gọi.
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(command);
             return Ok(new Response<List<string>>()

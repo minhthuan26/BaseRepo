@@ -19,7 +19,7 @@ namespace Gateway.Application.Features.User.GetUserById
 
         public async Task<UserOutputDTO> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
         {
-            var result = await _repository.GetUserById(request.Data, cancellationToken);
+            var result = await _repository.GetUserById(request.Data, request.SiteId, cancellationToken);
             return result;
         }
     }

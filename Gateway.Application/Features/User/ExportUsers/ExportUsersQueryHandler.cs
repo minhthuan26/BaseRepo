@@ -14,7 +14,7 @@ namespace Gateway.Application.Features.User.ExportUsers
 
         public async Task<string> Handle(ExportUsersQuery request, CancellationToken cancellationToken)
         {
-            var result = await _repository.ExportUsers(cancellationToken);
+            var result = await _repository.ExportUsers(request.SiteId, cancellationToken);
             return result;
         }
     }

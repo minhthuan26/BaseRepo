@@ -29,6 +29,8 @@ namespace Site.Controllers
         [RequireFunction("CreateRoleFunction")]
         public async Task<IActionResult> CreateRoleFunction([FromBody] RoleFunctionInputDTO data)
         {
+            // Chỉ được cấp Function cho Role thuộc đúng Site của người gọi.
+            data.SiteId = CurrentSiteId;
             CreateRoleFunctionCommand command = new()
             {
                 Data = data
@@ -49,7 +51,8 @@ namespace Site.Controllers
             GetRoleFunctionByIdQuery query = new GetRoleFunctionByIdQuery()
             {
                 RoleId = roleId,
-                FunctionId = functionId
+                FunctionId = functionId,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<RoleFunctionOutputDTO>()
@@ -66,7 +69,8 @@ namespace Site.Controllers
         {
             GetFunctionsByRoleQuery query = new GetFunctionsByRoleQuery()
             {
-                RoleId = roleId
+                RoleId = roleId,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<List<FunctionOutputDTO>>()
@@ -81,6 +85,7 @@ namespace Site.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetAllRoleFunctions([FromQuery] RoleFunctionFilterDTO filter)
         {
+            filter.SiteId = CurrentSiteId;
             GetAllRoleFunctionsQuery query = new GetAllRoleFunctionsQuery()
             {
                 Filter = filter
@@ -98,7 +103,10 @@ namespace Site.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportRoleFunctions()
         {
-            ExportRoleFunctionsQuery query = new();
+            ExportRoleFunctionsQuery query = new()
+            {
+                SiteId = CurrentSiteId
+            };
             var result = await _mediator.Send(query);
             return Ok(new Response<string>()
             {
@@ -115,6 +123,7 @@ namespace Site.Controllers
         {
             data.RoleId = roleId;
             data.FunctionId = functionId;
+            data.SiteId = CurrentSiteId;
             DeleteRoleFunctionCommand command = new()
             {
                 Data = data
@@ -143,7 +152,8 @@ namespace Site.Controllers
             ImportRoleFunctionsCommand command = new()
             {
                 Data = stream,
-                FileName = file.FileName
+                FileName = file.FileName,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(command);
             return Ok(new Response<List<RoleFunctionOutputDTO>>()

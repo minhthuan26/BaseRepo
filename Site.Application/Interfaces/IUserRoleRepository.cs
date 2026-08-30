@@ -11,11 +11,11 @@ namespace Site.Application.Interfaces
     public interface IUserRoleRepository
     {
         Task<UserRoleOutputDTO> CreateUserRole(UserRoleInputDTO input, CancellationToken cancellationToken);
-        Task<UserRoleOutputDTO> GetUserRoleById(string userId, string roleId, CancellationToken cancellationToken);
+        Task<UserRoleOutputDTO> GetUserRoleById(string userId, string roleId, string siteId, CancellationToken cancellationToken);
         Task<BaseFilterOutput<UserRoleOutputDTO>> GetAllUserRoles(UserRoleFilterDTO filter, CancellationToken cancellationToken);
         Task<string> DeleteUserRole(DeleteUserRoleInputDTO input, CancellationToken cancellationToken);
-        Task<List<UserRoleOutputDTO>> ImportUserRoles(Stream stream, string fileName, CancellationToken cancellationToken);
-        Task<string> ExportUserRoles(CancellationToken cancellationToken);
-        Task<List<RoleOutputDTO>> GetRolesByUser(string userId, CancellationToken cancellationToken);
+        Task<List<UserRoleOutputDTO>> ImportUserRoles(Stream stream, string fileName, string siteId, CancellationToken cancellationToken);
+        Task<string> ExportUserRoles(string siteId, CancellationToken cancellationToken);
+        Task<List<RoleOutputDTO>> GetRolesByUser(string userId, string siteId, CancellationToken cancellationToken);
     }
 }

@@ -15,7 +15,7 @@ namespace Site.Application.Features.Role.ImportRoles
 
         public async Task<List<RoleOutputDTO>> Handle(ImportRolesCommand request, CancellationToken cancellationToken)
         {
-            var result = await _repository.ImportRoles(request.Data, request.FileName, cancellationToken);
+            var result = await _repository.ImportRoles(request.Data, request.FileName, request.SiteId, cancellationToken);
             return result;
         }
     }

@@ -14,7 +14,7 @@ namespace Site.Application.Features.Permission.AssignRolePermissions
 
         public async Task<List<string>> Handle(AssignRolePermissionsCommand request, CancellationToken cancellationToken)
         {
-            var result = await _repository.AssignRolePermissions(request.RoleId, request.FunctionIds, cancellationToken);
+            var result = await _repository.AssignRolePermissions(request.RoleId, request.FunctionIds, request.SiteId, cancellationToken);
             return result;
         }
     }

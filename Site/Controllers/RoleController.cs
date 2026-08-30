@@ -29,6 +29,10 @@ namespace Site.Controllers
         [RequireFunction("CreateRole")]
         public async Task<IActionResult> CreateRole([FromBody] RoleInputDTO data)
         {
+            // Role mới luôn thuộc đúng Site của người gọi (claim "site_id") - không cho client tự truyền SiteId
+            // khác trong body để tạo Role ở Site khác (đặc biệt quan trọng từ khi RoleId được phép trùng giữa
+            // các Site - xem CommonLibs/BaseSQL/multi-tenant/08_fix_roleid_unique_scope.sql).
+            data.SiteId = CurrentSiteId;
             CreateRoleCommand command = new()
             {
                 Data = data
@@ -48,6 +52,9 @@ namespace Site.Controllers
         public async Task<IActionResult> UpdateRole([FromRoute] string roleId, [FromBody] RoleInputDTO data)
         {
             data.RoleId = roleId;
+            // Chỉ được sửa Role thuộc đúng Site của người gọi - RoleId không còn unique toàn cục nên phải so
+            // khớp thêm SiteId ở tầng Repository để không sửa nhầm Role trùng RoleId ở Site khác.
+            data.SiteId = CurrentSiteId;
             UpdateRoleCommand command = new()
             {
                 Data = data
@@ -67,7 +74,8 @@ namespace Site.Controllers
         {
             GetRoleByIdQuery query = new GetRoleByIdQuery()
             {
-                Data = roleId
+                Data = roleId,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<RoleOutputDTO>()
@@ -82,6 +90,7 @@ namespace Site.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetAllRoles([FromQuery] RoleFilterDTO filter)
         {
+            filter.SiteId = CurrentSiteId;
             GetAllRolesQuery query = new GetAllRolesQuery()
             {
                 Filter = filter
@@ -99,7 +108,10 @@ namespace Site.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportRoles()
         {
-            ExportRolesQuery query = new();
+            ExportRolesQuery query = new()
+            {
+                SiteId = CurrentSiteId
+            };
             var result = await _mediator.Send(query);
             return Ok(new Response<string>()
             {
@@ -115,6 +127,7 @@ namespace Site.Controllers
         public async Task<IActionResult> DeleteRole([FromRoute] string roleId, [FromBody] DeleteRoleInputDTO data)
         {
             data.RoleId = roleId;
+            data.SiteId = CurrentSiteId;
             DeleteRoleCommand command = new()
             {
                 Data = data
@@ -143,7 +156,8 @@ namespace Site.Controllers
             ImportRolesCommand command = new()
             {
                 Data = stream,
-                FileName = file.FileName
+                FileName = file.FileName,
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(command);
             return Ok(new Response<List<RoleOutputDTO>>()

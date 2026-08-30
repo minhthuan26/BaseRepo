@@ -12,20 +12,21 @@ namespace Site.Domain.Entities
     public class Module : BaseEntity
     {
         // --- Properties ---
+        // SiteId ĐÃ BỊ XOÁ khỏi tbl_Modules (migration 04_globalize_module_catalog.sql) - Module giờ là danh mục
+        // dùng chung toàn hệ thống, không còn thuộc riêng 1 Site nào. "Site nào có Module nào" nay xác định qua
+        // bảng entitlement tbl_Site_Module (xem SiteModuleRepository), không còn thuộc entity Module này nữa.
         public string ModuleId { get; private set; } = null!;
         public string ModuleName { get; private set; } = null!;
-        public string SiteId { get; private set; } = null!;
 
         // --- Constructors ---
         protected Module()
         {
         }
 
-        public Module(string moduleId, string moduleName, string siteId)
+        public Module(string moduleId, string moduleName)
         {
             SetModuleId(moduleId);
             SetModuleName(moduleName);
-            SetSiteId(siteId);
         }
 
         public Module(DataRow row)
@@ -36,7 +37,6 @@ namespace Site.Domain.Entities
             SetAutoId(row.Field<long>("AutoId"));
             SetModuleId(row.Field<string>("ModuleId") ?? throw new AppException("ModuleId is required"));
             SetModuleName(row.Field<string>("ModuleName") ?? throw new AppException("ModuleName is required"));
-            SetSiteId(row.Field<string>("SiteId") ?? throw new AppException("SiteId is required"));
         }
 
         // --- Guard Methods / Setters ---
@@ -64,12 +64,5 @@ namespace Site.Domain.Entities
             ModuleName = moduleName.Trim();
         }
 
-        public void SetSiteId(string siteId)
-        {
-            if (string.IsNullOrWhiteSpace(siteId))
-                throw new AppException("SiteId could not be empty");
-
-            SiteId = siteId.Trim();
-        }
     }
 }

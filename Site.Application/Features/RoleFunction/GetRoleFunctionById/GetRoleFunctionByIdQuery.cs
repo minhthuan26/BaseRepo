@@ -7,5 +7,6 @@ namespace Site.Application.Features.RoleFunction.GetRoleFunctionById
     {
         public string RoleId { get; set; }
         public string FunctionId { get; set; }
+        public string SiteId { get; set; }
     }
 }

@@ -14,16 +14,20 @@ namespace Site.Domain.Entities
         // --- Properties ---
         public string RoleId { get; private set; } = null!;
         public string FunctionId { get; private set; } = null!;
+        // SiteId (denormalize từ tbl_Roles) - cột đã tồn tại trên tbl_Role_Function từ
+        // 05_add_siteid_to_role_tables.sql nhưng trước đây chưa được map vào entity này.
+        public string SiteId { get; private set; } = null!;
 
         // --- Constructors ---
         protected RoleFunction()
         {
         }
 
-        public RoleFunction(string roleId, string functionId)
+        public RoleFunction(string roleId, string functionId, string siteId)
         {
             SetRoleId(roleId);
             SetFunctionId(functionId);
+            SetSiteId(siteId);
         }
 
         public RoleFunction(DataRow row)
@@ -37,6 +41,9 @@ namespace Site.Domain.Entities
 
             SetFunctionId(row.Field<string>("FunctionId")
                 ?? throw new AppException("FunctionId is required"));
+
+            SetSiteId(row.Field<string>("SiteId")
+                ?? throw new AppException("SiteId is required"));
         }
 
         // --- Guard Methods / Setters ---
@@ -62,6 +69,14 @@ namespace Site.Domain.Entities
                 throw new AppException("FunctionId could not be empty");
 
             FunctionId = userId.Trim();
+        }
+
+        public void SetSiteId(string siteId)
+        {
+            if (string.IsNullOrWhiteSpace(siteId))
+                throw new AppException("SiteId could not be empty");
+
+            SiteId = siteId.Trim();
         }
     }
 }

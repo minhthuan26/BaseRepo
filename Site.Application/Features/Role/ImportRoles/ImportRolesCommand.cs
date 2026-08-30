@@ -7,5 +7,6 @@ namespace Site.Application.Features.Role.ImportRoles
     {
         public Stream Data { get; set; }
         public string FileName { get; set; }
+        public string SiteId { get; set; }
     }
 }

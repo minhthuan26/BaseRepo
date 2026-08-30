@@ -7,5 +7,6 @@ namespace Site.Application.Features.UserRole.GetUserRoleById
     {
         public string UserId { get; set; }
         public string RoleId { get; set; }
+        public string SiteId { get; set; }
     }
 }

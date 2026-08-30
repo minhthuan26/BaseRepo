@@ -29,6 +29,9 @@ namespace Site.Controllers
         [RequireFunction("CreateUserRole")]
         public async Task<IActionResult> CreateUserRole([FromBody] UserRoleInputDTO data)
         {
+            // Chỉ được gán Role thuộc đúng Site của người gọi - chặn Site A (dù có quyền Function
+            // CreateUserRole) gán quyền dùng RoleId của Site B nếu tình cờ biết được RoleId đó.
+            data.SiteId = CurrentSiteId;
             CreateUserRoleCommand command = new()
             {
                 Data = data
@@ -49,7 +52,11 @@ namespace Site.Controllers
             GetUserRoleByIdQuery query = new GetUserRoleByIdQuery()
             {
                 UserId = userId,
-                RoleId = roleId
+                RoleId = roleId,
+                // Luôn tra theo đúng Site của người gọi (claim "site_id") - trước đây thiếu SiteId hoàn toàn,
+                // khiến việc resolve "Site của Role" bên Repository chỉ dựa vào RoleId một mình bị ambiguous
+                // (không xác định) kể từ khi RoleId được phép trùng giữa 2 Site.
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<UserRoleOutputDTO>()
@@ -66,7 +73,10 @@ namespace Site.Controllers
         {
             GetRolesByUserQuery query = new GetRolesByUserQuery()
             {
-                UserId = userId
+                UserId = userId,
+                // Luôn lấy theo Site của chính người gọi (claim "site_id") - không cho client tự chọn Site khác
+                // để dò Role của User ở Site khác qua endpoint tiện ích này.
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(query);
             return Ok(new Response<List<RoleOutputDTO>>()
@@ -81,6 +91,10 @@ namespace Site.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetAllUserRoles([FromQuery] UserRoleFilterDTO filter)
         {
+            // Ghi đè SiteId bằng claim của người gọi - không cho client tự truyền SiteId khác qua query string để
+            // liệt kê User-Role của Site khác (trước đây filter này hoàn toàn không lọc theo Site, trả chéo toàn
+            // bộ dữ liệu mọi Site cho bất kỳ user đã đăng nhập nào).
+            filter.SiteId = CurrentSiteId;
             GetAllUserRolesQuery query = new GetAllUserRolesQuery()
             {
                 Filter = filter
@@ -98,7 +112,11 @@ namespace Site.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportUserRoles()
         {
-            ExportUserRolesQuery query = new();
+            ExportUserRolesQuery query = new()
+            {
+                // Không cho export chéo Site - luôn export đúng Site của người gọi.
+                SiteId = CurrentSiteId
+            };
             var result = await _mediator.Send(query);
             return Ok(new Response<string>()
             {
@@ -115,6 +133,8 @@ namespace Site.Controllers
         {
             data.UserId = userId;
             data.RoleId = roleId;
+            // Chỉ được xoá UserRole thuộc đúng Site của người gọi - RoleId không còn unique toàn cục.
+            data.SiteId = CurrentSiteId;
             DeleteUserRoleCommand command = new()
             {
                 Data = data
@@ -143,7 +163,9 @@ namespace Site.Controllers
             ImportUserRolesCommand command = new()
             {
                 Data = stream,
-                FileName = file.FileName
+                FileName = file.FileName,
+                // Chặn import chéo Site - chỉ cho phép các dòng UserId/RoleId thuộc đúng Site của người gọi.
+                SiteId = CurrentSiteId
             };
             var result = await _mediator.Send(command);
             return Ok(new Response<List<UserRoleOutputDTO>>()

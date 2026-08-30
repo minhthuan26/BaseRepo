@@ -13,6 +13,9 @@ namespace Site.Domain.DTOs
     {
         public string RoleId { get; set; }
         public string FunctionId { get; set; }
+        // Site của người gọi (claim "site_id") - Controller luôn ghi đè, KHÔNG đọc từ client. Dùng để xác nhận
+        // RoleId được cấp Function thực sự thuộc đúng Site của người gọi.
+        public string? SiteId { get; set; }
 
         public override Dictionary<string, string> HeaderMappings => new()
         {
@@ -31,6 +34,9 @@ namespace Site.Domain.DTOs
     {
         public string? RoleId { get; set; }
         public string? FunctionId { get; set; }
+        // Site của người gọi (claim "site_id") - RoleId không còn unique toàn cục kể từ
+        // 08_fix_roleid_unique_scope.sql, bắt buộc để không xoá nhầm RoleFunction của Role trùng RoleId ở Site khác.
+        public string? SiteId { get; set; }
         public bool IsSoftDelete { get; set; } = true;
     }
     #endregion
@@ -40,6 +46,7 @@ namespace Site.Domain.DTOs
     {
         public string RoleId { get; set; }
         public string FunctionId { get; set; }
+        public string SiteId { get; set; }
     }
     #endregion
 
@@ -48,6 +55,7 @@ namespace Site.Domain.DTOs
     {
         public string? RoleId { get; set; }
         public string? FunctionId { get; set; }
+        public string? SiteId { get; set; }
     }
     #endregion
 }

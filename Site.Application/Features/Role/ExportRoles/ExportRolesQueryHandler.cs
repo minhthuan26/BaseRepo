@@ -14,7 +14,7 @@ namespace Site.Application.Features.Role.ExportRoles
 
         public async Task<string> Handle(ExportRolesQuery request, CancellationToken cancellationToken)
         {
-            var result = await _repository.ExportRoles(cancellationToken);
+            var result = await _repository.ExportRoles(request.SiteId, cancellationToken);
             return result;
         }
     }

@@ -62,9 +62,11 @@ namespace Site.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}CreateRole-04] SiteId is required.", HttpStatusCode.BadRequest);
                 }
-                if (await CheckRoleExists(input.RoleId, cancellationToken))
+                // Check trùng phải lọc theo SiteId - kể từ 08_fix_roleid_unique_scope.sql, RoleId chỉ unique
+                // TRONG PHẠM VI 1 SITE (không còn unique toàn cục), 2 Site khác nhau được phép có cùng RoleId.
+                if (await CheckRoleExists(input.RoleId, input.SiteId, cancellationToken))
                 {
-                    throw new AppException($"[{_errorPrefix}CreateRole-05] Role with RoleId '{input.RoleId}' already exists.", HttpStatusCode.Conflict);
+                    throw new AppException($"[{_errorPrefix}CreateRole-05] Role with RoleId '{input.RoleId}' already exists in Site '{input.SiteId}'.", HttpStatusCode.Conflict);
                 }
 
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
@@ -106,23 +108,29 @@ namespace Site.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}UpdateRole-02] RoleId is required.", HttpStatusCode.BadRequest);
                 }
-                if (!await CheckRoleExists(input.RoleId, cancellationToken))
+                if (string.IsNullOrWhiteSpace(input.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}UpdateRole-05] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
+                if (!await CheckRoleExists(input.RoleId, input.SiteId, cancellationToken))
                 {
                     throw new AppException($"[{_errorPrefix}UpdateRole-03] Role with RoleId '{input.RoleId}' not found.", HttpStatusCode.NotFound);
                 }
 
                 input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
 
+                // Lọc thêm SiteId ở WHERE - RoleId không còn unique toàn cục, thiếu điều kiện này có thể sửa
+                // nhầm Role trùng RoleId ở Site khác.
                 int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Update tbl_Roles
                         Set RoleName = @RoleName,
-                            SiteId = @SiteId,
                             Status = @Status,
                             UpdatedDate = @UpdatedDate,
                             UpdatedBy = @UpdatedBy,
                             DeviceName = @DeviceName,
                             DeviceId = @DeviceId
-                        Where RoleId = @RoleId
+                        Where RoleId = @RoleId And SiteId = @SiteId
                     ", new
                 {
                     RoleId = input.RoleId,
@@ -141,7 +149,7 @@ namespace Site.Infrastructure.Repositories
                 }
 
                 // RoleName/Status vừa đổi -> xoá cache Redis của mọi user đang có Role này.
-                await InvalidateUsersCacheByRole(input.RoleId, cancellationToken);
+                await InvalidateUsersCacheByRole(input.RoleId, input.SiteId, cancellationToken);
 
                 return _mapper.Map<RoleOutputDTO>(input);
             }
@@ -151,14 +159,18 @@ namespace Site.Infrastructure.Repositories
             }
         }
 
-        public async Task<RoleOutputDTO> GetRoleById(string roleId, CancellationToken cancellationToken)
+        public async Task<RoleOutputDTO> GetRoleById(string roleId, string siteId, CancellationToken cancellationToken)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    throw new AppException($"[{_errorPrefix}GetRoleById-02] SiteId is required.", HttpStatusCode.BadRequest);
+                }
                 var role = await _dbContext.QueryFirstOrDefaultAsync<RoleEntity>(
                     @"Select * From tbl_Roles
-                    Where RoleId = @RoleId",
-                    new { RoleId = roleId },
+                    Where RoleId = @RoleId And SiteId = @SiteId",
+                    new { RoleId = roleId, SiteId = siteId },
                     cancellationToken);
                 if (role == null)
                 {
@@ -176,8 +188,14 @@ namespace Site.Infrastructure.Repositories
         {
             try
             {
-                var whereBuilder = new StringBuilder(" WHERE 1=1 ");
+                if (string.IsNullOrWhiteSpace(filter.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}GetAllRoles-01] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
+                var whereBuilder = new StringBuilder(" WHERE SiteId = @SiteId ");
                 var parameters = new DynamicParameters();
+                parameters.Add("SiteId", filter.SiteId.Trim());
                 if (filter.Status.HasValue)
                 {
                     whereBuilder.Append(" AND [Status] = @Status ");
@@ -187,11 +205,6 @@ namespace Site.Infrastructure.Repositories
                 {
                     whereBuilder.Append(" AND RoleName like @RoleName ");
                     parameters.Add("RoleName", $"%{filter.RoleName.Trim()}%", System.Data.DbType.String);
-                }
-                if (!string.IsNullOrWhiteSpace(filter.SiteId))
-                {
-                    whereBuilder.Append(" AND SiteId = @SiteId ");
-                    parameters.Add("SiteId", filter.SiteId.Trim());
                 }
                 if (filter.FromDate.HasValue)
                 {
@@ -250,6 +263,10 @@ namespace Site.Infrastructure.Repositories
                 {
                     throw new AppException($"[{_errorPrefix}DeleteRole-01] RoleId is required.", HttpStatusCode.BadRequest);
                 }
+                if (string.IsNullOrWhiteSpace(input.SiteId))
+                {
+                    throw new AppException($"[{_errorPrefix}DeleteRole-03] SiteId is required.", HttpStatusCode.BadRequest);
+                }
                 if (input.IsSoftDelete)
                 {
                     int rowsAffected = await _dbContext.ExecuteAsync(@"
@@ -259,10 +276,11 @@ namespace Site.Infrastructure.Repositories
                             UpdatedBy = @UpdatedBy,
                             DeviceName = @DeviceName,
                             DeviceId = @DeviceId
-                        Where RoleId = @RoleId
+                        Where RoleId = @RoleId And SiteId = @SiteId
                         ", new
                     {
                         RoleId = input.RoleId,
+                        SiteId = input.SiteId,
                         UpdatedDate = DateTime.UtcNow,
                         UpdatedBy = _auditContext.UserName,
                         DeviceName = _auditContext.DeviceName,
@@ -273,24 +291,25 @@ namespace Site.Infrastructure.Repositories
                     {
                         throw new AppException($"[{_errorPrefix}DeleteRole-02] Role with RoleId '{input.RoleId}' not found.", HttpStatusCode.NotFound);
                     }
-                    await InvalidateUsersCacheByRole(input.RoleId, cancellationToken);
+                    await InvalidateUsersCacheByRole(input.RoleId, input.SiteId, cancellationToken);
                     return input.RoleId;
                 }
                 else
                 {
                     int rowsAffected = await _dbContext.ExecuteAsync(@"
                         Delete From tbl_Roles
-                        Where RoleId = @RoleId
+                        Where RoleId = @RoleId And SiteId = @SiteId
                         ", new
                     {
-                        RoleId = input.RoleId
+                        RoleId = input.RoleId,
+                        SiteId = input.SiteId
                     },
                     cancellationToken);
                     if (rowsAffected <= 0)
                     {
                         throw new AppException($"[{_errorPrefix}DeleteRole-02] Role with RoleId '{input.RoleId}' not found.", HttpStatusCode.NotFound);
                     }
-                    await InvalidateUsersCacheByRole(input.RoleId, cancellationToken);
+                    await InvalidateUsersCacheByRole(input.RoleId, input.SiteId, cancellationToken);
                     return input.RoleId;
                 }
             }
@@ -300,12 +319,24 @@ namespace Site.Infrastructure.Repositories
             }
         }
 
-        public async Task<List<RoleOutputDTO>> ImportRoles(Stream stream, string fileName, CancellationToken cancellationToken)
+        public async Task<List<RoleOutputDTO>> ImportRoles(Stream stream, string fileName, string siteId, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(siteId))
+            {
+                throw new AppException($"[{_errorPrefix}ImportRoles-01] SiteId is required.", HttpStatusCode.BadRequest);
+            }
+
             var roles = await FileHelper.ReadFile<RoleInputDTO>(stream, fileName, BaseInputDTO.GetHeaders<RoleInputDTO>());
 
             if (!roles.Any())
                 return new();
+
+            // Toàn bộ batch import luôn thuộc đúng Site của người gọi - không đọc/tin theo SiteId trong file CSV
+            // để chặn import chéo Site (RoleId không còn unique toàn cục kể từ 08_fix_roleid_unique_scope.sql).
+            foreach (var role in roles)
+            {
+                role.SiteId = siteId;
+            }
 
             return await _dbContext.ExecuteWithTransactionAsync(async () =>
             {
@@ -324,15 +355,17 @@ namespace Site.Infrastructure.Repositories
                     "#TempRoles",
                     cancellationToken: cancellationToken);
 
+                // ON T.RoleId = S.RoleId AND T.SiteId = S.SiteId (KHÔNG chỉ RoleId) - RoleId không còn unique
+                // toàn cục, nếu chỉ so khớp RoleId thì 1 dòng CSV của Site A có thể MERGE trúng và GHI ĐÈ Role
+                // trùng RoleId đã tồn tại từ trước ở Site B.
                 await _dbContext.ExecuteAsync(@"
                     MERGE tbl_Roles AS T
                     USING #TempRoles AS S
-                    ON T.RoleId = S.RoleId
+                    ON T.RoleId = S.RoleId AND T.SiteId = S.SiteId
 
                     WHEN MATCHED THEN
                         UPDATE SET
                             T.RoleName = S.RoleName,
-                            T.SiteId = S.SiteId,
                             T.Status = S.Status,
                             T.UpdatedDate = GETUTCDATE(),
                             T.UpdatedBy = @UpdatedBy,
@@ -374,19 +407,25 @@ namespace Site.Infrastructure.Repositories
                 // RoleName/Status của mọi Role trong batch có thể vừa đổi -> xoá cache Redis của user liên quan.
                 foreach (var roleId in roles.Select(r => r.RoleId).Distinct())
                 {
-                    await InvalidateUsersCacheByRole(roleId, cancellationToken);
+                    await InvalidateUsersCacheByRole(roleId, siteId, cancellationToken);
                 }
 
                 return _mapper.Map<List<RoleOutputDTO>>(roles);
             }, cancellationToken);
         }
 
-        public async Task<string> ExportRoles(CancellationToken cancellationToken)
+        public async Task<string> ExportRoles(string siteId, CancellationToken cancellationToken)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(siteId))
+                {
+                    throw new AppException($"[{_errorPrefix}ExportRoles-01] SiteId is required.", HttpStatusCode.BadRequest);
+                }
+
                 var roles = await _dbContext.QueryAsync<RoleEntity>(
-                    @"Select * From tbl_Roles Order By AutoId Asc",
+                    @"Select * From tbl_Roles Where SiteId = @SiteId Order By AutoId Asc",
+                    new { SiteId = siteId },
                     cancellationToken: cancellationToken);
 
                 var records = roles.Select(r => _mapper.Map<RoleOutputDTO>(r)).ToList();
@@ -409,14 +448,14 @@ namespace Site.Infrastructure.Repositories
         #endregion
 
         #region Helpers
-        private async Task<bool> CheckRoleExists(string roleId, CancellationToken cancellationToken)
+        private async Task<bool> CheckRoleExists(string roleId, string siteId, CancellationToken cancellationToken)
         {
             try
             {
                 var role = await _dbContext.QueryFirstOrDefaultAsync<RoleEntity>(
                     @"Select * From tbl_Roles
-                    Where RoleId = @RoleId",
-                    new { RoleId = roleId },
+                    Where RoleId = @RoleId And SiteId = @SiteId",
+                    new { RoleId = roleId, SiteId = siteId },
                     cancellationToken);
 
                 return role != null;
@@ -432,16 +471,26 @@ namespace Site.Infrastructure.Repositories
         /// Xoá cache Redis (auth:user-permissions:{userId}) của mọi user đang có Role này, để lần request kế
         /// tiếp của họ nạp lại đúng RoleName/Status/Function mới thay vì chờ hết TTL (tối đa 1h).
         /// </summary>
-        private async Task InvalidateUsersCacheByRole(string roleId, CancellationToken cancellationToken)
+        private async Task InvalidateUsersCacheByRole(string roleId, string siteId, CancellationToken cancellationToken)
         {
-            var userIds = await _dbContext.QueryAsync<string>(@"
-                Select Distinct UserId From tbl_User_Role Where RoleId = @RoleId And Status = 1",
-                new { RoleId = roleId },
+            // Khoá cache Redis dùng AutoId (không phải UserId - UserId không còn unique toàn cục kể từ khi
+            // Login()/AuthorizationMiddleware đổi sang AutoId). Join sang tbl_Users theo đúng (UserId, SiteId) của
+            // từng dòng tbl_User_Role để lấy đúng AutoId, tránh xoá nhầm cache của User trùng UserId ở Site khác.
+            //
+            // Bắt buộc lọc thêm ur.SiteId = @SiteId - RoleId không còn unique toàn cục kể từ
+            // 08_fix_roleid_unique_scope.sql, thiếu điều kiện này sẽ vô tình xoá luôn cache của User ở Site KHÁC
+            // chỉ vì Role của Site đó tình cờ trùng RoleId với Role vừa sửa/xoá ở Site hiện tại.
+            var autoIds = await _dbContext.QueryAsync<long>(@"
+                Select Distinct u.AutoId
+                From tbl_User_Role ur
+                Inner Join tbl_Users u On u.UserId = ur.UserId And u.SiteId = ur.SiteId And u.Status = 1
+                Where ur.RoleId = @RoleId And ur.SiteId = @SiteId And ur.Status = 1",
+                new { RoleId = roleId, SiteId = siteId },
                 cancellationToken);
 
-            foreach (var userId in userIds)
+            foreach (var autoId in autoIds)
             {
-                await _redisService.RemoveAsync(UserPermissionCache.GetCacheKey(userId));
+                await _redisService.RemoveAsync(UserPermissionCache.GetCacheKey(autoId.ToString()));
             }
         }
 

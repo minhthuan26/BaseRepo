@@ -10,6 +10,6 @@ namespace Site.Application.Interfaces
     public interface IPermissionRepository
     {
         Task<PermissionTreeDTO> GetPermissionTree(string siteId, string? roleId, CancellationToken cancellationToken);
-        Task<List<string>> AssignRolePermissions(string roleId, List<string> functionIds, CancellationToken cancellationToken);
+        Task<List<string>> AssignRolePermissions(string roleId, List<string> functionIds, string siteId, CancellationToken cancellationToken);
     }
 }

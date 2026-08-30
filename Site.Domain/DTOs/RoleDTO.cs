@@ -32,6 +32,7 @@ namespace Site.Domain.DTOs
     public class DeleteRoleInputDTO : BaseInputDTO
     {
         public string? RoleId { get; set; }
+        public string? SiteId { get; set; }
         public bool IsSoftDelete { get; set; } = true;
     }
     #endregion

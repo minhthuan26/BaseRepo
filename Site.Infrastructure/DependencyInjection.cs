@@ -32,8 +32,11 @@ namespace Site.Infrastructure
             services.AddScoped<IRoleFunctionRepository, RoleFunctionRepository>();
             services.AddScoped<IScreenRepository, ScreenRepository>();
             services.AddScoped<IUserRoleRepository, UserRoleRepository>();
-            services.AddScoped<IUserSiteRepository, UserSiteRepository>();
+            // IUserSiteRepository/UserSiteRepository ĐÃ XOÁ - User giờ chỉ thuộc đúng 1 Site (1-1, gắn thẳng
+            // tbl_Users.SiteId), tính năng quản lý quan hệ User-Site kiểu N-N qua tbl_User_Site không còn ý
+            // nghĩa sau migration multi-tenant (xem CommonLibs/BaseSQL/multi-tenant/README.md).
             services.AddScoped<IPermissionRepository, PermissionRepository>();
+            services.AddScoped<ISiteModuleRepository, SiteModuleRepository>();
 
             return services;
         }

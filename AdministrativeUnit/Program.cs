@@ -62,9 +62,13 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddAuthentication("Bearer").AddJwtBearer();
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
+    // ĐÃ BỎ "AdminPolicy" (trước đây policy.RequireRole("Admin")) - so khớp literal RoleName "Admin" không còn
+    // đúng nghĩa "Admin toàn hệ thống" từ khi mỗi Site tự có Role "Admin" riêng (multi-tenant): Admin của Site A
+    // sẽ vô tình pass policy này trên cả tài nguyên của Site B. KHÔNG thêm lại policy này hay [Authorize(Roles =
+    // "Admin")] ở bất kỳ đâu - chặn theo quyền cụ thể dùng RequireFunction (theo đúng Function được Role đó cấp
+    // qua tbl_Role_Function), chặn theo đúng 1 Site cụ thể dùng BaseController.IsSiteAdmin(siteId).
     // Không so khớp literal "User"/"Admin" nữa - chỉ cần user đã đăng nhập và có ít nhất 1 Role claim
-    // (Role thật, VD "Ký thuật viên"), việc chặn cụ thể theo Function do RequireFunction/AdminPolicy đảm nhiệm.
+    // (Role thật, VD "Ký thuật viên"), việc chặn cụ thể theo Function do RequireFunction đảm nhiệm.
     options.AddPolicy("UserOrAdminPolicy", policy => policy.RequireAssertion(context =>
         context.User.Identity?.IsAuthenticated == true
         && context.User.Claims.Any(c => c.Type == ClaimTypes.Role)));

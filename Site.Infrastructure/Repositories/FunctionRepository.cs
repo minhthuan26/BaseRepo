@@ -434,17 +434,22 @@ namespace Site.Infrastructure.Repositories
         /// </summary>
         private async Task InvalidateUsersCacheByFunction(string functionId, CancellationToken cancellationToken)
         {
-            var userIds = await _dbContext.QueryAsync<string>(@"
-                Select Distinct UR.UserId
+            // Khoá cache Redis dùng AutoId (không phải UserId - UserId không còn unique toàn cục kể từ khi
+            // Login()/AuthorizationMiddleware đổi sang AutoId). Join RF -> UR theo đúng cặp (RoleId, SiteId) - cả
+            // 2 bảng đều đã có cột SiteId từ migration 05 - để không gộp nhầm Role trùng tên giữa 2 Site, rồi Join
+            // tiếp sang tbl_Users theo (UserId, SiteId) để lấy đúng AutoId.
+            var autoIds = await _dbContext.QueryAsync<long>(@"
+                Select Distinct u.AutoId
                 From tbl_Role_Function RF
-                Inner Join tbl_User_Role UR On UR.RoleId = RF.RoleId
+                Inner Join tbl_User_Role UR On UR.RoleId = RF.RoleId And UR.SiteId = RF.SiteId
+                Inner Join tbl_Users u On u.UserId = UR.UserId And u.SiteId = UR.SiteId And u.Status = 1
                 Where RF.FunctionId = @FunctionId And RF.Status = 1 And UR.Status = 1",
                 new { FunctionId = functionId },
                 cancellationToken);
 
-            foreach (var userId in userIds)
+            foreach (var autoId in autoIds)
             {
-                await _redisService.RemoveAsync(UserPermissionCache.GetCacheKey(userId));
+                await _redisService.RemoveAsync(UserPermissionCache.GetCacheKey(autoId.ToString()));
             }
         }
 

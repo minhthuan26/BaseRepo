@@ -69,11 +69,11 @@ namespace Site.Application.Mappings
                 .ForMember(x => x.Status,
                     opt => opt.MapFrom(src => src.Status.ToString()));
 
-            // UserSite
-            CreateMap<UserSiteInputDTO, UserSiteOutputDTO>()
+            // SiteModule
+            CreateMap<ProvisionSiteModuleInputDTO, SiteModuleOutputDTO>()
                 .ForMember(x => x.Status,
                     opt => opt.MapFrom(src => src.Status.ToString()));
-            CreateMap<UserSite, UserSiteOutputDTO>()
+            CreateMap<Domain.Entities.SiteModule, SiteModuleOutputDTO>()
                 .ForMember(x => x.Status,
                     opt => opt.MapFrom(src => src.Status.ToString()));
         }

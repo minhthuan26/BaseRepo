@@ -9,6 +9,12 @@ namespace Gateway.Domain.Entities
 
         public string UserId { get; private set; } = null!;
 
+        /// <summary>
+        /// Site mà User này thuộc về - ranh giới tenant (xem tài liệu thiết kế multi-tenant RBAC). Mỗi User chỉ
+        /// thuộc đúng 1 Site (không dùng chung giữa các Site), UserId chỉ unique trong phạm vi 1 SiteId.
+        /// </summary>
+        public string SiteId { get; private set; } = null!;
+
         public string Password { get; private set; } = null!;
 
         public string UserName { get; private set; } = null!;
@@ -27,6 +33,7 @@ namespace Gateway.Domain.Entities
 
         public User(
             string userId,
+            string siteId,
             string password,
             string userName,
             int priority = 1,
@@ -36,6 +43,7 @@ namespace Gateway.Domain.Entities
             byte[]? signature = null)
         {
             SetUserId(userId);
+            SetSiteId(siteId);
             SetPassword(password);
             SetUserName(userName);
             SetPriority(priority);
@@ -55,6 +63,10 @@ namespace Gateway.Domain.Entities
             SetUserId(
                 row.Field<string>("UserId")
                 ?? throw new AppException("UserId is required"));
+
+            SetSiteId(
+                row.Field<string>("SiteId")
+                ?? throw new AppException("SiteId is required"));
 
             SetPassword(
                 row.Field<string>("Password")
@@ -88,6 +100,14 @@ namespace Gateway.Domain.Entities
                 throw new AppException("UserId could not be empty");
 
             UserId = userId.Trim();
+        }
+
+        public void SetSiteId(string siteId)
+        {
+            if (string.IsNullOrWhiteSpace(siteId))
+                throw new AppException("SiteId could not be empty");
+
+            SiteId = siteId.Trim();
         }
 
         public void SetPassword(string password)

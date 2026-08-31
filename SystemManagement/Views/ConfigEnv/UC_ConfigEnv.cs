@@ -15,7 +15,9 @@ namespace SystemManagement.Views.ConfigEnv
 {
     public partial class UC_ConfigEnv : UserControl, IBasePage
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public UC_Base BaseUC { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Title { get; set; } = "Cấu hình biến môi trường";
         private string AccessKey { get; set; }
         private string Audience { get; set; }

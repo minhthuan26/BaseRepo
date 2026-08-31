@@ -2,13 +2,13 @@
 
 ## 🏗️ Tổng quan kiến trúc
 
-Project **BaseRepo** là một hệ thống Microservices backend sử dụng **.NET 6**, được xây dựng theo kiến trúc **Clean Architecture** kết hợp **CQRS (Command Query Responsibility Segregation)** thông qua thư viện **MediatR**.
+Project **BaseRepo** là một hệ thống Microservices backend sử dụng **.NET 10**, được xây dựng theo kiến trúc **Clean Architecture** kết hợp **CQRS (Command Query Responsibility Segregation)** thông qua thư viện **MediatR**.
 
 ### Công nghệ chính
 
 | Thành phần | Công nghệ |
 |---|---|
-| Framework | .NET 6, ASP.NET Core Web API |
+| Framework | .NET 10, ASP.NET Core Web API |
 | Architecture | Clean Architecture + CQRS |
 | Mediator | MediatR |
 | ORM / Data Access | Entity Framework Core, Dapper |
@@ -477,6 +477,75 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Nâng toàn bộ solution từ .NET 6 lên .NET 10** (2026-09-01, cùng ngày, ngay sau đợt tái cấu trúc 5-layer phía
+  dưới). Đổi `<TargetFramework>net6.0</TargetFramework>` → `net10.0` cho 16/17 project (`net6.0-windows` →
+  `net10.0-windows` cho `SystemManagement`, project thứ 17) bằng thay thế hàng loạt, không đổi logic.
+  - **Bump package đi kèm để khớp net10** (dùng version mới nhất trên NuGet tại thời điểm nâng cấp):
+    `Microsoft.EntityFrameworkCore`/`.SqlServer` 6.0.36 → `10.0.11`, `Microsoft.AspNetCore.Authentication.JwtBearer`
+    6.0.36 → `10.0.11`, `Microsoft.Extensions.Caching.StackExchangeRedis` 6.0.36 → `10.0.11`,
+    `Microsoft.Data.SqlClient` 5.1.5 → `7.0.2`, `Yarp.ReverseProxy` 1.1.2 → `2.3.0`, `Swashbuckle.AspNetCore` 6.5.0
+    → `10.2.3`. `Microsoft.Web.Administration` (11.1.0) và `Microsoft.Extensions.Logging.Log4Net.AspNetCore`
+    (10.0.0) đã sẵn ở bản mới nhất, không đổi.
+  - **Gỡ `PackageReference Ocelot`** khỏi `Gateway.Api.csproj` — chỉ tồn tại trong `.csproj`, không được dùng ở bất
+    kỳ đâu trong code (Gateway thực tế dùng YARP), và version cũ (18.0.0) là rủi ro chặn nâng cấp không cần thiết.
+  - **3 lỗi build thật sự phát sinh do breaking change của .NET 10 / package mới (không phải do đổi TFM đơn
+    thuần), đã fix, không đổi hành vi nghiệp vụ:**
+    1. `CommonLibs/Utils/RedisHelper.cs` + `CommonLibs/Services/RedisService.cs` — `JsonSerializer.Deserialize<T>(value!)`
+       (với `value` kiểu `RedisValue`) bị lỗi `CS0121` ambiguous giữa overload `Deserialize(string)` và
+       `Deserialize(ReadOnlySpan<byte>)` (overload span mới của .NET 10) vì `RedisValue` implicit convert được cả
+       2 kiểu. Fix: ép kiểu tường minh `(string)value!` để giữ đúng hành vi cũ (dữ liệu vốn lưu dạng string qua
+       `StringSet`/`StringSetAsync`).
+    2. `Gateway.Infrastructure/Repositories/UserRepository.cs` — `using Microsoft.Identity.Client;` (import
+       không dùng tới trong file, chỉ tồn tại nhờ ăn theo dependency bắc cầu cũ của `Microsoft.Data.SqlClient`
+       5.1.5) bị mất namespace sau khi bump `Microsoft.Data.SqlClient` lên 7.0.2 (dependency bắc cầu đổi khác).
+       Xoá import thừa.
+    3. **Swashbuckle.AspNetCore 10.x kéo theo Microsoft.OpenApi 2.x, đổi namespace/API đáng kể** — ảnh hưởng cả 3
+       `{Service}.Api`: `Program.cs` (cấu hình Swagger) và `Utils/AddRequiredHeaderParameter.cs` (OperationFilter
+       thêm header `X-Device-ID`/`X-Device-Name`):
+       - `using Microsoft.OpenApi.Models;` → `using Microsoft.OpenApi;` (toàn bộ type như `OpenApiOperation`,
+         `OpenApiParameter`, `OpenApiSchema`, `OpenApiInfo`, `OpenApiSecurityScheme`... chuyển thẳng lên namespace
+         gốc `Microsoft.OpenApi`).
+       - `Microsoft.OpenApi.Any.OpenApiString` (và họ `IOpenApiAny`) bị xoá hoàn toàn, thay bằng
+         `System.Text.Json.Nodes.JsonNode`/`JsonValue.Create(...)`.
+       - `operation.Parameters` đổi kiểu từ `IList<OpenApiParameter>` sang `IList<IOpenApiParameter>` (interface-
+         based) → `??= new List<OpenApiParameter>()` phải đổi thành `new List<IOpenApiParameter>()`.
+       - `OpenApiSchema.Type` đổi từ `string` sang enum `JsonSchemaType?` → `Type = "string"` phải đổi thành
+         `Type = JsonSchemaType.String`.
+       - `AddSecurityRequirement` đổi hẳn cách khai báo Bearer security requirement: pattern cũ dùng
+         `new OpenApiSecurityScheme { Reference = new OpenApiReference {...} }` làm key trong
+         `OpenApiSecurityRequirement` không còn hợp lệ (`OpenApiSecurityScheme` không còn property `Reference`,
+         `OpenApiReference` bị xoá) — đổi sang overload nhận delegate
+         `options.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new
+         OpenApiSecuritySchemeReference("Bearer", document)] = [] })`.
+  - **SystemManagement (WinForms) — brainstorm riêng vì có 2 lựa chọn xung đột nhau:** ban đầu định "bỏ qua"
+    (giữ `net6.0-windows`) vì lo `DevExpress.Data 23.2.15` chưa hỗ trợ net10, nhưng việc này khiến
+    `ProjectReference` tới `CommonLibs` (đã lên net10) gãy ngay ở bước restore (`NU1201`) — kiểm tra kỹ thì
+    `SystemManagement` **có dùng thật** `EnvironmentHelper`/`Cypher.AesCypher`/`Cypher.CypherHelper`/
+    `Cypher.RsaCypher`/`FileHelper` từ `CommonLibs.Utils` (không phải reference thừa như Ocelot), nên không thể
+    gỡ `ProjectReference` mà không gãy 2 file (`UC_ConfigEnv.cs`, `FrmMain.cs`). Đã hỏi lại và người dùng chọn
+    nâng luôn `SystemManagement` lên `net10.0-windows` — build thử xác nhận **`DevExpress.Data 23.2.15` thực ra
+    build được bình thường trên net10** (không phải rủi ro thật như lo ban đầu, có thể do package này target
+    netstandard/đa-target thay vì ghim cứng net6).
+    - Phát sinh thêm 1 lỗi build khác do **analyzer mới của WinForms trong .NET 10 SDK (`WFO1000`)**: property
+      public trên `UserControl` (`BaseUC`, `Title` — cả 2 thuộc interface `IBasePage`) không khai báo ý định
+      serialize cho Designer sẽ bị chặn build (đổi từ warning → error kể từ .NET 9+, mục đích chống rò rỉ dữ
+      liệu private vào code Designer serialize tự động). Fix bằng cách thêm
+      `[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]` lên `BaseUC`/`Title` ở cả
+      `Views/Home/UC_Home.cs` và `Views/ConfigEnv/UC_ConfigEnv.cs` (2 property này chỉ dùng runtime, không cần
+      Designer serialize).
+  - **Tiện thể sửa `.vscode/launch.json`** — file này đã lệch từ đợt tái cấu trúc 5-layer 2026-09-01 (còn trỏ
+    path phẳng cũ `Gateway/bin/Debug/net6.0/Gateway.dll`, `Site/bin/Debug/net6.0/Site.dll`, sai cả tên file lẫn
+    cấu trúc thư mục), giờ cập nhật đúng path `{Service}/{Service}.Api/bin/Debug/net10.0/{Service}.Api.dll` cho
+    cả 3 service (thêm luôn cấu hình debug cho `AdministrativeUnit` — trước đó launch.json chưa có, chỉ có
+    Gateway/Site).
+  - `dotnet restore` + `dotnet build BaseRepo.slnx` (toàn bộ 17 project, kể cả `SystemManagement`): **0 Error**
+    (146 warning, toàn bộ là `NU1903` cảnh báo lỗ hổng bảo mật đã có từ trước ở `AutoMapper 13.0.1` và
+    `System.Security.Cryptography.Xml 8.0.2` — transitive dependency, không phát sinh do đổi TFM, **chưa xử lý**
+    vì ngoài phạm vi việc nâng cấp lần này) + warning nullable có sẵn từ trước.
+  - **Chưa test runtime end-to-end** (chỉ mới xác nhận build) — cần `dotnet run` thử cả 3 service + kiểm tra kỹ
+    `SystemManagement` (đặc biệt luồng liên quan `Cypher.*`/`EncryptionLibrary` vì đây là lần đầu chạy trên
+    net10, và cấu hình `PublishSingleFile`/`SelfContained` khi publish thật) trước khi coi là xong.
+
 - **Áp dụng lại cấu trúc 5-layer (như Gateway) cho `Site` và `AdministrativeUnit` + tách Serilog config cho cả 3
   service (2026-09-01, cùng ngày, ngay sau pilot Gateway).** Lặp lại chính xác quy trình đã làm cho Gateway:
   - **Site** (8 entity: Site, Module, Role, Screen, Function, RoleFunction, UserRole, SiteModule — nhiều hơn dự
@@ -875,7 +944,13 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
-- **Microservice `AdministrativeUnit` (mục mới nhất phía trên) chưa được test lại** — trước khi test cần:
+- **Nâng cấp .NET 10 (mục mới nhất phía trên) mới chỉ xác nhận build, chưa test runtime** — cần `dotnet run`
+  thử cả 3 service (Gateway, Site, AdministrativeUnit) và chạy thử `SystemManagement.exe` (đặc biệt màn hình
+  `ConfigEnv` dùng `Cypher.*`/`EncryptionLibrary`) trước khi coi việc nâng cấp là hoàn tất. Đồng thời còn 2 cảnh
+  báo bảo mật `NU1903` tồn đọng từ trước (không liên quan đến đợt nâng cấp này, cố tình chưa xử lý vì ngoài phạm
+  vi task): `AutoMapper 13.0.1` và `System.Security.Cryptography.Xml 8.0.2` (transitive qua nhiều package) — cân
+  nhắc bump riêng nếu cần khi có yêu cầu.
+- **Microservice `AdministrativeUnit` (mục phía trên) chưa được test lại** — trước khi test cần:
   (1) chạy `BaseAdministrativeUnit.sql` (đã sửa lại: `AutoId` giờ là PRIMARY KEY, `Code` là UNIQUE) trên DB
   `AdministrativeUnit` — **nếu DB đã tồn tại từ trước theo schema PK `Code` cũ (đã lỡ chạy bản trước khi sửa),
   cần xoá/tạo lại bảng `Province`/`Ward`** vì đổi PK không thể ALTER an toàn khi bảng đã có dữ liệu/PK khác; nếu

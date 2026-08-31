@@ -1,13 +1,13 @@
-﻿using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+﻿using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Text.Json.Nodes;
 namespace Gateway.Api.Utils
 {
     public class AddRequiredHeaderParameter : IOperationFilter
     {
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
-            operation.Parameters ??= new List<OpenApiParameter>();
+            operation.Parameters ??= new List<IOpenApiParameter>();
 
             // Thêm Header X-Device-ID
             operation.Parameters.Add(new OpenApiParameter
@@ -18,8 +18,8 @@ namespace Gateway.Api.Utils
                 Description = "Device identifier",
                 Schema = new OpenApiSchema
                 {
-                    Type = "string",
-                    Default = new OpenApiString("DEV-DEVICE-2604")
+                    Type = JsonSchemaType.String,
+                    Default = JsonValue.Create("DEV-DEVICE-2604")
                 }
             });
 
@@ -32,8 +32,8 @@ namespace Gateway.Api.Utils
                 Description = "Device name",
                 Schema = new OpenApiSchema
                 {
-                    Type = "string",
-                    Default = new OpenApiString(Environment.MachineName)
+                    Type = JsonSchemaType.String,
+                    Default = JsonValue.Create(Environment.MachineName)
                 }
             });
         }

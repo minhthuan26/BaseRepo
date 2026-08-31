@@ -35,7 +35,7 @@ namespace CommonLibs.Services
             var value = await _database.StringGetAsync(key);
             if (!value.HasValue) return default;
 
-            return JsonSerializer.Deserialize<T>(value!);
+            return JsonSerializer.Deserialize<T>((string)value!);
         }
 
         public async Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null)

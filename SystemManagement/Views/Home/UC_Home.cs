@@ -15,7 +15,9 @@ namespace SystemManagement.Views.Home
 {
     public partial class UC_Home : UserControl, IBasePage
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public UC_Base BaseUC { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Title { get; set; } = "Trang chủ";
         public UC_Home()
         {

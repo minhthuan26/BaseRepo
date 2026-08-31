@@ -5,7 +5,7 @@ using CommonLibs.Services;
 using CommonLibs.Utils;
 using Gateway.Infrastructure;
 using Gateway.Api.Utils;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,15 +34,9 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT",
         Scheme = "Bearer"
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            new string[]{}
-        }
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
     options.OperationFilter<AddRequiredHeaderParameter>();
 });

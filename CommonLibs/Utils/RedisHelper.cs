@@ -60,7 +60,7 @@ namespace CommonLibs.Utils
             var value = _database.StringGet(key);
             if (!value.HasValue) return default;
 
-            return JsonSerializer.Deserialize<T>(value!);
+            return JsonSerializer.Deserialize<T>((string)value!);
         }
 
         public static bool Remove(string key)

@@ -11,6 +11,9 @@ description: >
 
 Tầng **Infrastructure** chịu trách nhiệm giao tiếp với Database, File System, External APIs,... Trong BaseRepo, tầng này chủ yếu chứa các class implement Interfaces từ Application layer (Repositories) và cấu hình Dependency Injection (DI).
 
+> DTO dùng trong Repository lấy từ `{ServiceName}.Contract.DTOs`, Entity lấy từ `{ServiceName}.Domain.Entities`
+> (2 namespace khác project, xem `create-contract-layer`/`create-domain-layer`).
+
 ### Thành phần cần tạo/cập nhật
 
 | # | File | Mô tả |
@@ -44,7 +47,7 @@ using CommonLibs.Services;
 using CommonLibs.Utils;
 using Dapper;
 using {ServiceName}.Application.Interfaces;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using {ServiceName}.Domain.Entities;
 using {ServiceName}.Infrastructure.DBContext;
 using Microsoft.AspNetCore.Http;

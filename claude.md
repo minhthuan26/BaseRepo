@@ -72,103 +72,115 @@ BaseRepo/
 │       ├── Validator.cs
 │       └── ...
 │
-├── Gateway/                          # 🌐 API Gateway (Presentation Layer)
-│   ├── Controllers/
-│   │   ├── AuthorizationController.cs
-│   │   ├── UserController.cs
-│   │   └── TestGatewayAPIController.cs
-│   ├── Utils/
-│   ├── Keys/                         # JWT signing keys
-│   ├── Program.cs                    # Entry point + DI + YARP + Auth config
-│   ├── appsettings.json              # Config (YARP routes, DB, JWT, Consul...)
-│   └── log4net.config
+├── Gateway/                          # 🌐 Service Gateway — 5 project con gom vào 1 folder cha (pilot cấu trúc mới,
+│   │                                 #    xem "Cấu trúc project (pilot Gateway)" bên dưới; Site/AdministrativeUnit
+│   │                                 #    vẫn ở dạng flat cũ, CHƯA áp dụng cấu trúc này)
+│   ├── Gateway.Api/                  # 🌐 API Gateway (Presentation Layer)
+│   │   ├── Controllers/
+│   │   │   ├── AuthorizationController.cs
+│   │   │   ├── UserController.cs
+│   │   │   └── TestGatewayAPIController.cs
+│   │   ├── Utils/
+│   │   ├── Keys/                     # JWT signing keys
+│   │   ├── Program.cs                # Entry point + DI + YARP + Auth config
+│   │   ├── appsettings.json          # Config (YARP routes, DB, JWT, Consul...)
+│   │   └── log4net.config
+│   │
+│   ├── Gateway.Application/          # 📋 Application Layer (CQRS Handlers)
+│   │   ├── Features/                 # Feature-based organization
+│   │   │   ├── Authorization/
+│   │   │   │   ├── Login/
+│   │   │   │   │   ├── LoginCommand.cs
+│   │   │   │   │   └── LoginCommandHandler.cs
+│   │   │   │   └── Logout/
+│   │   │   │       ├── LogoutCommand.cs
+│   │   │   │       └── LogoutCommandHandler.cs
+│   │   │   └── User/
+│   │   │       ├── CreateUser/
+│   │   │       │   ├── CreateUserCommand.cs
+│   │   │       │   └── CreateUserCommandHandler.cs
+│   │   │       ├── GetAllUsers/
+│   │   │       │   ├── GetAllUsersQuery.cs
+│   │   │       │   └── GetAllUsersQueryHandler.cs
+│   │   │       └── GetUserById/
+│   │   │           ├── GetUserByIdQuery.cs
+│   │   │           └── GetUserByIdQueryHandler.cs
+│   │   ├── Interfaces/               # Repository interfaces
+│   │   │   ├── IAuthorizationRepository.cs
+│   │   │   └── IUserRepository.cs
+│   │   ├── Mappings/                 # AutoMapper profiles
+│   │   │   └── GatewayMapping.cs
+│   │   └── Middlewares/
+│   │       └── AuthorizationMiddleware.cs
+│   │
+│   ├── Gateway.Contract/             # 📦 Contract Layer (DTOs — tách khỏi Domain)
+│   │   └── DTOs/
+│   │       ├── AuthorizationDTO.cs
+│   │       └── UserDTO.cs           # UserInputDTO, UserOutputDTO, UserFilterDTO
+│   │
+│   ├── Gateway.Domain/               # 🏛️ Domain Layer (chỉ còn Entities — DTO đã chuyển sang Gateway.Contract)
+│   │   └── Entities/
+│   │       └── User.cs               # Rich Domain Entity với guard methods
+│   │
+│   └── Gateway.Infrastructure/       # 🔌 Infrastructure Layer (Data Access)
+│       ├── DBContext/
+│       │   └── GatewayDbContext.cs   # DbContext kế thừa BaseContext
+│       ├── Repositories/
+│       │   ├── AuthorizationRepository.cs
+│       │   └── UserRepository.cs    # Implement IUserRepository
+│       └── DependencyInjection.cs   # Extension method đăng ký DI
 │
-├── Gateway.Application/              # 📋 Application Layer (CQRS Handlers)
-│   ├── Features/                     # Feature-based organization
-│   │   ├── Authorization/
-│   │   │   ├── Login/
-│   │   │   │   ├── LoginCommand.cs
-│   │   │   │   └── LoginCommandHandler.cs
-│   │   │   └── Logout/
-│   │   │       ├── LogoutCommand.cs
-│   │   │       └── LogoutCommandHandler.cs
-│   │   └── User/
-│   │       ├── CreateUser/
-│   │       │   ├── CreateUserCommand.cs
-│   │       │   └── CreateUserCommandHandler.cs
-│   │       ├── GetAllUsers/
-│   │       │   ├── GetAllUsersQuery.cs
-│   │       │   └── GetAllUsersQueryHandler.cs
-│   │       └── GetUserById/
-│   │           ├── GetUserByIdQuery.cs
-│   │           └── GetUserByIdQueryHandler.cs
-│   ├── Interfaces/                   # Repository interfaces
-│   │   ├── IAuthorizationRepository.cs
-│   │   └── IUserRepository.cs
-│   ├── Mappings/                     # AutoMapper profiles
-│   │   └── GatewayMapping.cs
-│   └── Middlewares/
-│       └── AuthorizationMiddleware.cs
+├── Site/                              # 🏥 Service Site — cùng khuôn 5 project như Gateway
+│   ├── Site.Api/                      # Presentation Layer
+│   │   ├── Controllers/
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   └── appsettings.Serilog.json   # Cấu hình Serilog tách riêng, xem "Tách appsettings.Serilog.json" bên dưới
+│   ├── Site.Application/              # Application Layer
+│   │   ├── Features/                  # (cấu trúc tương tự Gateway.Application)
+│   │   ├── Interfaces/
+│   │   │   ├── ISiteRepository.cs
+│   │   │   ├── IModuleRepository.cs
+│   │   │   ├── IRoleRepository.cs
+│   │   │   ├── IScreenRepository.cs
+│   │   │   ├── IFunctionRepository.cs
+│   │   │   └── ...
+│   │   └── Mappings/
+│   │       └── SiteMapping.cs
+│   ├── Site.Contract/                 # Contract Layer (DTOs)
+│   │   └── DTOs/
+│   │       ├── SiteDTO.cs
+│   │       ├── ModuleDTO.cs
+│   │       ├── RoleDTO.cs
+│   │       ├── ScreenDTO.cs
+│   │       ├── FunctionDTO.cs
+│   │       └── ...
+│   ├── Site.Domain/                   # Domain Layer (chỉ Entities)
+│   │   └── Entities/
+│   │       ├── Site.cs
+│   │       ├── Module.cs
+│   │       ├── Role.cs
+│   │       ├── Screen.cs
+│   │       ├── Function.cs
+│   │       └── ...
+│   └── Site.Infrastructure/           # Infrastructure Layer
+│       ├── DBContext/
+│       │   └── SiteDbContext.cs
+│       ├── Repositories/
+│       │   └── SiteRepository.cs
+│       └── DependencyInjection.cs
 │
-├── Gateway.Domain/                   # 🏛️ Domain Layer (Entities + DTOs)
-│   ├── DTOs/
-│   │   ├── AuthorizationDTO.cs
-│   │   └── UserDTO.cs               # UserInputDTO, UserOutputDTO, UserFilterDTO
-│   └── Entities/
-│       └── User.cs                   # Rich Domain Entity với guard methods
-│
-├── Gateway.Infrastructure/           # 🔌 Infrastructure Layer (Data Access)
-│   ├── DBContext/
-│   │   └── GatewayDbContext.cs       # DbContext kế thừa BaseContext
-│   ├── Repositories/
-│   │   ├── AuthorizationRepository.cs
-│   │   └── UserRepository.cs        # Implement IUserRepository
-│   └── DependencyInjection.cs       # Extension method đăng ký DI
-│
-├── Site/                             # 🏥 Site Microservice (Presentation Layer)
-│   ├── Controllers/
-│   ├── Program.cs
-│   └── appsettings.json
-│
-├── Site.Application/                 # Site Application Layer
-│   ├── Features/                     # (cấu trúc tương tự Gateway.Application)
-│   ├── Interfaces/
-│   │   ├── ISiteRepository.cs
-│   │   ├── IModuleRepository.cs
-│   │   ├── IRoleRepository.cs
-│   │   ├── IScreenRepository.cs
-│   │   ├── IFunctionRepository.cs
-│   │   └── ...
-│   └── Mappings/
-│       └── SiteMapping.cs
-│
-├── Site.Domain/                      # Site Domain Layer
-│   ├── DTOs/
-│   │   ├── SiteDTO.cs
-│   │   ├── ModuleDTO.cs
-│   │   ├── RoleDTO.cs
-│   │   ├── ScreenDTO.cs
-│   │   ├── FunctionDTO.cs
-│   │   └── ...
-│   └── Entities/
-│       ├── Site.cs
-│       ├── Module.cs
-│       ├── Role.cs
-│       ├── Screen.cs
-│       ├── Function.cs
-│       └── ...
-│
-├── Site.Infrastructure/              # Site Infrastructure Layer
-│   ├── DBContext/
-│   │   └── SiteDbContext.cs
-│   ├── Repositories/
-│   │   └── SiteRepository.cs
-│   └── DependencyInjection.cs
+├── AdministrativeUnit/                # 🗺️ Service AdministrativeUnit — cùng khuôn 5 project (Province + Ward)
+│   ├── AdministrativeUnit.Api/
+│   ├── AdministrativeUnit.Application/
+│   ├── AdministrativeUnit.Contract/
+│   ├── AdministrativeUnit.Domain/
+│   └── AdministrativeUnit.Infrastructure/
 │
 ├── Elastic/                          # 📊 Elasticsearch + Kibana + Filebeat tools
 │
-└── SystemManagement/                 # 🖥️ Windows desktop management tool (WinForms)
-    ├── Config/
+└── SystemManagement/                 # 🖥️ Windows desktop management tool (WinForms) — không thuộc kiến trúc
+    ├── Config/                       #    5-layer này, giữ nguyên như cũ
     ├── Interfaces/
     ├── Models/
     └── Views/
@@ -176,27 +188,34 @@ BaseRepo/
 
 ---
 
-## 🧱 Kiến trúc 4 Layer (cho mỗi Microservice)
+## 🧱 Kiến trúc 5 Layer (cho mỗi Microservice)
+
+Cả 3 service (`Gateway`, `Site`, `AdministrativeUnit`) đều theo cùng 1 khuôn 5 layer dưới đây kể từ 2026-09-01
+(xem Progress Log để biết lịch sử tách từng service). Khi thêm service mới, tạo đủ 5 project ngay từ đầu theo
+đúng khuôn này — không tạo kiểu 4-layer cũ (DTO trong Domain) nữa.
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                 Presentation Layer                    │
-│            (Gateway / Site / ...)                     │
+│         ({ServiceName}.Api, VD: Gateway.Api)          │
 │         Controllers, Program.cs, Config              │
 ├─────────────────────────────────────────────────────┤
 │                 Application Layer                     │
-│         (Gateway.Application / Site.Application)      │
+│              ({ServiceName}.Application)               │
 │    Features/ (Commands + Queries + Handlers)          │
 │    Interfaces/ (Repository Contracts)                 │
 │    Mappings/ (AutoMapper Profiles)                    │
 ├─────────────────────────────────────────────────────┤
-│                  Domain Layer                         │
-│         (Gateway.Domain / Site.Domain)                │
-│    Entities/ (Rich Domain Models)                     │
+│                 Contract Layer                        │
+│               ({ServiceName}.Contract)                 │
 │    DTOs/ (InputDTO, OutputDTO, FilterDTO)             │
 ├─────────────────────────────────────────────────────┤
+│                  Domain Layer                         │
+│                ({ServiceName}.Domain)                  │
+│    Entities/ (Rich Domain Models)                     │
+├─────────────────────────────────────────────────────┤
 │               Infrastructure Layer                    │
-│   (Gateway.Infrastructure / Site.Infrastructure)      │
+│            ({ServiceName}.Infrastructure)              │
 │    DBContext/ (EF Core DbContext)                     │
 │    Repositories/ (Data Access Implementation)         │
 │    DependencyInjection.cs (DI Registration)           │
@@ -205,9 +224,10 @@ BaseRepo/
 ```
 
 ### Dependency Rule
-- **Presentation** → Application, Domain, Infrastructure
-- **Application** → Domain, CommonLibs
-- **Infrastructure** → Application (Interfaces), Domain, CommonLibs
+- **Presentation** → Application, Contract, Domain, Infrastructure
+- **Application** → Contract (DTOs), Domain (Entities), CommonLibs
+- **Infrastructure** → Application (Interfaces), Contract (DTOs), Domain (Entities), CommonLibs
+- **Contract** → CommonLibs (chỉ Base DTOs) — **không** được reference Domain/Application/Infrastructure
 - **Domain** → CommonLibs (chỉ Base classes)
 - **CommonLibs** → Không phụ thuộc vào service nào
 
@@ -217,10 +237,26 @@ BaseRepo/
 
 ### Projects
 ```
-{ServiceName}                    → Presentation Layer  (VD: Gateway, Site)
-{ServiceName}.Application       → Application Layer
-{ServiceName}.Domain             → Domain Layer
+{ServiceName}.Api                → Presentation Layer  (VD: Gateway.Api, Site.Api, AdministrativeUnit.Api)
+{ServiceName}.Application        → Application Layer
+{ServiceName}.Contract           → Contract Layer (DTO Input/Output/Filter)
+{ServiceName}.Domain             → Domain Layer (Entities)
 {ServiceName}.Infrastructure     → Infrastructure Layer
+```
+
+### Cấu trúc thư mục vật lý
+
+Cả 5 project của 1 service được gom vào 1 folder cha cùng tên service — tên project/namespace của
+Application/Contract/Domain/Infrastructure giữ nguyên hậu tố `.Application`/`.Contract`/`.Domain`/`.Infrastructure`
+như cũ; riêng Presentation đổi tên từ bare `{ServiceName}` thành `{ServiceName}.Api` (namespace
+`{ServiceName}.Controllers`/`{ServiceName}.Utils` → `{ServiceName}.Api.Controllers`/`{ServiceName}.Api.Utils`):
+```
+{ServiceName}/
+├── {ServiceName}.Api/                (Presentation)
+├── {ServiceName}.Application/
+├── {ServiceName}.Contract/
+├── {ServiceName}.Domain/
+└── {ServiceName}.Infrastructure/
 ```
 
 ### Files & Classes
@@ -336,6 +372,27 @@ return Ok(new Response<UserOutputDTO>()
 
 ---
 
+## 📝 Cấu hình Serilog (appsettings.Serilog.json)
+
+Kể từ 2026-09-01, section `"Serilog"` được tách ra khỏi `appsettings.json` thành file riêng
+`{ServiceName}.Api/appsettings.Serilog.json` (áp dụng cho cả 3 service: Gateway, Site, AdministrativeUnit) —
+comment trong section gốc được giữ nguyên khi tách. File mới match glob `appsettings.*.json` nên SDK Web tự copy
+ra output directory, không cần khai báo gì thêm trong `.csproj`. Bắt buộc phải nạp thủ công trong `Program.cs`
+(ASP.NET Core mặc định chỉ tự nạp `appsettings.json`/`appsettings.{Environment}.json`, không tự biết file mới),
+đặt **trước** `builder.AddDynamicLogging()` vì đó là chỗ đọc section `"Serilog"` từ `builder.Configuration`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddJsonFile("appsettings.Serilog.json", optional: false, reloadOnChange: true);
+
+builder.AddDynamicLogging();
+```
+
+Khi tạo service mới, áp dụng ngay từ đầu thay vì để `"Serilog"` nằm trong `appsettings.json` chính.
+
+---
+
 ## 🔌 Dependency Injection
 
 Mỗi service có file `DependencyInjection.cs` trong Infrastructure layer:
@@ -396,7 +453,8 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ## 🚀 Thêm Feature mới (Checklist)
 
-1. **Domain Layer**: Tạo Entity, DTOs (Input, Output, Filter)
+1. **Domain Layer**: Tạo Entity trong `{ServiceName}.Domain/Entities/`. DTOs (Input, Output, Filter) tạo ở
+   `{ServiceName}.Contract/DTOs/` (Contract layer riêng, không còn trong Domain).
 2. **Application Layer**: 
    - Tạo Interface Repository trong `Interfaces/`
    - Tạo Feature folder với Command/Query + Handler
@@ -415,9 +473,80 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 > hỏi lại từ đầu. Cập nhật section này sau khi hoàn thành công việc đáng kể — thêm mục mới lên đầu phần
 > "Đã hoàn thành", dọn/cập nhật lại phần "Việc tiếp theo" cho khớp thực tế.
 
-*Cập nhật gần nhất: 2026-08-02*
+*Cập nhật gần nhất: 2026-09-01*
 
 ### Đã hoàn thành
+
+- **Áp dụng lại cấu trúc 5-layer (như Gateway) cho `Site` và `AdministrativeUnit` + tách Serilog config cho cả 3
+  service (2026-09-01, cùng ngày, ngay sau pilot Gateway).** Lặp lại chính xác quy trình đã làm cho Gateway:
+  - **Site** (8 entity: Site, Module, Role, Screen, Function, RoleFunction, UserRole, SiteModule — nhiều hơn dự
+    kiến ban đầu, `SiteModule` được thêm sau lần khảo sát đầu của Gateway pilot): gom `Site`/`Site.Application`/
+    `Site.Domain`/`Site.Infrastructure` vào folder cha `Site/`, đổi Presentation `Site` → `Site.Api` (namespace
+    `Site.Controllers`/`Site.Utils` → `Site.Api.Controllers`/`Site.Api.Utils`), tạo `Site.Contract` chứa 9 file
+    DTO (`FunctionDTO`, `ModuleDTO`, `PermissionDTO`, `RoleDTO`, `RoleFunctionDTO`, `ScreenDTO`, `SiteDTO`,
+    `SiteModuleDTO`, `UserRoleDTO` — `PermissionDTO` không có Entity tương ứng vì Permission là API tổng hợp,
+    không phải bảng riêng). Sửa toàn bộ `using Site.Domain.DTOs;` → `using Site.Contract.DTOs;` bằng `sed` hàng
+    loạt (không sót file nào, xác nhận bằng grep = 0 sau khi chạy).
+  - **AdministrativeUnit** (2 entity: Province, Ward): làm y hệt, tạo `AdministrativeUnit.Contract` chứa
+    `ProvinceDTO`/`WardDTO`, Presentation `AdministrativeUnit` → `AdministrativeUnit.Api`.
+  - Cả 2 service: cập nhật relative path `ProjectReference`/`BaseRepo.slnx` theo đúng công thức đã dùng cho
+    Gateway (CommonLibs từ `..\CommonLibs` → `..\..\CommonLibs` do lồng thêm 1 cấp; thêm `ProjectReference` tới
+    `{Service}.Contract` cho `.Api`/`.Application`/`.Infrastructure`).
+  - **Tách Serilog cho cả 3 service** (Gateway đã làm trước đó cùng ngày, giờ làm tiếp Site/AdministrativeUnit):
+    tạo `{Service}.Api/appsettings.Serilog.json` chứa nguyên section `"Serilog"` (giữ nguyên comment), xoá khỏi
+    `appsettings.json`, thêm `builder.Configuration.AddJsonFile("appsettings.Serilog.json", optional: false,
+    reloadOnChange: true);` trong `Program.cs` trước `builder.AddDynamicLogging()` — bắt buộc vì ASP.NET Core
+    không tự nạp file `appsettings.*.json` ngoài quy ước `appsettings.json`/`appsettings.{Environment}.json`.
+  - `dotnet build BaseRepo.slnx` (toàn bộ solution, cả 3 service): **0 Error**. Đã xác nhận cả 2 file
+    `appsettings.Serilog.json` (Site, AdministrativeUnit) tự được copy vào `bin/Debug/net6.0/` sau build, cùng cơ
+    chế `appsettings.*.json` glob như Gateway.
+  - **Kết quả: không còn trạng thái "pilot" nữa** — cả 3 service (`Gateway`, `Site`, `AdministrativeUnit`) giờ
+    đồng nhất 1 khuôn 5-layer (`.Api`/`.Application`/`.Contract`/`.Domain`/`.Infrastructure`, gom vào 1 folder cha
+    mỗi service) + Serilog config tách riêng. Đã đơn giản hoá lại toàn bộ tài liệu liên quan (`claude.md` phần
+    kiến trúc/naming convention, `.claude/rules/01-architecture.md`, `.claude/skills/create-*`) — bỏ hết các đoạn
+    điều kiện "nếu đã tách/chưa tách" vì giờ là quy ước chung không còn ngoại lệ. `SystemManagement`/`Elastic`
+    không thuộc kiến trúc 5-layer này (không đổi).
+  - **Chưa test runtime end-to-end** cho Site/AdministrativeUnit (chỉ mới xác nhận build) — nên `dotnet run` thử
+    cả 2 service trước khi coi là xong, tương tự khuyến nghị đã ghi cho Gateway ở mục dưới.
+
+- **Tái cấu trúc thư mục Gateway (pilot) + tách Contract layer khỏi Domain (2026-09-01).** Gom 4 project cũ
+  (`Gateway`, `Gateway.Application`, `Gateway.Domain`, `Gateway.Infrastructure` — trước đó nằm flat ở root
+  `BaseRepo/`) vào 1 folder cha `Gateway/` bằng `git mv` (giữ lịch sử), **không đổi tên project/namespace** — chỉ
+  đổi vị trí vật lý, nên không phải sửa bất kỳ `using` nào liên quan tới các namespace đó. Tạo project mới
+  `Gateway/Gateway.Contract/Gateway.Contract.csproj`, chuyển 2 file DTO (`AuthorizationDTO.cs`, `UserDTO.cs`, tổng
+  cộng 8 class Input/Output/Filter) từ `Gateway.Domain/DTOs/` sang, đổi namespace `Gateway.Domain.DTOs` →
+  `Gateway.Contract.DTOs`. Domain giờ chỉ còn `Entities/User.cs`.
+  - Sửa 25 file (`using Gateway.Domain.DTOs;` → `using Gateway.Contract.DTOs;`) trải khắp Controllers/
+    Repositories/Interfaces/Features/Mappings — `using Gateway.Domain.Entities;` (4 chỗ) giữ nguyên, Entity
+    không di chuyển.
+  - Cập nhật relative path `ProjectReference`/`HintPath` trong 4 csproj cũ do đổi độ sâu thư mục (CommonLibs từ
+    `..\CommonLibs` → `..\..\CommonLibs` vì Gateway giờ lồng thêm 1 cấp), thêm `ProjectReference` tới
+    `Gateway.Contract` cho `Gateway`/`Gateway.Application`/`Gateway.Infrastructure` (3 project đang dùng DTO).
+    Cập nhật `BaseRepo.slnx` (path 5 project Gateway.*).
+  - **CommonLibs giữ nguyên hoàn toàn** (tên folder/project/namespace) — không đổi thành `Common.Libs` như thảo
+    luận ban đầu, theo yêu cầu chốt lại của người dùng.
+  - `dotnet build BaseRepo.slnx`: 0 Error (252 warning, toàn bộ là warning nullable/CS8601 có sẵn từ trước, không
+    phát sinh mới).
+  - **Phạm vi cố ý chỉ giới hạn Gateway** (pilot) — `Site`/`AdministrativeUnit` **chưa** áp dụng cấu trúc
+    folder-theo-service hay tách Contract, vẫn giữ nguyên flat + DTO trong Domain. Nếu pilot này ổn, làm tiếp
+    tương tự cho `Site` (8 entity) rồi `AdministrativeUnit` (2 entity) ở đợt sau.
+  - Cập nhật tài liệu đi kèm: `claude.md` (cây thư mục, Dependency Rule, Naming Convention), `.claude/rules/
+    01-architecture.md`, `.claude/rules/05-checklist.md`; tách skill `create-domain-layer` (bỏ phần DTO) + skill
+    mới `create-contract-layer` (phần DTO, chỉ áp dụng cho service đã tách); cập nhật `create-api-feature`,
+    `create-application-layer`, `create-infrastructure-layer`, `create-presentation-layer` (namespace DTO trong
+    template đổi theo service đã/chưa tách Contract).
+  - **Chưa test runtime end-to-end** (chỉ mới xác nhận build) — di chuyển thư mục không đổi output `bin/`, nhưng
+    nên chạy thử `dotnet run` Gateway 1 lần trước khi coi là xong, đặc biệt path tương đối trong
+    `Gateway/Gateway.Api/Keys/` (JWT signing keys) và `log4net.config` không đổi vì nằm cùng cấp project như cũ.
+  - **Follow-up cùng ngày: đổi tên project Presentation `Gateway` → `Gateway.Api`** (`git mv` folder + rename
+    `Gateway.csproj` → `Gateway.Api.csproj`), theo yêu cầu người dùng để phân biệt rõ project Presentation với
+    tên folder cha `Gateway/` (tránh 2 cấp thư mục trùng tên `Gateway/Gateway/`). Đổi namespace
+    `Gateway.Controllers`/`Gateway.Utils` → `Gateway.Api.Controllers`/`Gateway.Api.Utils` trong 4 file .cs của
+    project này (`using Gateway.Utils;` trong `Program.cs` cũng đổi theo) — không ảnh hưởng namespace của
+    `Gateway.Application`/`Gateway.Contract`/`Gateway.Domain`/`Gateway.Infrastructure` (giữ nguyên, đây là 4
+    project riêng biệt không đổi tên). Cập nhật `BaseRepo.slnx`. `dotnet build`: 0 Error. **Quy ước từ nay:**
+    service đã áp dụng pilot có Presentation layer tên `{ServiceName}.Api` (không phải bare `{ServiceName}`
+    nữa); service chưa áp dụng (Site, AdministrativeUnit) vẫn dùng tên bare `{ServiceName}` như cũ.
 
 - **Thêm microservice mới `AdministrativeUnit`** (Province + Ward) — tách riêng thành 1 module đầy đủ 4 layer
   giống `Site`/`Gateway`, theo checklist chuẩn (`05-checklist.md`) + skill `create-api-feature`. Dựa trên schema

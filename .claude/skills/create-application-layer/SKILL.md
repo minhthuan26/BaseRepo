@@ -9,7 +9,7 @@ description: >
 
 ## Tổng quan
 
-Tầng **Application** chứa các use cases của hệ thống, định nghĩa interfaces (để Infrastructure implement) và xử lý luồng thông qua CQRS pattern (bằng **MediatR**). Tầng này **chỉ phụ thuộc** vào tầng Domain và CommonLibs.
+Tầng **Application** chứa các use cases của hệ thống, định nghĩa interfaces (để Infrastructure implement) và xử lý luồng thông qua CQRS pattern (bằng **MediatR**). Tầng này phụ thuộc vào Domain (Entities), Contract (DTOs — xem `create-contract-layer`) và CommonLibs.
 
 ### Thành phần cần tạo/cập nhật
 
@@ -38,7 +38,7 @@ Tầng **Application** chứa các use cases của hệ thống, định nghĩa 
 
 ```csharp
 using CommonLibs.DTOs;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 
 namespace {ServiceName}.Application.Interfaces
 {
@@ -65,7 +65,7 @@ Tạo thư mục cho entity: `{ServiceName}.Application/Features/{EntityName}/`
 
 **File:** `Create{EntityName}Command.cs`
 ```csharp
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using MediatR;
 
 namespace {ServiceName}.Application.Features.{EntityName}.Create{EntityName}
@@ -80,7 +80,7 @@ namespace {ServiceName}.Application.Features.{EntityName}.Create{EntityName}
 **File:** `Create{EntityName}CommandHandler.cs`
 ```csharp
 using {ServiceName}.Application.Interfaces;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using MediatR;
 
 namespace {ServiceName}.Application.Features.{EntityName}.Create{EntityName}
@@ -110,7 +110,7 @@ namespace {ServiceName}.Application.Features.{EntityName}.Create{EntityName}
 **File:** `GetAll{EntityName}sQuery.cs`
 ```csharp
 using CommonLibs.DTOs;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using MediatR;
 
 namespace {ServiceName}.Application.Features.{EntityName}.GetAll{EntityName}s
@@ -126,7 +126,7 @@ namespace {ServiceName}.Application.Features.{EntityName}.GetAll{EntityName}s
 ```csharp
 using CommonLibs.DTOs;
 using {ServiceName}.Application.Interfaces;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using MediatR;
 
 namespace {ServiceName}.Application.Features.{EntityName}.GetAll{EntityName}s

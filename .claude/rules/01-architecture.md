@@ -7,15 +7,20 @@
 Chỉ được phụ thuộc **theo một chiều xuống dưới**, không được ngược lại:
 
 ```
-Presentation → Application, Domain, Infrastructure
-Application  → Domain, CommonLibs
-Infrastructure → Application (Interfaces), Domain, CommonLibs
+Presentation → Application, Contract, Domain, Infrastructure
+Application  → Contract (DTOs), Domain (Entities), CommonLibs
+Infrastructure → Application (Interfaces), Contract (DTOs), Domain (Entities), CommonLibs
+Contract     → CommonLibs (chỉ Base DTOs) — không reference Domain/Application/Infrastructure
 Domain       → CommonLibs (chỉ Base classes)
 CommonLibs   → Không phụ thuộc service nào
 ```
 
 - Domain layer **không** được reference Infrastructure hay Application.
+- Contract layer **không** được reference Domain/Application/Infrastructure — chỉ CommonLibs.
 - CommonLibs **không** được reference bất kỳ service cụ thể nào (Gateway, Site, ...).
+- Cả 3 service hiện có (`Gateway`, `Site`, `AdministrativeUnit`) đều đã tách Contract — DTO luôn nằm ở
+  `{Service}.Contract/DTOs/`, không còn ở `{Service}.Domain/DTOs/` (xem `claude.md` mục Progress Log 2026-09-01).
+  Service mới tạo sau này áp dụng ngay quy ước này từ đầu.
 
 ## 2. Naming Convention (bắt buộc theo đúng bảng)
 
@@ -35,7 +40,9 @@ CommonLibs   → Không phụ thuộc service nào
 | Mapping Profile | `{Service}Mapping` | `GatewayMapping` |
 | DbContext | `{Service}DbContext` | `GatewayDbContext` |
 
-Project mới (nếu có) phải theo đúng 4 hậu tố layer: `{Service}`, `{Service}.Application`, `{Service}.Domain`, `{Service}.Infrastructure`.
+Project mới phải theo đúng 5 hậu tố layer: `{Service}.Api` (Presentation), `{Service}.Application`,
+`{Service}.Contract` (DTO), `{Service}.Domain` (Entity), `{Service}.Infrastructure` — cả 5 gom vào 1 folder cha
+`{Service}/` (xem `claude.md` mục "Cấu trúc thư mục vật lý").
 
 ## 3. CQRS với MediatR
 

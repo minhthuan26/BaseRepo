@@ -15,7 +15,7 @@ Tầng **Presentation** là đầu vào của HTTP request, chứa các Web API 
 
 | # | File | Mô tả |
 |---|---|---|
-| 1 | `{ServiceName}/Controllers/{EntityName}Controller.cs` | Controller xử lý route và gọi MediatR |
+| 1 | `{ServiceName}.Api/Controllers/{EntityName}Controller.cs` | Controller xử lý route và gọi MediatR |
 
 ---
 
@@ -30,7 +30,7 @@ Tầng **Presentation** là đầu vào của HTTP request, chứa các Web API 
 
 ## Template: Controller
 
-**File:** `{ServiceName}/Controllers/{EntityName}Controller.cs`
+**File:** `{ServiceName}.Api/Controllers/{EntityName}Controller.cs`
 
 ```csharp
 using CommonLibs.Comtrollers; // Lưu ý: typo Comtrollers đang tồn tại trong project
@@ -39,14 +39,14 @@ using CommonLibs.Utils;
 using {ServiceName}.Application.Features.{EntityName}.Create{EntityName};
 using {ServiceName}.Application.Features.{EntityName}.GetAll{EntityName}s;
 using {ServiceName}.Application.Features.{EntityName}.Get{EntityName}ById;
-using {ServiceName}.Domain.DTOs;
+using {ServiceName}.Contract.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace {ServiceName}.Controllers
+namespace {ServiceName}.Api.Controllers
 {
     // Đổi tên route phù hợp, thường là số nhiều hoặc số ít chữ thường
     [Route("api/{entityName}")] 

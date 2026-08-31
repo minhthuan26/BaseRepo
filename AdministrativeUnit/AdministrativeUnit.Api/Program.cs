@@ -6,6 +6,11 @@ using CommonLibs.Options;
 using Microsoft.OpenApi;
 using System.Security.Claims;
 
+// Ghim Current Directory về thư mục chứa file .dll đang chạy (VD: bin/Debug/net10.0/) - tránh trường hợp
+// process được khởi chạy với working directory khác (Windows Service, Task Scheduler...) khiến các đường dẫn
+// tương đối dùng để ghi log (Serilog "Logs/...", log4net LogRootPath) bị lệch ra ngoài thư mục host thực tế.
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Cấu hình Serilog tách riêng khỏi appsettings.json — nạp trước khi AddDynamicLogging() đọc section "Serilog"

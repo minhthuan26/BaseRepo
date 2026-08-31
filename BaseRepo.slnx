@@ -1,19 +1,29 @@
 <Solution>
-  <Project Path="AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
-  <Project Path="AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
-  <Project Path="AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
-  <Project Path="AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
-  <Project Path="AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
-  <Project Path="CommonLibs/CommonLibs.csproj" />
-  <Project Path="Gateway/Gateway.Application/Gateway.Application.csproj" />
-  <Project Path="Gateway/Gateway.Contract/Gateway.Contract.csproj" />
-  <Project Path="Gateway/Gateway.Domain/Gateway.Domain.csproj" />
-  <Project Path="Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
-  <Project Path="Gateway/Gateway.Api/Gateway.Api.csproj" />
-  <Project Path="Site/Site.Application/Site.Application.csproj" />
-  <Project Path="Site/Site.Contract/Site.Contract.csproj" />
-  <Project Path="Site/Site.Domain/Site.Domain.csproj" />
-  <Project Path="Site/Site.Infrastructure/Site.Infrastructure.csproj" />
-  <Project Path="Site/Site.Api/Site.Api.csproj" />
-  <Project Path="SystemManagement/SystemManagement.csproj" Id="29c9c436-546e-46a5-8f97-348315652019" />
+  <Folder Name="/AdministrativeUnit/">
+    <Project Path="AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
+    <Project Path="AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
+    <Project Path="AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
+    <Project Path="AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
+    <Project Path="AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
+  </Folder>
+  <Folder Name="/CommonLibs/">
+    <Project Path="CommonLibs/CommonLibs.csproj" />
+  </Folder>
+  <Folder Name="/Gateway/">
+    <Project Path="Gateway/Gateway.Application/Gateway.Application.csproj" />
+    <Project Path="Gateway/Gateway.Contract/Gateway.Contract.csproj" />
+    <Project Path="Gateway/Gateway.Domain/Gateway.Domain.csproj" />
+    <Project Path="Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
+    <Project Path="Gateway/Gateway.Api/Gateway.Api.csproj" />
+  </Folder>
+  <Folder Name="/Site/">
+    <Project Path="Site/Site.Application/Site.Application.csproj" />
+    <Project Path="Site/Site.Contract/Site.Contract.csproj" />
+    <Project Path="Site/Site.Domain/Site.Domain.csproj" />
+    <Project Path="Site/Site.Infrastructure/Site.Infrastructure.csproj" />
+    <Project Path="Site/Site.Api/Site.Api.csproj" />
+  </Folder>
+  <Folder Name="/SystemManagement/">
+    <Project Path="SystemManagement/SystemManagement.csproj" Id="29c9c436-546e-46a5-8f97-348315652019" />
+  </Folder>
 </Solution>

@@ -116,6 +116,9 @@ if (app.Environment.IsDevelopment())
         // 3. Cấu hình đọc Swagger JSON của Service AdministrativeUnit thông qua YARP
         options.SwaggerEndpoint("/administrativeunit-swagger/v1/swagger.json", "AdministrativeUnit API");
 
+        // 4. Cấu hình đọc Swagger JSON của Service Booking thông qua YARP
+        options.SwaggerEndpoint("/booking-swagger/v1/swagger.json", "Booking API");
+
     });
 }
 

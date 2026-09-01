@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\CommonLibs\CommonLibs.csproj" />
+    <ProjectReference Include="..\..\..\CommonLibs\CommonLibs.csproj" />
     <ProjectReference Include="..\Booking.Application\Booking.Application.csproj" />
     <ProjectReference Include="..\Booking.Contract\Booking.Contract.csproj" />
     <ProjectReference Include="..\Booking.Domain\Booking.Domain.csproj" />

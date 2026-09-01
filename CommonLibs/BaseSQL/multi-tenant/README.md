@@ -17,7 +17,7 @@ thay đổi cốt lõi trên schema `BaseRepo`:
    `tbl_Roles`) để lọc nhanh và làm nền cho Row-Level Security.
 
 Không có server nào chạy sẵn để test các script này — đã rà logic kỹ và đối chiếu đúng
-tên bảng/cột/index trong `CommonLibs/BaseSQL/BaseSQL.sql`, nhưng **bắt buộc chạy thử trên
+tên bảng/cột/index trong `Base/Gateway/Gateway.Api/SQL/BaseSQL.sql`, nhưng **bắt buộc chạy thử trên
 một bản backup/staging trước khi chạy lên production**, đặc biệt các bước có `DROP
 TABLE`/`DROP COLUMN`.
 
@@ -27,7 +27,7 @@ TABLE`/`DROP COLUMN`.
 đây đã bị **xoá** — toàn bộ 3 thay đổi cốt lõi ở mục "Bối cảnh" phía trên (SiteId trên
 `tbl_Users`, `tbl_Site_Module`, SiteId denormalize trên `tbl_Role_Function`/`tbl_User_Role`,
 kể cả fix "RoleId unique theo (SiteId, RoleId)" ở mục bên dưới) giờ đã nằm sẵn trong
-`CommonLibs/BaseSQL/BaseSQL.sql` — chỉ cần chạy file đó (kèm `CommonLibs/BaseSQL/seed_admin_account.sql`
+`Base/Gateway/Gateway.Api/SQL/BaseSQL.sql` — chỉ cần chạy file đó (kèm `Base/Gateway/Gateway.Api/SQL/seed_admin_account.sql`
 nếu cần tài khoản test) là có ngay schema ở đúng trạng thái cuối cùng, không cần tiến hoá dần
 qua từng bước ALTER nữa.
 
@@ -102,7 +102,7 @@ Site sẽ mất hết quyền đã hoạt động trước đó nếu chưa có 
 từng cấp lại đúng 1 lần toàn bộ Function đang active cho mọi Role tên "Admin" khi deploy đợt
 code này lên DB cũ — không còn áp dụng cho DB mới tạo từ `BaseSQL.sql` (chưa có Role "Admin"
 nào để backfill). Cấp quyền cho tài khoản test chuẩn dùng
-`CommonLibs/BaseSQL/seed_admin_account.sql`; cấp cho Role/Site khác dùng API
+`Base/Gateway/Gateway.Api/SQL/seed_admin_account.sql`; cấp cho Role/Site khác dùng API
 `AssignRolePermissions` có sẵn.
 
 **Sau khi deploy ổn định**, quyền cụ thể của từng Role "Admin" (theo từng Site) nên được rà
@@ -124,7 +124,7 @@ bao giờ được test dưới điều kiện "va chạm" thật.
 
 **Đã sửa**: file `08_fix_roleid_unique_scope.sql` (đã xoá cùng đợt dọn `00`-`08`) từng bỏ
 `UNIQUE INDEX` cũ trên riêng `RoleId`, tạo `IX_Roles_SiteId_RoleId` unique theo
-`(SiteId, RoleId)` trên 1 DB đã tồn tại. Với DB mới, `CommonLibs/BaseSQL/BaseSQL.sql` đã khai
+`(SiteId, RoleId)` trên 1 DB đã tồn tại. Với DB mới, `Base/Gateway/Gateway.Api/SQL/BaseSQL.sql` đã khai
 báo sẵn `CONSTRAINT [UQ_tbl_Roles_SiteId_RoleId] UNIQUE ([SiteId], [RoleId])` ngay từ đầu —
 không còn tình trạng "RoleId unique toàn cục" cần sửa nữa.
 
@@ -227,7 +227,8 @@ giữ đúng nguyên tắc "Site Admin không tự bật được Module chưa m
 
 ## Lưu ý / điểm mở
 
-- **[2026-09-01]** `CommonLibs/BaseSQL/BaseSQL.sql` đã được viết lại để có đầy đủ
+- **[2026-09-01]** `Base/Gateway/Gateway.Api/SQL/BaseSQL.sql` (đường dẫn kể từ 2026-09-02 — trước đó
+  là `CommonLibs/BaseSQL/BaseSQL.sql`, xem Progress Log trong `claude.md`) đã được viết lại để có đầy đủ
   `PRIMARY KEY`/`UNIQUE`/`FOREIGN KEY` đặt tên tường minh (không còn chỉ dùng `INDEX` trần
   như file `00`-`08` cũ từng dùng) — áp dụng cho DB **tạo mới hoàn toàn**. `BaseSQL.sql`
   hiện tại đã phản ánh đúng trạng thái *sau khi* áp dụng hết mọi thay đổi mô tả trong README

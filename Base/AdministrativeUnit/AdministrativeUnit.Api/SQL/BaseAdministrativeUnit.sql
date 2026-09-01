@@ -2,7 +2,7 @@ USE AdministrativeUnit
 GO
 
 -- Sau khi chạy xong file này, seed dữ liệu 34 Province + 3.321 Ward bằng
--- CommonLibs/BaseSQL/administrative-unit/seed_administrative_unit.sql (xem README.md cùng thư mục).
+-- seed_administrative_unit.sql (cùng thư mục này, xem README.md cùng thư mục).
 
 -- =======================================================================
 -- 1. TẠO BẢNG TỈNH / THÀNH PHỐ (CẤP 1)
@@ -24,7 +24,7 @@ CREATE TABLE [dbo].[Province] (
     [DeviceName] NVARCHAR(255) NULL,
     [DeviceId] NVARCHAR(255) NULL,
 
-    -- Giống mọi bảng khác trong CommonLibs/BaseSQL/BaseSQL.sql: AutoId là PRIMARY KEY (clustered),
+    -- Giống mọi bảng khác trong Base/Gateway/Gateway.Api/SQL/BaseSQL.sql: AutoId là PRIMARY KEY (clustered),
     -- Code (business key) chỉ là UNIQUE INDEX (non-clustered) chứ không phải PK.
     CONSTRAINT [PK_Province] PRIMARY KEY CLUSTERED ([AutoId] ASC),
     CONSTRAINT [UQ_Province_Code] UNIQUE ([Code])
@@ -59,7 +59,7 @@ CREATE TABLE [dbo].[Ward] (
     [DeviceName] NVARCHAR(255) NULL,
     [DeviceId] NVARCHAR(255) NULL,
 
-    -- Giống mọi bảng khác trong CommonLibs/BaseSQL/BaseSQL.sql: AutoId là PRIMARY KEY (clustered),
+    -- Giống mọi bảng khác trong Base/Gateway/Gateway.Api/SQL/BaseSQL.sql: AutoId là PRIMARY KEY (clustered),
     -- Code (business key) chỉ là UNIQUE INDEX (non-clustered) chứ không phải PK.
     CONSTRAINT [PK_Ward] PRIMARY KEY CLUSTERED ([AutoId] ASC),
     CONSTRAINT [UQ_Ward_Code] UNIQUE ([Code])

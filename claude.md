@@ -464,6 +464,25 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Di chuyển file SQL cài đặt/seed từ `CommonLibs/BaseSQL/` vào `SQL/` của từng service sở hữu**
+  (2026-09-02). Chuẩn bị hạ tầng cho tính năng "SQL" trong SystemManagement (đọc SQL trực tiếp từ thư
+  mục triển khai của từng service qua `ModuleItem.FolderPath` có sẵn trong `SystemManagement/Models/
+  SystemConfig.cs` — màn hình `UC_ConfigSQL` chưa làm, để người dùng tự làm sau, xem spec).
+  - `CommonLibs/BaseSQL/BaseSQL.sql` + `seed_admin_account.sql` → `Base/Gateway/Gateway.Api/SQL/`.
+  - `CommonLibs/BaseSQL/administrative-unit/{BaseAdministrativeUnit.sql,seed_administrative_unit.sql,README.md}`
+    → `Base/AdministrativeUnit/AdministrativeUnit.Api/SQL/` (+ sửa 4 chỗ tham chiếu path cũ ngay trong
+    2 file `.sql` đã di chuyển).
+  - `CommonLibs/BaseSQL/booking/BaseBooking.sql` → `SportsBooking/Booking/Booking.Api/SQL/`.
+  - **Không di chuyển** `CommonLibs/BaseSQL/multi-tenant/` (tài liệu + test cách ly 2 Site, không phải
+    file cài đặt) — chỉ sửa 4 chỗ path cũ trong `multi-tenant/README.md` cho khớp vị trí `BaseSQL.sql`
+    mới.
+  - Mỗi `.Api.csproj` (Gateway/AdministrativeUnit/Booking) thêm `<Content Include="SQL\**"
+    CopyToOutputDirectory="PreserveNewest" />` — file `.sql`/`.md` không tự copy ra `bin/` như
+    `appsettings.*.json`/`log4net.config`, phải khai rõ.
+  - Spec: `docs/superpowers/specs/2026-09-02-sql-file-relocation-and-system-management-sql-tool-design.md`,
+    plan: `docs/superpowers/plans/2026-09-02-sql-file-relocation-plan.md`.
+  - `dotnet build BaseRepo.slnx`: 0 Error, và đã xác nhận cả 6 file `.sql`/`.md` xuất hiện đúng trong
+    `bin/Debug/net10.0/SQL/` của 3 service tương ứng.
 - **Xoá `CommonLibs/Consul/` — dead code chưa từng được nối dây** (2026-09-01). Rà lại theo câu hỏi
   "Consul có còn cần dùng không" — grep toàn repo xác nhận `ConsulExtensions`/`ConsulHostedService`/
   `AddConsulRegistration` **không có nơi nào gọi tới**, kể cả `Program.cs` của cả 4 service. YARP

@@ -5,7 +5,7 @@ GO
   Seed đầy đủ dữ liệu đơn vị hành chính Việt Nam hiện hành (34 tỉnh/thành, 3.321 xã/phường/đặc
   khu — đúng Nghị quyết 202/2025/QH15, hiệu lực từ 01/07/2025) trực tiếp vào [dbo].[Province]/
   [dbo].[Ward] — GỘP LẠI từ chuỗi 5 file migration cũ (01_migrate_schema.sql -> 05_cleanup_staging.sql)
-  thành 1 file duy nhất, cùng phong cách với CommonLibs/BaseSQL/seed_admin_account.sql.
+  thành 1 file duy nhất, cùng phong cách với Base/Gateway/Gateway.Api/SQL/seed_admin_account.sql.
 
   LÝ DO GỘP: 4 file cũ (02-05) dùng bảng staging cố định (schema `staging`, tồn tại lâu dài
   trong DB) chỉ để chuyển đổi 1 lần rồi phải tự dọn bằng file 05 riêng — hợp lý khi tiến hoá 1 DB

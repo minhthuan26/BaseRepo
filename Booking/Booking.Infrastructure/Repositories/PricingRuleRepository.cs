@@ -119,7 +119,7 @@ namespace Booking.Infrastructure.Repositories
             }, cancellationToken);
 
             if (rowsAffected <= 0)
-                throw new AppException($"[{_errorPrefix}UpdatePricingRule-04] Failed to update PricingRule.", HttpStatusCode.InternalServerError);
+                throw new AppException($"[{_errorPrefix}UpdatePricingRule-05] Failed to update PricingRule.", HttpStatusCode.InternalServerError);
 
             return _mapper.Map<PricingRuleOutputDTO>(input);
         }

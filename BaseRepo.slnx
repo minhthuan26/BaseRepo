@@ -6,6 +6,13 @@
     <Project Path="AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
     <Project Path="AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
   </Folder>
+  <Folder Name="/Booking/">
+    <Project Path="Booking/Booking.Application/Booking.Application.csproj" />
+    <Project Path="Booking/Booking.Contract/Booking.Contract.csproj" />
+    <Project Path="Booking/Booking.Domain/Booking.Domain.csproj" />
+    <Project Path="Booking/Booking.Infrastructure/Booking.Infrastructure.csproj" />
+    <Project Path="Booking/Booking.Api/Booking.Api.csproj" />
+  </Folder>
   <Folder Name="/CommonLibs/">
     <Project Path="CommonLibs/CommonLibs.csproj" />
   </Folder>

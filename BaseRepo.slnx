@@ -1,34 +1,38 @@
 <Solution>
-  <Folder Name="/AdministrativeUnit/">
-    <Project Path="AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
-    <Project Path="AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
-    <Project Path="AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
-    <Project Path="AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
-    <Project Path="AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
+  <Folder Name="/Base/">
+    <Folder Name="/Base/AdministrativeUnit/">
+      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
+      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
+      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
+      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
+      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
+    </Folder>
+    <Folder Name="/Base/Gateway/">
+      <Project Path="Base/Gateway/Gateway.Application/Gateway.Application.csproj" />
+      <Project Path="Base/Gateway/Gateway.Contract/Gateway.Contract.csproj" />
+      <Project Path="Base/Gateway/Gateway.Domain/Gateway.Domain.csproj" />
+      <Project Path="Base/Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
+      <Project Path="Base/Gateway/Gateway.Api/Gateway.Api.csproj" />
+    </Folder>
+    <Folder Name="/Base/Site/">
+      <Project Path="Base/Site/Site.Application/Site.Application.csproj" />
+      <Project Path="Base/Site/Site.Contract/Site.Contract.csproj" />
+      <Project Path="Base/Site/Site.Domain/Site.Domain.csproj" />
+      <Project Path="Base/Site/Site.Infrastructure/Site.Infrastructure.csproj" />
+      <Project Path="Base/Site/Site.Api/Site.Api.csproj" />
+    </Folder>
   </Folder>
-  <Folder Name="/Booking/">
-    <Project Path="Booking/Booking.Application/Booking.Application.csproj" />
-    <Project Path="Booking/Booking.Contract/Booking.Contract.csproj" />
-    <Project Path="Booking/Booking.Domain/Booking.Domain.csproj" />
-    <Project Path="Booking/Booking.Infrastructure/Booking.Infrastructure.csproj" />
-    <Project Path="Booking/Booking.Api/Booking.Api.csproj" />
+  <Folder Name="/SportsBooking/">
+    <Folder Name="/SportsBooking/Booking/">
+      <Project Path="SportsBooking/Booking/Booking.Application/Booking.Application.csproj" />
+      <Project Path="SportsBooking/Booking/Booking.Contract/Booking.Contract.csproj" />
+      <Project Path="SportsBooking/Booking/Booking.Domain/Booking.Domain.csproj" />
+      <Project Path="SportsBooking/Booking/Booking.Infrastructure/Booking.Infrastructure.csproj" />
+      <Project Path="SportsBooking/Booking/Booking.Api/Booking.Api.csproj" />
+    </Folder>
   </Folder>
   <Folder Name="/CommonLibs/">
     <Project Path="CommonLibs/CommonLibs.csproj" />
-  </Folder>
-  <Folder Name="/Gateway/">
-    <Project Path="Gateway/Gateway.Application/Gateway.Application.csproj" />
-    <Project Path="Gateway/Gateway.Contract/Gateway.Contract.csproj" />
-    <Project Path="Gateway/Gateway.Domain/Gateway.Domain.csproj" />
-    <Project Path="Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
-    <Project Path="Gateway/Gateway.Api/Gateway.Api.csproj" />
-  </Folder>
-  <Folder Name="/Site/">
-    <Project Path="Site/Site.Application/Site.Application.csproj" />
-    <Project Path="Site/Site.Contract/Site.Contract.csproj" />
-    <Project Path="Site/Site.Domain/Site.Domain.csproj" />
-    <Project Path="Site/Site.Infrastructure/Site.Infrastructure.csproj" />
-    <Project Path="Site/Site.Api/Site.Api.csproj" />
   </Folder>
   <Folder Name="/SystemManagement/">
     <Project Path="SystemManagement/SystemManagement.csproj" Id="29c9c436-546e-46a5-8f97-348315652019" />

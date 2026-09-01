@@ -205,7 +205,6 @@ git commit -m "chore: scaffold Booking microservice project structure"
 - [ ] **Step 1: Create `BookingDbContext.cs`**
 
 ```csharp
-using Booking.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using CommonLibs.BaseDbContext;
 using Microsoft.Extensions.Logging;
@@ -225,9 +224,9 @@ namespace Booking.Infrastructure.DBContext
 }
 ```
 
-(`using Booking.Domain.Entities;` stays even though unused right now — Task 4+ entities land in that namespace and `SiteDbContext`/`AdministrativeUnitDbContext` keep the same import for consistency; if the build warns on an unused `using`, that's expected to clear once Task 4 adds entities.)
+(No `using Booking.Domain.Entities;` here — that namespace has zero declared types until Task 4 creates the first entity, and an empty/non-existent namespace in a `using` directive is a compile error (`CS0234`), not a harmless unused-import warning. Task 4 Step 6 imports it where it's actually needed.)
 
-- [ ] **Step 2: Create `DependencyInjection.cs`**
+- [ ] **Step 2: Create `DependencyInjection.cs`** — deliberately **without** `using Booking.Application.Interfaces;`/`using Booking.Infrastructure.Repositories;` yet, for the same reason: neither namespace has any declared type until Task 4 creates `IFieldTypeRepository`/`FieldTypeRepository`. Task 4 Step 7 adds both `using` lines back in alongside the first registration.
 
 ```csharp
 using CommonLibs.Options;
@@ -237,9 +236,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Booking.Application.Interfaces;
 using Booking.Infrastructure.DBContext;
-using Booking.Infrastructure.Repositories;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace Booking.Infrastructure
@@ -1221,7 +1218,12 @@ namespace Booking.Infrastructure.Repositories
 }
 ```
 
-- [ ] **Step 7: Register in DI** — in `Booking/Booking.Infrastructure/DependencyInjection.cs`, replace the comment line with:
+- [ ] **Step 7: Register in DI** — in `Booking/Booking.Infrastructure/DependencyInjection.cs`: add the two `using` lines Task 2 deliberately omitted (right below the existing `using Booking.Infrastructure.DBContext;`), then replace the comment line with the registration:
+
+```csharp
+using Booking.Application.Interfaces;
+using Booking.Infrastructure.Repositories;
+```
 
 ```csharp
             services.AddScoped<IFieldTypeRepository, FieldTypeRepository>();

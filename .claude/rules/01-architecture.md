@@ -42,7 +42,8 @@ CommonLibs   → Không phụ thuộc service nào
 
 Project mới phải theo đúng 5 hậu tố layer: `{Service}.Api` (Presentation), `{Service}.Application`,
 `{Service}.Contract` (DTO), `{Service}.Domain` (Entity), `{Service}.Infrastructure` — cả 5 gom vào 1 folder cha
-`{Service}/` (xem `claude.md` mục "Cấu trúc thư mục vật lý").
+`{Service}/`, và `{Service}/` nằm trong 1 `{DomainGroup}/` (`Base/` cho hạ tầng dùng chung, hoặc tên domain
+nghiệp vụ — VD `SportsBooking/`) — xem `claude.md` mục "Cấu trúc thư mục vật lý".
 
 ## 3. CQRS với MediatR
 

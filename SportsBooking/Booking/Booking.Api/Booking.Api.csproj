@@ -30,4 +30,8 @@
     <Folder Include="Controllers\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="SQL\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -372,7 +372,7 @@ namespace Booking.Api.Utils
     "Issuer": "BaseRepo__JWT__Issuer",
     "PrivateKey": "BaseRepo__PrivateKey",
     "PublicKey": "BaseRepo__PublicKey",
-    "RedisConnectionString": "127.0.0.1:6379,abortConnect=false,connectTimeout=5000"
+    "RedisConnectionString": "localhost:8012,abortConnect=false,connectTimeout=5000"
   },
   "Consul": {
     "Host": "http://localhost:80001",

@@ -2672,7 +2672,18 @@ namespace Booking.Infrastructure.Repositories
             if (existing == null)
                 throw new AppException($"[{_errorPrefix}UpdatePricingRule-02] PricingRule '{input.AutoId}' not found.", HttpStatusCode.NotFound);
 
-            await GetFieldOwnedBySite(input.FieldId, callerSiteId, cancellationToken, "UpdatePricingRule-03");
+            // Verify the caller owns the record being mutated (via its CURRENT Field's Site) — checking only
+            // the new input.FieldId below would let a caller who owns *some* Field in their own Site overwrite
+            // another Site's PricingRule by AutoId, since AutoId alone carries no Site information.
+            await GetFieldOwnedBySite(existing.FieldId, callerSiteId, cancellationToken, "UpdatePricingRule-03");
+
+            // FieldId is mutable on this entity (unlike Field.SiteId in Task 5) — if it's being changed, the
+            // NEW Field must also belong to the caller's Site, or a caller could reassign an owned rule onto
+            // a foreign Site's Field.
+            if (input.FieldId != existing.FieldId)
+            {
+                await GetFieldOwnedBySite(input.FieldId, callerSiteId, cancellationToken, "UpdatePricingRule-04");
+            }
 
             input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
 

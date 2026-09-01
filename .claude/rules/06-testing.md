@@ -34,9 +34,11 @@ Xem `CommonLibs/BaseSQL/multi-tenant/README.md` để biết bối cảnh đầy
 được đánh dấu "Chưa làm" trong mục "Không nằm trong các script này" của README đó cho tới khi
 bộ test này được viết).
 
-- [ ] Đã chạy đủ migration `00`-`08` trong `CommonLibs/BaseSQL/multi-tenant/` theo đúng thứ tự
-      trong README — đặc biệt `08_fix_roleid_unique_scope.sql` (bắt buộc để `RoleId` được phép
-      trùng giữa 2 Site, tiền đề của toàn bộ test này).
+- [ ] DB tạo từ `CommonLibs/BaseSQL/BaseSQL.sql` hiện tại (đã có sẵn `tbl_Users.SiteId`,
+      `tbl_Site_Module`, `UQ_tbl_Roles_SiteId_RoleId` cho phép `RoleId` trùng giữa 2 Site —
+      tiền đề của toàn bộ test này; xem `CommonLibs/BaseSQL/multi-tenant/README.md` nếu DB của
+      bạn là DB cũ chưa multi-tenant, cần đối chiếu thủ công vì chuỗi migration `00`-`08` đã bị
+      xoá).
 - [ ] Chạy `CommonLibs/BaseSQL/multi-tenant/tests/seed_two_site_isolation.sql` để tạo fixture:
       2 Site test (`ISOTEST_A`, `ISOTEST_B`), 1 User trùng `UserId` (`isotest_user`) và 1 Role
       trùng `RoleId` (`ISOTEST_ROLE`) độc lập ở mỗi Site, quyền Function cấp lệch giữa 2 Site.

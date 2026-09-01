@@ -21,40 +21,21 @@ tên bảng/cột/index trong `CommonLibs/BaseSQL/BaseSQL.sql`, nhưng **bắt b
 một bản backup/staging trước khi chạy lên production**, đặc biệt các bước có `DROP
 TABLE`/`DROP COLUMN`.
 
-## Cách chạy (theo đúng thứ tự)
+## Cách chạy
 
-Chạy tuần tự trên SQL Server, database `BaseRepo` (sqlcmd, SSMS, hoặc Azure Data Studio):
+**[2026-09-01] Không còn cần chạy gì cả cho DB mới.** 9 file migration (`00`-`08`) từng nằm ở
+đây đã bị **xoá** — toàn bộ 3 thay đổi cốt lõi ở mục "Bối cảnh" phía trên (SiteId trên
+`tbl_Users`, `tbl_Site_Module`, SiteId denormalize trên `tbl_Role_Function`/`tbl_User_Role`,
+kể cả fix "RoleId unique theo (SiteId, RoleId)" ở mục bên dưới) giờ đã nằm sẵn trong
+`CommonLibs/BaseSQL/BaseSQL.sql` — chỉ cần chạy file đó (kèm `CommonLibs/BaseSQL/seed_admin_account.sql`
+nếu cần tài khoản test) là có ngay schema ở đúng trạng thái cuối cùng, không cần tiến hoá dần
+qua từng bước ALTER nữa.
 
-1. `00_check_multi_site_users.sql` — **chỉ đọc, không ghi gì cả**. Rà xem có User nào
-   hiện đang active ở nhiều Site cùng lúc không (thiết kế mới không cho phép điều này).
-   Nếu có, xử lý thủ công theo hướng dẫn đầu file trước khi chạy tiếp.
-2. `01_add_siteid_to_users.sql` — thêm `tbl_Users.SiteId` (nullable), backfill từ
-   `tbl_User_Site`. Kiểm tra câu SELECT cuối file trả về 0 dòng trước khi qua bước 2.
-3. `02_finalize_users_siteid.sql` — ép `SiteId` NOT NULL, đổi `UserId` sang unique theo
-   `(SiteId, UserId)`, xoá `tbl_User_Site`.
-   ⚠️ Có DROP TABLE — đọc kỹ ghi chú đầu file.
-4. `03_create_site_module.sql` — tạo `tbl_Site_Module`, backfill bật sẵn (Status = 1)
-   đúng theo quan hệ `Module.SiteId` hiện có, để không Site nào mất quyền dùng Module
-   đang chạy.
-5. `04_globalize_module_catalog.sql` — bỏ `SiteId` khỏi `tbl_Modules` (bắt buộc chạy sau
-   bước 4 ở trên).
-   ⚠️ Có DROP COLUMN — đọc kỹ ghi chú đầu file, đặc biệt phần rà 2 Site có Module cùng ý
-   nghĩa nhưng khác mã.
-6. `05_add_siteid_to_role_tables.sql` — thêm `SiteId` vào `tbl_Role_Function` và
-   `tbl_User_Role`, backfill từ `tbl_Roles`. Câu SELECT cuối file để rà dữ liệu cũ có vi
-   phạm ràng buộc "Role và User cùng Site" hay không (chỉ đọc, không tự sửa).
-7. `06_enable_row_level_security.sql` — **tuỳ chọn**, chạy sau khi đã sửa xong code C#
-   (xem mục "Không nằm trong các script này" bên dưới). Bật quá sớm sẽ khiến mọi query lên
-   4 bảng bị lọc rỗng vì `SESSION_CONTEXT('SiteId')` chưa được set.
-8. `07_backfill_admin_role_functions.sql` — **bắt buộc, chạy cùng đợt deploy code đã bỏ
-   cơ chế bypass "Admin toàn hệ thống"** (xem mục "Fix: bỏ bypass Admin toàn hệ thống" bên
-   dưới). Cấp lại tường minh toàn bộ Function đang active cho mọi Role tên "Admin", để
-   không Site nào bị khoá quyền đột ngột ngay khi deploy.
-9. `08_fix_roleid_unique_scope.sql` — **bắt buộc trước khi coi cách ly 2 Site là hoàn
-   tất** (xem mục "Fix: RoleId vẫn unique toàn cục" bên dưới). Đổi `tbl_Roles.RoleId` từ
-   unique toàn cục sang unique theo `(SiteId, RoleId)` — thiếu bước này, 2 Site không thể
-   có Role trùng `RoleId`, và toàn bộ code C# lọc `SiteId` trên các bảng liên quan tới
-   `RoleId` (đã viết ở mục 1-8) chưa từng được kiểm chứng dưới điều kiện thực sự "va chạm".
+9 file cũ chỉ có giá trị khi tiến hoá 1 DB `BaseRepo` **đã tồn tại từ trước** theo schema chưa
+multi-tenant (chưa có `SiteId` trên `tbl_Users`, chưa có `tbl_Site_Module`...) — môi trường hiện
+tại luôn tạo DB mới từ đầu nên không còn tình huống đó. Nội dung giải thích **lý do** của từng
+thay đổi (bug tìm thấy, cách sửa, rủi ro khi deploy) vẫn giữ nguyên bên dưới vì vẫn mô tả đúng
+hành vi C# hiện tại — chỉ riêng phần "chạy file nào theo thứ tự nào" không còn áp dụng được.
 
 ## Không nằm trong các script này
 
@@ -75,9 +56,11 @@ phủ gần hết danh sách này — phần còn thiếu được đánh dấu 
 - ✅ **Đã fix** (đợt này): `CreateUserRole` đổi điều kiện tiền đề từ "có UserSite active"
   sang "Role.SiteId = User.SiteId" — xem mục "Fix: các Repository RoleId-aware còn thiếu
   sót" bên dưới.
-- ⚠️ **Chưa làm**: Nếu bật `06_enable_row_level_security.sql`: wire `EXEC
-  sp_set_session_context @key = N'SiteId', @value = @siteId` vào nơi mở connection
-  (`CommonLibs/BaseDbContext`) — RLS vẫn đang tắt (không script nào đụng tới SESSION_CONTEXT).
+- ⚠️ **Chưa làm**: Row-Level Security (RLS) vẫn đang **tắt** — chưa có `SECURITY POLICY`/`SESSION_CONTEXT`
+  nào được bật trên 4 bảng liên quan. File script bật RLS (`06_enable_row_level_security.sql`,
+  tuỳ chọn) đã bị xoá cùng đợt dọn `00`-`08` — nếu sau này muốn bật, cần viết lại từ đầu (kèm
+  wire `EXEC sp_set_session_context @key = N'SiteId', @value = @siteId` vào nơi mở connection ở
+  `CommonLibs/BaseDbContext`), không có sẵn để chạy ngay.
 - ✅ **Đã viết** (đợt này): Test cách ly 2 Site (UserId/RoleId trùng tên nhau giữa 2 Site,
   xác nhận không có API nào trả chéo dữ liệu) — xem mục "Test cách ly 2 Site" bên dưới, và
   checklist đã thêm vào `.claude/rules/06-testing.md`.
@@ -113,11 +96,14 @@ thể sửa/xoá row `tbl_Site` của Site B.
 | `Gateway/Program.cs`, `Site/Program.cs`, `AdministrativeUnit/Program.cs` | Xoá `AdminPolicy` (`RequireRole("Admin")`) — policy này chưa được gắn vào controller/action nào (dead code), xoá để không ai vô tình nối lại vào 1 endpoint sau này và tái tạo đúng lỗi vừa fix. Không dùng `[Authorize(Roles = "Admin")]` ở bất kỳ đâu vì lý do tương tự |
 | `CommonLibs/Utils/RequireFunctionAttribute.cs`, comment trong `AuthorizationRepository.cs` | Cập nhật doc comment cho khớp hành vi mới |
 
-**Hệ quả bắt buộc phải xử lý cùng lúc deploy**: ngay khi bỏ bypass, Role "Admin" của MỌI
+**Hệ quả cần biết khi deploy lên 1 DB đã có dữ liệu**: ngay khi bỏ bypass, Role "Admin" của MỌI
 Site sẽ mất hết quyền đã hoạt động trước đó nếu chưa có dòng tường minh trong
-`tbl_Role_Function`. Script `07_backfill_admin_role_functions.sql` cấp lại đúng 1 lần toàn
-bộ Function đang active cho mọi Role tên "Admin" — chạy cùng đợt deploy code này, xem mục
-"Cách chạy" phía trên.
+`tbl_Role_Function`. Script `07_backfill_admin_role_functions.sql` (đã xoá cùng đợt dọn `00`-`08`)
+từng cấp lại đúng 1 lần toàn bộ Function đang active cho mọi Role tên "Admin" khi deploy đợt
+code này lên DB cũ — không còn áp dụng cho DB mới tạo từ `BaseSQL.sql` (chưa có Role "Admin"
+nào để backfill). Cấp quyền cho tài khoản test chuẩn dùng
+`CommonLibs/BaseSQL/seed_admin_account.sql`; cấp cho Role/Site khác dùng API
+`AssignRolePermissions` có sẵn.
 
 **Sau khi deploy ổn định**, quyền cụ thể của từng Role "Admin" (theo từng Site) nên được rà
 lại và thu hẹp dần qua chính API `AssignRolePermissions` có sẵn
@@ -136,11 +122,11 @@ quản lý Role riêng, độc lập, có thể trùng tên với Site khác") *
 mọi đoạn code C# lọc `SiteId` trên các bảng liên quan `RoleId` (viết ở migration 05-07) chưa
 bao giờ được test dưới điều kiện "va chạm" thật.
 
-**Đã sửa**: `08_fix_roleid_unique_scope.sql` — bỏ `UNIQUE INDEX` cũ trên riêng `RoleId`, tạo
-`IX_Roles_SiteId_RoleId` unique theo `(SiteId, RoleId)` (đúng pattern `tbl_Users` đã áp dụng
-ở `02_finalize_users_siteid.sql`). Có kiểm tra trước bằng `RAISERROR` nếu dữ liệu hiện tại
-đã có `(SiteId, RoleId)` trùng nhau (không nên xảy ra vì trước đó RoleId unique toàn cục, chỉ
-để phòng hờ).
+**Đã sửa**: file `08_fix_roleid_unique_scope.sql` (đã xoá cùng đợt dọn `00`-`08`) từng bỏ
+`UNIQUE INDEX` cũ trên riêng `RoleId`, tạo `IX_Roles_SiteId_RoleId` unique theo
+`(SiteId, RoleId)` trên 1 DB đã tồn tại. Với DB mới, `CommonLibs/BaseSQL/BaseSQL.sql` đã khai
+báo sẵn `CONSTRAINT [UQ_tbl_Roles_SiteId_RoleId] UNIQUE ([SiteId], [RoleId])` ngay từ đầu —
+không còn tình trạng "RoleId unique toàn cục" cần sửa nữa.
 
 ## Fix: các Repository RoleId-aware còn thiếu sót
 
@@ -241,31 +227,14 @@ giữ đúng nguyên tắc "Site Admin không tự bật được Module chưa m
 
 ## Lưu ý / điểm mở
 
-- **[Cập nhật sau khi retrofit constraint]** `BaseSQL.sql` đã được viết lại để có đầy đủ
+- **[2026-09-01]** `CommonLibs/BaseSQL/BaseSQL.sql` đã được viết lại để có đầy đủ
   `PRIMARY KEY`/`UNIQUE`/`FOREIGN KEY` đặt tên tường minh (không còn chỉ dùng `INDEX` trần
-  như mô tả gốc bên dưới) — quyết định này áp dụng cho DB **tạo mới hoàn toàn** từ file này.
-  Các script `00`-`08` trong thư mục này **không** viết lại theo constraint mới, vì chúng
-  là migration lịch sử cho 1 DB đã tồn tại từ trước (dùng index trần) — **không chạy lại
-  `00`-`08`** sau khi đã tạo DB từ `BaseSQL.sql` bản mới này (index tên cũ mà các script đó
-  tìm, VD `IX_Users_SiteId_UserId`, `IX_tbl_Site_Module_SiteId_ModuleId`,
-  `IX_Roles_SiteId_RoleId`, đã đổi thành `CONSTRAINT` tên khác — script sẽ lỗi hoặc tạo
-  trùng). `BaseSQL.sql` hiện tại vốn đã phản ánh đúng trạng thái *sau khi* áp dụng hết
-  `01`-`08` (đã có `tbl_Users.SiteId`, `tbl_Site_Module`, `tbl_Roles` unique theo
-  `(SiteId, RoleId)`...) — mô tả gốc dưới đây giữ lại để biết lý do lịch sử tại sao DB cũ
-  (trước retrofit) không dùng FK:
-
-- ~~Toàn bộ script giữ đúng convention của `BaseSQL.sql`: không dùng `FOREIGN KEY`, chỉ
-  dùng `INDEX`~~ — DB không tự enforce tham chiếu, tầng ứng dụng tự đảm bảo tính toàn vẹn
-  như các bảng khác trong hệ thống (**mô tả này đúng với `BaseSQL.sql` TRƯỚC khi retrofit
-  constraint, không còn đúng với bản hiện tại**).
-- `tbl_Roles.SiteId` trong schema gốc khai báo `VARCHAR(50)` (khác `tbl_Site.SiteId` là
-  `VARCHAR(20)`) — lệch kiểu có sẵn từ trước, không phải phát sinh ở migration này. Hai
-  cột `SiteId` mới trên `tbl_Role_Function`/`tbl_User_Role` dùng theo đúng kiểu nguồn
-  copy (`VARCHAR(50)`) để tránh implicit convert khi UPDATE — cân nhắc chuẩn hoá về
-  `VARCHAR(20)` trong một đợt dọn dẹp riêng nếu muốn.
-- Script giả định chạy trên schema đúng như `BaseSQL.sql` gửi kèm. Nếu DB thực tế đã lệch
-  (thêm cột, đổi tên index thủ công...), rà lại từng `IF EXISTS`/`IF NOT EXISTS` cho khớp
-  trước khi chạy.
-- Không có script rollback riêng (khớp convention của
-  `CommonLibs/BaseSQL/administrative-unit/` — chỉ cảnh báo trước thao tác phá huỷ, không
-  tự động hoá chiều ngược lại). Muốn hồi phục, khôi phục từ backup đã chụp trước bước 3.
+  như file `00`-`08` cũ từng dùng) — áp dụng cho DB **tạo mới hoàn toàn**. `BaseSQL.sql`
+  hiện tại đã phản ánh đúng trạng thái *sau khi* áp dụng hết mọi thay đổi mô tả trong README
+  này (đã có `tbl_Users.SiteId`, `tbl_Site_Module`, `tbl_Roles` unique theo `(SiteId, RoleId)`...)
+  — xem mục "Cách chạy" phía trên.
+- `tbl_Roles.SiteId` khai báo `VARCHAR(50)` (khác `tbl_Site.SiteId` là `VARCHAR(20)`) — lệch
+  kiểu có sẵn từ trước khi có multi-tenant, giữ nguyên trong `BaseSQL.sql` hiện tại (xem
+  comment tại chỗ trong file đó). Hai cột `SiteId` trên `tbl_Role_Function`/`tbl_User_Role`
+  dùng theo đúng kiểu nguồn copy (`VARCHAR(50)`) để tránh implicit convert khi so sánh — cân
+  nhắc chuẩn hoá về `VARCHAR(20)` trong một đợt dọn dẹp riêng nếu muốn.

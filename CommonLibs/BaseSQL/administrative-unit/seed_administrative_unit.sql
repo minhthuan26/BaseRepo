@@ -1,43 +1,124 @@
+USE AdministrativeUnit;
+GO
+
 /*
-  File này là dữ liệu GỐC, KHÔNG chỉnh sửa, tải từ:
+  Seed đầy đủ dữ liệu đơn vị hành chính Việt Nam hiện hành (34 tỉnh/thành, 3.321 xã/phường/đặc
+  khu — đúng Nghị quyết 202/2025/QH15, hiệu lực từ 01/07/2025) trực tiếp vào [dbo].[Province]/
+  [dbo].[Ward] — GỘP LẠI từ chuỗi 5 file migration cũ (01_migrate_schema.sql -> 05_cleanup_staging.sql)
+  thành 1 file duy nhất, cùng phong cách với CommonLibs/BaseSQL/seed_admin_account.sql.
+
+  LÝ DO GỘP: 4 file cũ (02-05) dùng bảng staging cố định (schema `staging`, tồn tại lâu dài
+  trong DB) chỉ để chuyển đổi 1 lần rồi phải tự dọn bằng file 05 riêng — hợp lý khi tiến hoá 1 DB
+  đã tồn tại từ trước, nhưng thừa bước cho môi trường dev có thể drop/tạo lại DB tuỳ ý. File này
+  dùng LOCAL TEMP TABLE (tiền tố #) thay cho bảng staging cố định — tự động biến mất khi phiên
+  kết nối kết thúc, không cần file dọn dẹp riêng (05) nữa.
+
+  1_migrate_schema.sql KHÔNG cần áp dụng riêng — BaseAdministrativeUnit.sql hiện tại đã phản ánh
+  đúng kết quả của migration đó rồi (không còn bảng District, Ward đã có sẵn cột ProvinceCode).
+
+  Dữ liệu gốc (nguyên vẹn, không sửa 1 dòng nào) tải từ:
   https://github.com/thanglequoc/vietnamese-provinces-database
   Tag: v3.0.2 ("Breaking Change: Nghị Quyết 202/2025/QH15")
-  File nguồn: sqlserver/ImportData_vn_units.sql
-  Ngày tải: 2026-08-02
+  File nguồn: sqlserver/ImportData_vn_units.sql — Ngày tải: 2026-08-02.
+  Đã tra cứu lại qua web ngày 2026-09-01, xác nhận 34 tỉnh/thành + 3.321 xã/phường/đặc khu vẫn là
+  con số hiện hành, chưa có thay đổi mới hơn.
 
-  Thay đổi DUY NHẤT so với bản gốc: thêm tiền tố schema `staging.` vào 4 câu lệnh
-  INSERT INTO (administrative_regions/administrative_units/provinces/wards) để nạp vào bảng
-  staging thay vì bảng thật — không đổi bất kỳ dữ liệu/dòng nào khác.
+  Mapping dữ liệu gốc -> bảng thật:
+    Province.Code         <- provinces.code
+    Province.Name         <- provinces.name              (VD 'Hà Nội')
+    Province.Type         <- administrative_units.short_name (VD 'Thành phố' / 'Tỉnh')
+    Province.NameWithType <- provinces.full_name          (VD 'Thành phố Hà Nội')
+    Province.Slug         <- provinces.code_name          (VD 'ha_noi')
 
-  Số liệu: 34 tỉnh/thành, 3.321 xã/phường (đúng theo đợt sáp nhập 01/07/2025).
+    Ward.Code         <- wards.code
+    Ward.Name         <- wards.name                      (VD 'Ba Đình')
+    Ward.Type         <- administrative_units.short_name  (VD 'Phường' / 'Xã' / 'Đặc khu')
+    Ward.NameWithType <- wards.full_name                  (VD 'Phường Ba Đình')
+    Ward.ProvinceCode <- wards.province_code
+    Ward.Slug         <- wards.code_name                  (VD 'ba_dinh')
+
+  Idempotent ở cấp toàn bảng: nếu [dbo].[Province]/[dbo].[Ward] đã có dữ liệu, câu INSERT tương
+  ứng tự bỏ qua (không lỗi trùng khoá khi chạy lại) — khác kiểu idempotent per-row của
+  seed_admin_account.sql vì khối lượng dữ liệu ở đây lớn (3.355 dòng), không cần thiết phải check
+  từng dòng.
+
+  Convention: không dùng FOREIGN KEY (khớp BaseSQL.sql gốc trước khi retrofit), chỉ dùng
+  PRIMARY KEY/UNIQUE INDEX sẵn có trong BaseAdministrativeUnit.sql.
 */
 
-/* === Vietnamese Provinces Database Dataset for Microsoft SQL Server === */
-/* Created at:  Tue, 29 Jul 2025 00:51:41 +0700 */
-/* Reference: https://github.com/ThangLeQuoc/vietnamese-provinces-database */
-/* =============================================== */
+-- =======================================================================
+-- 1) BẢNG TẠM (temp table) — chứa nguyên vẹn cấu trúc + dữ liệu gốc từ nguồn mở, tự huỷ khi
+-- phiên kết nối kết thúc, không cần dọn dẹp thủ công.
+-- =======================================================================
+CREATE TABLE #administrative_regions (
+    id integer NOT NULL,
+    name nvarchar(255) NOT NULL,
+    name_en nvarchar(255) NOT NULL,
+    code_name nvarchar(255) NULL,
+    code_name_en nvarchar(255) NULL,
+    CONSTRAINT PK_temp_administrative_regions PRIMARY KEY (id)
+);
 
+CREATE TABLE #administrative_units (
+    id integer NOT NULL,
+    full_name nvarchar(255) NULL,
+    full_name_en nvarchar(255) NULL,
+    short_name nvarchar(255) NULL,
+    short_name_en nvarchar(255) NULL,
+    code_name nvarchar(255) NULL,
+    code_name_en nvarchar(255) NULL,
+    CONSTRAINT PK_temp_administrative_units PRIMARY KEY (id)
+);
+
+CREATE TABLE #provinces (
+    code nvarchar(20) NOT NULL,
+    name nvarchar(255) NOT NULL,
+    name_en nvarchar(255) NULL,
+    full_name nvarchar(255) NOT NULL,
+    full_name_en nvarchar(255) NULL,
+    code_name nvarchar(255) NULL,
+    administrative_unit_id integer NULL,
+    CONSTRAINT PK_temp_provinces PRIMARY KEY (code)
+);
+
+CREATE TABLE #wards (
+    code nvarchar(20) NOT NULL,
+    name nvarchar(255) NOT NULL,
+    name_en nvarchar(255) NULL,
+    full_name nvarchar(255) NULL,
+    full_name_en nvarchar(255) NULL,
+    code_name nvarchar(255) NULL,
+    province_code nvarchar(20) NULL,
+    administrative_unit_id integer NULL,
+    CONSTRAINT PK_temp_wards PRIMARY KEY (code)
+);
+GO
+
+-- =======================================================================
+-- 2) NẠP DỮ LIỆU GỐC (nguyên vẹn, không sửa) VÀO BẢNG TẠM
+-- Nguồn: https://github.com/thanglequoc/vietnamese-provinces-database (tag v3.0.2, 2025-07-28)
+-- =======================================================================
 -- DATA for administrative_regions --
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(1,N'Đông Bắc Bộ',N'Northeast',N'dong_bac_bo',N'northest');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(2,N'Tây Bắc Bộ',N'Northwest',N'tay_bac_bo',N'northwest');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(3,N'Đồng bằng sông Hồng',N'Red River Delta',N'dong_bang_song_hong',N'red_river_delta');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(4,N'Bắc Trung Bộ',N'North Central Coast',N'bac_trung_bo',N'north_central_coast');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(5,N'Duyên hải Nam Trung Bộ',N'South Central Coast',N'duyen_hai_nam_trung_bo',N'south_central_coast');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(6,N'Tây Nguyên',N'Central Highlands',N'tay_nguyen',N'central_highlands');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(7,N'Đông Nam Bộ',N'Southeast',N'dong_nam_bo',N'southeast');
-INSERT INTO staging.administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(8,N'Đồng bằng sông Cửu Long',N'Mekong River Delta',N'dong_bang_song_cuu_long',N'southwest');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(1,N'Đông Bắc Bộ',N'Northeast',N'dong_bac_bo',N'northest');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(2,N'Tây Bắc Bộ',N'Northwest',N'tay_bac_bo',N'northwest');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(3,N'Đồng bằng sông Hồng',N'Red River Delta',N'dong_bang_song_hong',N'red_river_delta');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(4,N'Bắc Trung Bộ',N'North Central Coast',N'bac_trung_bo',N'north_central_coast');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(5,N'Duyên hải Nam Trung Bộ',N'South Central Coast',N'duyen_hai_nam_trung_bo',N'south_central_coast');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(6,N'Tây Nguyên',N'Central Highlands',N'tay_nguyen',N'central_highlands');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(7,N'Đông Nam Bộ',N'Southeast',N'dong_nam_bo',N'southeast');
+INSERT INTO #administrative_regions(id,name,name_en,code_name,code_name_en) VALUES(8,N'Đồng bằng sông Cửu Long',N'Mekong River Delta',N'dong_bang_song_cuu_long',N'southwest');
 -- ----------------------------------
 
 -- DATA for administrative_units --
-INSERT INTO staging.administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(1,N'Thành phố trực thuộc trung ương',N'Municipality',N'Thành phố',N'City',N'thanh_pho_truc_thuoc_trung_uong',N'municipality');
-INSERT INTO staging.administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(2,N'Tỉnh',N'Province',N'Tỉnh',N'Province',N'tinh',N'province');
-INSERT INTO staging.administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(3,N'Phường',N'Ward',N'Phường',N'Ward',N'phuong',N'ward');
-INSERT INTO staging.administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(4,N'Xã',N'Commune',N'Xã',N'Commune',N'xa',N'commune');
-INSERT INTO staging.administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(5,N'Đặc khu tại hải đảo',N'Special administrative region',N'Đặc khu',N'Special administrative region',N'dac_khu',N'special_administrative_region');
+INSERT INTO #administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(1,N'Thành phố trực thuộc trung ương',N'Municipality',N'Thành phố',N'City',N'thanh_pho_truc_thuoc_trung_uong',N'municipality');
+INSERT INTO #administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(2,N'Tỉnh',N'Province',N'Tỉnh',N'Province',N'tinh',N'province');
+INSERT INTO #administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(3,N'Phường',N'Ward',N'Phường',N'Ward',N'phuong',N'ward');
+INSERT INTO #administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(4,N'Xã',N'Commune',N'Xã',N'Commune',N'xa',N'commune');
+INSERT INTO #administrative_units(id,full_name,full_name_en,short_name,short_name_en,code_name,code_name_en) VALUES(5,N'Đặc khu tại hải đảo',N'Special administrative region',N'Đặc khu',N'Special administrative region',N'dac_khu',N'special_administrative_region');
 -- ----------------------------------
 
 -- DATA for provinces --
-INSERT INTO staging.provinces(code,name,name_en,full_name,full_name_en,code_name,administrative_unit_id) VALUES
+INSERT INTO #provinces(code,name,name_en,full_name,full_name_en,code_name,administrative_unit_id) VALUES
 ('01',N'Hà Nội',N'Ha Noi',N'Thành phố Hà Nội',N'Ha Noi City','ha_noi',1),
 ('04',N'Cao Bằng',N'Cao Bang',N'Tỉnh Cao Bằng',N'Cao Bang Province','cao_bang',2),
 ('08',N'Tuyên Quang',N'Tuyen Quang',N'Tỉnh Tuyên Quang',N'Tuyen Quang Province','tuyen_quang',2),
@@ -76,7 +157,7 @@ INSERT INTO staging.provinces(code,name,name_en,full_name,full_name_en,code_name
 -- ----------------------------------
 
 -- DATA for wards --
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('00004',N'Ba Đình',N'Ba Dinh',N'Phường Ba Đình',N'Ba Dinh Ward','ba_dinh','01',3),
 ('00008',N'Ngọc Hà',N'Ngoc Ha',N'Phường Ngọc Hà',N'Ngoc Ha Ward','ngoc_ha','01',3),
 ('00025',N'Giảng Võ',N'Giang Vo',N'Phường Giảng Võ',N'Giang Vo Ward','giang_vo','01',3),
@@ -128,7 +209,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('09604',N'Tùng Thiện',N'Tung Thien',N'Phường Tùng Thiện',N'Tung Thien Ward','tung_thien','01',3),
 ('09886',N'Dương Nội',N'Duong Noi',N'Phường Dương Nội',N'Duong Noi Ward','duong_noi','01',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('10015',N'Chương Mỹ',N'Chuong My',N'Phường Chương Mỹ',N'Chuong My Ward','chuong_my','01',3),
 ('00376',N'Sóc Sơn',N'Soc Son',N'Xã Sóc Sơn',N'Soc Son Commune','soc_son','01',4),
 ('00382',N'Kim Anh',N'Kim Anh',N'Xã Kim Anh',N'Kim Anh Commune','kim_anh','01',4),
@@ -180,7 +261,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('09982',N'Hạ Bằng',N'Ha Bang',N'Xã Hạ Bằng',N'Ha Bang Commune','ha_bang','01',4),
 ('09988',N'Hòa Lạc',N'Hoa Lac',N'Xã Hòa Lạc',N'Hoa Lac Commune','hoa_lac','01',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('10003',N'Tây Phương',N'Tay Phuong',N'Xã Tây Phương',N'Tay Phuong Commune','tay_phuong','01',4),
 ('10030',N'Phú Nghĩa',N'Phu Nghia',N'Xã Phú Nghĩa',N'Phu Nghia Commune','phu_nghia','01',4),
 ('10045',N'Xuân Mai',N'Xuan Mai',N'Xã Xuân Mai',N'Xuan Mai Commune','xuan_mai','01',4),
@@ -232,7 +313,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('01438',N'Hà Quảng',N'Ha Quang',N'Xã Hà Quảng',N'Ha Quang Commune','ha_quang','04',4),
 ('01447',N'Trà Lĩnh',N'Tra Linh',N'Xã Trà Lĩnh',N'Tra Linh Commune','tra_linh','04',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('01456',N'Quang Hán',N'Quang Han',N'Xã Quang Hán',N'Quang Han Commune','quang_han','04',4),
 ('01465',N'Quang Trung',N'Quang Trung',N'Xã Quang Trung',N'Quang Trung Commune','quang_trung','04',4),
 ('01477',N'Trùng Khánh',N'Trung Khanh',N'Xã Trùng Khánh',N'Trung Khanh Commune','trung_khanh','04',4),
@@ -284,7 +365,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('00787',N'Sủng Máng',N'Sung Mang',N'Xã Sủng Máng',N'Sung Mang Commune','sung_mang','08',4),
 ('00802',N'Khâu Vai',N'Khau Vai',N'Xã Khâu Vai',N'Khau Vai Commune','khau_vai','08',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('00808',N'Tát Ngà',N'Tat Nga',N'Xã Tát Ngà',N'Tat Nga Commune','tat_nga','08',4),
 ('00817',N'Niêm Sơn',N'Niem Son',N'Xã Niêm Sơn',N'Niem Son Commune','niem_son','08',4),
 ('00820',N'Yên Minh',N'Yen Minh',N'Xã Yên Minh',N'Yen Minh Commune','yen_minh','08',4),
@@ -336,7 +417,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('01171',N'Tân Quang',N'Tan Quang',N'Xã Tân Quang',N'Tan Quang Commune','tan_quang','08',4),
 ('01180',N'Bằng Hành',N'Bang Hanh',N'Xã Bằng Hành',N'Bang Hanh Commune','bang_hanh','08',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('01192',N'Liên Hiệp',N'Lien Hiep',N'Xã Liên Hiệp',N'Lien Hiep Commune','lien_hiep','08',4),
 ('01201',N'Hùng An',N'Hung An',N'Xã Hùng An',N'Hung An Commune','hung_an','08',4),
 ('01216',N'Đồng Yên',N'Dong Yen',N'Xã Đồng Yên',N'Dong Yen Commune','dong_yen','08',4),
@@ -388,7 +469,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('02548',N'Bình Ca',N'Binh Ca',N'Xã Bình Ca',N'Binh Ca Commune','binh_ca','08',4),
 ('02554',N'Minh Thanh',N'Minh Thanh',N'Xã Minh Thanh',N'Minh Thanh Commune','minh_thanh','08',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('02572',N'Đông Thọ',N'Dong Tho',N'Xã Đông Thọ',N'Dong Tho Commune','dong_tho','08',4),
 ('02578',N'Tân Thanh',N'Tan Thanh',N'Xã Tân Thanh',N'Tan Thanh Commune','tan_thanh','08',4),
 ('02608',N'Hồng Sơn',N'Hong Son',N'Xã Hồng Sơn',N'Hong Son Commune','hong_son','08',4),
@@ -440,7 +521,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('03370',N'Pu Nhi',N'Pu Nhi',N'Xã Pu Nhi',N'Pu Nhi Commune','pu_nhi','11',4),
 ('03382',N'Phình Giàng',N'Phinh Giang',N'Xã Phình Giàng',N'Phinh Giang Commune','phinh_giang','11',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('03385',N'Tìa Dình',N'Tia Dinh',N'Xã Tìa Dình',N'Tia Dinh Commune','tia_dinh','11',4),
 ('03388',N'Đoàn Kết',N'Doan Ket',N'Phường Đoàn Kết',N'Doan Ket Ward','doan_ket','12',3),
 ('03408',N'Tân Phong',N'Tan Phong',N'Phường Tân Phong',N'Tan Phong Ward','tan_phong','12',3),
@@ -492,7 +573,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('03694',N'Mường Giôn',N'Muong Gion',N'Xã Mường Giôn',N'Muong Gion Commune','muong_gion','14',4),
 ('03703',N'Quỳnh Nhai',N'Quynh Nhai',N'Xã Quỳnh Nhai',N'Quynh Nhai Commune','quynh_nhai','14',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('03712',N'Mường Sại',N'Muong Sai',N'Xã Mường Sại',N'Muong Sai Commune','muong_sai','14',4),
 ('03721',N'Thuận Châu',N'Thuan Chau',N'Xã Thuận Châu',N'Thuan Chau Commune','thuan_chau','14',4),
 ('03724',N'Bình Thuận',N'Binh Thuan',N'Xã Bình Thuận',N'Binh Thuan Commune','binh_thuan','14',4),
@@ -544,7 +625,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('04136',N'Tà Hộc',N'Ta Hoc',N'Xã Tà Hộc',N'Ta Hoc Commune','ta_hoc','14',4),
 ('04144',N'Phiêng Cằm',N'Phieng Cam',N'Xã Phiêng Cằm',N'Phieng Cam Commune','phieng_cam','14',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('04159',N'Phiêng Pằn',N'Phieng Pan',N'Xã Phiêng Pằn',N'Phieng Pan Commune','phieng_pan','14',4),
 ('04168',N'Sông Mã',N'Song Ma',N'Xã Sông Mã',N'Song Ma Commune','song_ma','14',4),
 ('04171',N'Bó Sinh',N'Bo Sinh',N'Xã Bó Sinh',N'Bo Sinh Commune','bo_sinh','14',4),
@@ -596,7 +677,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('02923',N'Gia Phú',N'Gia Phu',N'Xã Gia Phú',N'Gia Phu Commune','gia_phu','15',4),
 ('02926',N'Xuân Quang',N'Xuan Quang',N'Xã Xuân Quang',N'Xuan Quang Commune','xuan_quang','15',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('02947',N'Bảo Yên',N'Bao Yen',N'Xã Bảo Yên',N'Bao Yen Commune','bao_yen','15',4),
 ('02953',N'Nghĩa Đô',N'Nghia Do',N'Xã Nghĩa Đô',N'Nghia Do Commune','nghia_do','15',4),
 ('02962',N'Xuân Hòa',N'Xuan Hoa',N'Xã Xuân Hòa',N'Xuan Hoa Commune','xuan_hoa','15',4),
@@ -648,7 +729,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('04609',N'Phình Hồ',N'Phinh Ho',N'Xã Phình Hồ',N'Phinh Ho Commune','phinh_ho','15',4),
 ('04630',N'Tú Lệ',N'Tu Le',N'Xã Tú Lệ',N'Tu Le Commune','tu_le','15',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('04636',N'Gia Hội',N'Gia Hoi',N'Xã Gia Hội',N'Gia Hoi Commune','gia_hoi','15',4),
 ('04651',N'Sơn Lương',N'Son Luong',N'Xã Sơn Lương',N'Son Luong Commune','son_luong','15',4),
 ('04660',N'Liên Sơn',N'Lien Son',N'Xã Liên Sơn',N'Lien Son Commune','lien_son','15',4),
@@ -700,7 +781,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('02026',N'Nam Cường',N'Nam Cuong',N'Xã Nam Cường',N'Nam Cuong Commune','nam_cuong','19',4),
 ('02038',N'Quảng Bạch',N'Quang Bach',N'Xã Quảng Bạch',N'Quang Bach Commune','quang_bach','19',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('02044',N'Yên Thịnh',N'Yen Thinh',N'Xã Yên Thịnh',N'Yen Thinh Commune','yen_thinh','19',4),
 ('02071',N'Nghĩa Tá',N'Nghia Ta',N'Xã Nghĩa Tá',N'Nghia Ta Commune','nghia_ta','19',4),
 ('02083',N'Yên Phong',N'Yen Phong',N'Xã Yên Phong',N'Yen Phong Commune','yen_phong','19',4),
@@ -752,7 +833,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('05845',N'Vạn Phú',N'Van Phu',N'Xã Vạn Phú',N'Van Phu Commune','van_phu','19',4),
 ('05851',N'Quân Chu',N'Quan Chu',N'Xã Quân Chu',N'Quan Chu Commune','quan_chu','19',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('05881',N'Thành Công',N'Thanh Cong',N'Xã Thành Công',N'Thanh Cong Commune','thanh_cong','19',4),
 ('05908',N'Phú Bình',N'Phu Binh',N'Xã Phú Bình',N'Phu Binh Commune','phu_binh','19',4),
 ('05917',N'Tân Khánh',N'Tan Khanh',N'Xã Tân Khánh',N'Tan Khanh Commune','tan_khanh','19',4),
@@ -804,7 +885,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('06391',N'Yên Bình',N'Yen Binh',N'Xã Yên Bình',N'Yen Binh Commune','yen_binh','20',4),
 ('06400',N'Hữu Liên',N'Huu Lien',N'Xã Hữu Liên',N'Huu Lien Commune','huu_lien','20',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('06415',N'Vân Nham',N'Van Nham',N'Xã Vân Nham',N'Van Nham Commune','van_nham','20',4),
 ('06427',N'Cai Kinh',N'Cai Kinh',N'Xã Cai Kinh',N'Cai Kinh Commune','cai_kinh','20',4),
 ('06436',N'Thiện Tân',N'Thien Tan',N'Xã Thiện Tân',N'Thien Tan Commune','thien_tan','20',4),
@@ -856,7 +937,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('07147',N'Hiệp Hòa',N'Hiep Hoa',N'Phường Hiệp Hòa',N'Hiep Hoa Ward','hiep_hoa','22',3),
 ('07168',N'Hà An',N'Ha An',N'Phường Hà An',N'Ha An Ward','ha_an','22',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('07180',N'Liên Hòa',N'Lien Hoa',N'Phường Liên Hòa',N'Lien Hoa Ward','lien_hoa','22',3),
 ('07183',N'Phong Cốc',N'Phong Coc',N'Phường Phong Cốc',N'Phong Coc Ward','phong_coc','22',3),
 ('06724',N'Hải Sơn',N'Hai Son',N'Xã Hải Sơn',N'Hai Son Commune','hai_son','22',4),
@@ -908,7 +989,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('09325',N'Hạp Lĩnh',N'Hap Linh',N'Phường Hạp Lĩnh',N'Hap Linh Ward','hap_linh','24',3),
 ('09367',N'Từ Sơn',N'Tu Son',N'Phường Từ Sơn',N'Tu Son Ward','tu_son','24',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('09370',N'Tam Sơn',N'Tam Son',N'Phường Tam Sơn',N'Tam Son Ward','tam_son','24',3),
 ('09379',N'Phù Khê',N'Phu Khe',N'Phường Phù Khê',N'Phu Khe Ward','phu_khe','24',3),
 ('09385',N'Đồng Nguyên',N'Dong Nguyen',N'Phường Đồng Nguyên',N'Dong Nguyen Ward','dong_nguyen','24',3),
@@ -960,7 +1041,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('07735',N'Đồng Việt',N'Dong Viet',N'Xã Đồng Việt',N'Dong Viet Commune','dong_viet','24',4),
 ('07822',N'Hoàng Vân',N'Hoang Van',N'Xã Hoàng Vân',N'Hoang Van Commune','hoang_van','24',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('07840',N'Hiệp Hòa',N'Hiep Hoa',N'Xã Hiệp Hòa',N'Hiep Hoa Commune','hiep_hoa','24',4),
 ('07864',N'Hợp Thịnh',N'Hop Thinh',N'Xã Hợp Thịnh',N'Hop Thinh Commune','hop_thinh','24',4),
 ('07870',N'Xuân Cẩm',N'Xuan Cam',N'Xã Xuân Cẩm',N'Xuan Cam Commune','xuan_cam','24',4),
@@ -1012,7 +1093,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('04990',N'Nật Sơn',N'Nat Son',N'Xã Nật Sơn',N'Nat Son Commune','nat_son','25',4),
 ('05014',N'Mường Động',N'Muong Dong',N'Xã Mường Động',N'Muong Dong Commune','muong_dong','25',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('05047',N'Cao Dương',N'Cao Duong',N'Xã Cao Dương',N'Cao Duong Commune','cao_duong','25',4),
 ('05068',N'Hợp Kim',N'Hop Kim',N'Xã Hợp Kim',N'Hop Kim Commune','hop_kim','25',4),
 ('05086',N'Dũng Tiến',N'Dung Tien',N'Xã Dũng Tiến',N'Dung Tien Commune','dung_tien','25',4),
@@ -1064,7 +1145,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('08236',N'Phú Mỹ',N'Phu My',N'Xã Phú Mỹ',N'Phu My Commune','phu_my','25',4),
 ('08245',N'Trạm Thản',N'Tram Than',N'Xã Trạm Thản',N'Tram Than Commune','tram_than','25',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('08254',N'Dân Chủ',N'Dan Chu',N'Xã Dân Chủ',N'Dan Chu Commune','dan_chu','25',4),
 ('08275',N'Bình Phú',N'Binh Phu',N'Xã Bình Phú',N'Binh Phu Commune','binh_phu','25',4),
 ('08290',N'Yên Lập',N'Yen Lap',N'Xã Yên Lập',N'Yen Lap Commune','yen_lap','25',4),
@@ -1116,7 +1197,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('08866',N'Sơn Đông',N'Son Dong',N'Xã Sơn Đông',N'Son Dong Commune','son_dong','25',4),
 ('08869',N'Tam Dương',N'Tam Duong',N'Xã Tam Dương',N'Tam Duong Commune','tam_duong','25',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('08872',N'Tam Dương Bắc',N'Tam Duong Bac',N'Xã Tam Dương Bắc',N'Tam Duong Bac Commune','tam_duong_bac','25',4),
 ('08896',N'Hoàng An',N'Hoang An',N'Xã Hoàng An',N'Hoang An Commune','hoang_an','25',4),
 ('08905',N'Hội Thịnh',N'Hoi Thinh',N'Xã Hội Thịnh',N'Hoi Thinh Commune','hoi_thinh','25',4),
@@ -1168,7 +1249,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('11413',N'Hải An',N'Hai An',N'Phường Hải An',N'Hai An Ward','hai_an','31',3),
 ('11443',N'Kiến An',N'Kien An',N'Phường Kiến An',N'Kien An Ward','kien_an','31',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('11446',N'Phù Liễn',N'Phu Lien',N'Phường Phù Liễn',N'Phu Lien Ward','phu_lien','31',3),
 ('11455',N'Đồ Sơn',N'Do Son',N'Phường Đồ Sơn',N'Do Son Ward','do_son','31',3),
 ('11473',N'Bạch Đằng',N'Bach Dang',N'Phường Bạch Đằng',N'Bach Dang Ward','bach_dang','31',3),
@@ -1220,7 +1301,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('11146',N'Nguyên Giáp',N'Nguyen Giap',N'Xã Nguyên Giáp',N'Nguyen Giap Commune','nguyen_giap','31',4),
 ('11164',N'Vĩnh Lại',N'Vinh Lai',N'Xã Vĩnh Lại',N'Vinh Lai Commune','vinh_lai','31',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('11167',N'Tân An',N'Tan An',N'Xã Tân An',N'Tan An Commune','tan_an','31',4),
 ('11203',N'Ninh Giang',N'Ninh Giang',N'Xã Ninh Giang',N'Ninh Giang Commune','ninh_giang','31',4),
 ('11218',N'Hồng Châu',N'Hong Chau',N'Xã Hồng Châu',N'Hong Chau Commune','hong_chau','31',4),
@@ -1272,7 +1353,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('11995',N'Đại Đồng',N'Dai Dong',N'Xã Đại Đồng',N'Dai Dong Commune','dai_dong','33',4),
 ('12004',N'Như Quỳnh',N'Nhu Quynh',N'Xã Như Quỳnh',N'Nhu Quynh Commune','nhu_quynh','33',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('12019',N'Văn Giang',N'Van Giang',N'Xã Văn Giang',N'Van Giang Commune','van_giang','33',4),
 ('12025',N'Phụng Công',N'Phung Cong',N'Xã Phụng Công',N'Phung Cong Commune','phung_cong','33',4),
 ('12031',N'Nghĩa Trụ',N'Nghia Tru',N'Xã Nghĩa Trụ',N'Nghia Tru Commune','nghia_tru','33',4),
@@ -1324,7 +1405,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('12700',N'Bắc Tiên Hưng',N'Bac Tien Hung',N'Xã Bắc Tiên Hưng',N'Bac Tien Hung Commune','bac_tien_hung','33',4),
 ('12736',N'Đông Tiên Hưng',N'Dong Tien Hung',N'Xã Đông Tiên Hưng',N'Dong Tien Hung Commune','dong_tien_hung','33',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('12745',N'Bắc Đông Quan',N'Bac Dong Quan',N'Xã Bắc Đông Quan',N'Bac Dong Quan Commune','bac_dong_quan','33',4),
 ('12754',N'Tiên Hưng',N'Tien Hung',N'Xã Tiên Hưng',N'Tien Hung Commune','tien_hung','33',4),
 ('12763',N'Nam Tiên Hưng',N'Nam Tien Hung',N'Xã Nam Tiên Hưng',N'Nam Tien Hung Commune','nam_tien_hung','33',4),
@@ -1376,7 +1457,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('13384',N'Kim Bảng',N'Kim Bang',N'Phường Kim Bảng',N'Kim Bang Ward','kim_bang','37',3),
 ('13393',N'Lê Hồ',N'Le Ho',N'Phường Lê Hồ',N'Le Ho Ward','le_ho','37',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('13396',N'Nguyễn Úy',N'Nguyen Uy',N'Phường Nguyễn Úy',N'Nguyen Uy Ward','nguyen_uy','37',3),
 ('13402',N'Kim Thanh',N'Kim Thanh',N'Phường Kim Thanh',N'Kim Thanh Ward','kim_thanh','37',3),
 ('13420',N'Tam Chúc',N'Tam Chuc',N'Phường Tam Chúc',N'Tam Chuc Ward','tam_chuc','37',3),
@@ -1428,7 +1509,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('13879',N'Yên Đồng',N'Yen Dong',N'Xã Yên Đồng',N'Yen Dong Commune','yen_dong','37',4),
 ('13891',N'Nghĩa Hưng',N'Nghia Hung',N'Xã Nghĩa Hưng',N'Nghia Hung Commune','nghia_hung','37',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('13894',N'Rạng Đông',N'Rang Dong',N'Xã Rạng Đông',N'Rang Dong Commune','rang_dong','37',4),
 ('13900',N'Đồng Thịnh',N'Dong Thinh',N'Xã Đồng Thịnh',N'Dong Thinh Commune','dong_thinh','37',4),
 ('13918',N'Nghĩa Sơn',N'Nghia Son',N'Xã Nghĩa Sơn',N'Nghia Son Commune','nghia_son','37',4),
@@ -1480,7 +1561,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('14494',N'Gia Trấn',N'Gia Tran',N'Xã Gia Trấn',N'Gia Tran Commune','gia_tran','37',4),
 ('14500',N'Đại Hoàng',N'Dai Hoang',N'Xã Đại Hoàng',N'Dai Hoang Commune','dai_hoang','37',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('14524',N'Gia Phong',N'Gia Phong',N'Xã Gia Phong',N'Gia Phong Commune','gia_phong','37',4),
 ('14560',N'Yên Khánh',N'Yen Khanh',N'Xã Yên Khánh',N'Yen Khanh Commune','yen_khanh','37',4),
 ('14563',N'Khánh Thiện',N'Khanh Thien',N'Xã Khánh Thiện',N'Khanh Thien Commune','khanh_thien','37',4),
@@ -1532,7 +1613,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('14878',N'Phú Lệ',N'Phu Le',N'Xã Phú Lệ',N'Phu Le Commune','phu_le','38',4),
 ('14890',N'Phú Xuân',N'Phu Xuan',N'Xã Phú Xuân',N'Phu Xuan Commune','phu_xuan','38',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('14896',N'Hiền Kiệt',N'Hien Kiet',N'Xã Hiền Kiệt',N'Hien Kiet Commune','hien_kiet','38',4),
 ('14902',N'Nam Xuân',N'Nam Xuan',N'Xã Nam Xuân',N'Nam Xuan Commune','nam_xuan','38',4),
 ('14908',N'Thiên Phủ',N'Thien Phu',N'Xã Thiên Phủ',N'Thien Phu Commune','thien_phu','38',4),
@@ -1584,7 +1665,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('15361',N'Tây Đô',N'Tay Do',N'Xã Tây Đô',N'Tay Do Commune','tay_do','38',4),
 ('15382',N'Biện Thượng',N'Bien Thuong',N'Xã Biện Thượng',N'Bien Thuong Commune','bien_thuong','38',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('15409',N'Yên Phú',N'Yen Phu',N'Xã Yên Phú',N'Yen Phu Commune','yen_phu','38',4),
 ('15412',N'Quý Lộc',N'Quy Loc',N'Xã Quý Lộc',N'Quy Loc Commune','quy_loc','38',4),
 ('15421',N'Yên Trường',N'Yen Truong',N'Xã Yên Trường',N'Yen Truong Commune','yen_truong','38',4),
@@ -1636,7 +1717,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('16072',N'Hoa Lộc',N'Hoa Loc',N'Xã Hoa Lộc',N'Hoa Loc Commune','hoa_loc','38',4),
 ('16078',N'Vạn Lộc',N'Van Loc',N'Xã Vạn Lộc',N'Van Loc Commune','van_loc','38',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('16093',N'Nga Sơn',N'Nga Son',N'Xã Nga Sơn',N'Nga Son Commune','nga_son','38',4),
 ('16108',N'Tân Tiến',N'Tan Tien',N'Xã Tân Tiến',N'Tan Tien Commune','tan_tien','38',4),
 ('16114',N'Nga Thắng',N'Nga Thang',N'Xã Nga Thắng',N'Nga Thang Commune','nga_thang','38',4),
@@ -1688,7 +1769,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('16756',N'Tri Lễ',N'Tri Le',N'Xã Tri Lễ',N'Tri Le Commune','tri_le','40',4),
 ('16774',N'Mường Quàng',N'Muong Quang',N'Xã Mường Quàng',N'Muong Quang Commune','muong_quang','40',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('16777',N'Quỳ Châu',N'Quy Chau',N'Xã Quỳ Châu',N'Quy Chau Commune','quy_chau','40',4),
 ('16792',N'Châu Tiến',N'Chau Tien',N'Xã Châu Tiến',N'Chau Tien Commune','chau_tien','40',4),
 ('16801',N'Hùng Chân',N'Hung Chan',N'Xã Hùng Chân',N'Hung Chan Commune','hung_chan','40',4),
@@ -1740,7 +1821,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('17239',N'Mậu Thạch',N'Mau Thach',N'Xã Mậu Thạch',N'Mau Thach Commune','mau_thach','40',4),
 ('17242',N'Cam Phục',N'Cam Phuc',N'Xã Cam Phục',N'Cam Phuc Commune','cam_phuc','40',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('17248',N'Châu Khê',N'Chau Khe',N'Xã Châu Khê',N'Chau Khe Commune','chau_khe','40',4),
 ('17254',N'Con Cuông',N'Con Cuong',N'Xã Con Cuông',N'Con Cuong Commune','con_cuong','40',4),
 ('17263',N'Môn Sơn',N'Mon Son',N'Xã Môn Sơn',N'Mon Son Commune','mon_son','40',4),
@@ -1792,7 +1873,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('17827',N'Nghi Lộc',N'Nghi Loc',N'Xã Nghi Lộc',N'Nghi Loc Commune','nghi_loc','40',4),
 ('17833',N'Hải Lộc',N'Hai Loc',N'Xã Hải Lộc',N'Hai Loc Commune','hai_loc','40',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('17842',N'Thần Lĩnh',N'Than Linh',N'Xã Thần Lĩnh',N'Than Linh Commune','than_linh','40',4),
 ('17854',N'Văn Kiều',N'Van Kieu',N'Xã Văn Kiều',N'Van Kieu Commune','van_kieu','40',4),
 ('17857',N'Phúc Lộc',N'Phuc Loc',N'Xã Phúc Lộc',N'Phuc Loc Commune','phuc_loc','40',4),
@@ -1844,7 +1925,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('18466',N'Gia Hanh',N'Gia Hanh',N'Xã Gia Hanh',N'Gia Hanh Commune','gia_hanh','42',4),
 ('18481',N'Xuân Lộc',N'Xuan Loc',N'Xã Xuân Lộc',N'Xuan Loc Commune','xuan_loc','42',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('18484',N'Đồng Lộc',N'Dong Loc',N'Xã Đồng Lộc',N'Dong Loc Commune','dong_loc','42',4),
 ('18496',N'Hương Khê',N'Huong Khe',N'Xã Hương Khê',N'Huong Khe Commune','huong_khe','42',4),
 ('18502',N'Hà Linh',N'Ha Linh',N'Xã Hà Linh',N'Ha Linh Commune','ha_linh','42',4),
@@ -1896,7 +1977,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('18958',N'Tuyên Lâm',N'Tuyen Lam',N'Xã Tuyên Lâm',N'Tuyen Lam Commune','tuyen_lam','44',4),
 ('18985',N'Tuyên Phú',N'Tuyen Phu',N'Xã Tuyên Phú',N'Tuyen Phu Commune','tuyen_phu','44',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('18991',N'Tuyên Bình',N'Tuyen Binh',N'Xã Tuyên Bình',N'Tuyen Binh Commune','tuyen_binh','44',4),
 ('18997',N'Tuyên Hóa',N'Tuyen Hoa',N'Xã Tuyên Hóa',N'Tuyen Hoa Commune','tuyen_hoa','44',4),
 ('19021',N'Phú Trạch',N'Phu Trach',N'Xã Phú Trạch',N'Phu Trach Commune','phu_trach','44',4),
@@ -1948,7 +2029,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('19597',N'Cam Lộ',N'Cam Lo',N'Xã Cam Lộ',N'Cam Lo Commune','cam_lo','44',4),
 ('19603',N'Hiếu Giang',N'Hieu Giang',N'Xã Hiếu Giang',N'Hieu Giang Commune','hieu_giang','44',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('19624',N'Triệu Phong',N'Trieu Phong',N'Xã Triệu Phong',N'Trieu Phong Commune','trieu_phong','44',4),
 ('19639',N'Nam Cửa Việt',N'Nam Cua Viet',N'Xã Nam Cửa Việt',N'Nam Cua Viet Commune','nam_cua_viet','44',4),
 ('19645',N'Triệu Bình',N'Trieu Binh',N'Xã Triệu Bình',N'Trieu Binh Commune','trieu_binh','44',4),
@@ -2000,7 +2081,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('20161',N'Khe Tre',N'Khe Tre',N'Xã Khe Tre',N'Khe Tre Commune','khe_tre','46',4),
 ('20179',N'Nam Đông',N'Nam Dong',N'Xã Nam Đông',N'Nam Dong Commune','nam_dong','46',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('20182',N'Long Quảng',N'Long Quang',N'Xã Long Quảng',N'Long Quang Commune','long_quang','46',4),
 ('20194',N'Hải Vân',N'Hai Van',N'Phường Hải Vân',N'Hai Van Ward','hai_van','48',3),
 ('20197',N'Liên Chiểu',N'Lien Chieu',N'Phường Liên Chiểu',N'Lien Chieu Ward','lien_chieu','48',3),
@@ -2052,7 +2133,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('20635',N'Duy Nghĩa',N'Duy Nghia',N'Xã Duy Nghĩa',N'Duy Nghia Commune','duy_nghia','48',4),
 ('20641',N'Quế Sơn',N'Que Son',N'Xã Quế Sơn',N'Que Son Commune','que_son','48',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('20650',N'Xuân Phú',N'Xuan Phu',N'Xã Xuân Phú',N'Xuan Phu Commune','xuan_phu','48',4),
 ('20656',N'Nông Sơn',N'Nong Son',N'Xã Nông Sơn',N'Nong Son Commune','nong_son','48',4),
 ('20662',N'Quế Sơn Trung',N'Que Son Trung',N'Xã Quế Sơn Trung',N'Que Son Trung Commune','que_son_trung','48',4),
@@ -2104,7 +2185,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('21439',N'Đức Phổ',N'Duc Pho',N'Phường Đức Phổ',N'Duc Pho Ward','duc_pho','51',3),
 ('21451',N'Trà Câu',N'Tra Cau',N'Phường Trà Câu',N'Tra Cau Ward','tra_cau','51',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('21478',N'Sa Huỳnh',N'Sa Huynh',N'Phường Sa Huỳnh',N'Sa Huynh Ward','sa_huynh','51',3),
 ('23284',N'Đăk Cấm',N'Dak Cam',N'Phường Đăk Cấm',N'Dak Cam Ward','dak_cam','51',3),
 ('23293',N'Kon Tum',N'Kon Tum',N'Phường Kon Tum',N'Kon Tum Ward','kon_tum','51',3),
@@ -2156,7 +2237,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('21499',N'Ba Dinh',N'Ba Dinh',N'Xã Ba Dinh',N'Ba Dinh Commune','ba_dinh','51',4),
 ('21520',N'Đặng Thùy Trâm',N'Dang Thuy Tram',N'Xã Đặng Thùy Trâm',N'Dang Thuy Tram Commune','dang_thuy_tram','51',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('21523',N'Ba Tô',N'Ba To',N'Xã Ba Tô',N'Ba To Commune','ba_to','51',4),
 ('21529',N'Ba Vì',N'Ba Vi',N'Xã Ba Vì',N'Ba Vi Commune','ba_vi','51',4),
 ('21538',N'Ba Xa',N'Ba Xa',N'Xã Ba Xa',N'Ba Xa Commune','ba_xa','51',4),
@@ -2208,7 +2289,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('21655',N'Hoài Nhơn Bắc',N'Hoai Nhon Bac',N'Phường Hoài Nhơn Bắc',N'Hoai Nhon Bac Ward','hoai_nhon_bac','52',3),
 ('21661',N'Hoài Nhơn Tây',N'Hoai Nhon Tay',N'Phường Hoài Nhơn Tây',N'Hoai Nhon Tay Ward','hoai_nhon_tay','52',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('21664',N'Hoài Nhơn',N'Hoai Nhon',N'Phường Hoài Nhơn',N'Hoai Nhon Ward','hoai_nhon','52',3),
 ('21670',N'Hoài Nhơn Đông',N'Hoai Nhon Dong',N'Phường Hoài Nhơn Đông',N'Hoai Nhon Dong Ward','hoai_nhon_dong','52',3),
 ('21673',N'Hoài Nhơn Nam',N'Hoai Nhon Nam',N'Phường Hoài Nhơn Nam',N'Hoai Nhon Nam Ward','hoai_nhon_nam','52',3),
@@ -2260,7 +2341,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('21901',N'Ngô Mây',N'Ngo May',N'Xã Ngô Mây',N'Ngo May Commune','ngo_may','52',4),
 ('21940',N'An Nhơn Tây',N'An Nhon Tay',N'Xã An Nhơn Tây',N'An Nhon Tay Commune','an_nhon_tay','52',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('21952',N'Tuy Phước',N'Tuy Phuoc',N'Xã Tuy Phước',N'Tuy Phuoc Commune','tuy_phuoc','52',4),
 ('21964',N'Tuy Phước Bắc',N'Tuy Phuoc Bac',N'Xã Tuy Phước Bắc',N'Tuy Phuoc Bac Commune','tuy_phuoc_bac','52',4),
 ('21970',N'Tuy Phước Đông',N'Tuy Phuoc Dong',N'Xã Tuy Phước Đông',N'Tuy Phuoc Dong Commune','tuy_phuoc_dong','52',4),
@@ -2312,7 +2393,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('23887',N'Chư Prông',N'Chu Prong',N'Xã Chư Prông',N'Chu Prong Commune','chu_prong','52',4),
 ('23896',N'Bàu Cạn',N'Bau Can',N'Xã Bàu Cạn',N'Bau Can Commune','bau_can','52',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('23908',N'Ia Tôr',N'Ia Tor',N'Xã Ia Tôr',N'Ia Tor Commune','ia_tor','52',4),
 ('23911',N'Ia Boòng',N'Ia Boong',N'Xã Ia Boòng',N'Ia Boong Commune','ia_boong','52',4),
 ('23917',N'Ia Púch',N'Ia Puch',N'Xã Ia Púch',N'Ia Puch Commune','ia_puch','52',4),
@@ -2364,7 +2445,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('22504',N'Đại Lãnh',N'Dai Lanh',N'Xã Đại Lãnh',N'Dai Lanh Commune','dai_lanh','56',4),
 ('22516',N'Vạn Thắng',N'Van Thang',N'Xã Vạn Thắng',N'Van Thang Commune','van_thang','56',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('22525',N'Vạn Hưng',N'Van Hung',N'Xã Vạn Hưng',N'Van Hung Commune','van_hung','56',4),
 ('22546',N'Bắc Ninh Hòa',N'Bac Ninh Hoa',N'Xã Bắc Ninh Hòa',N'Bac Ninh Hoa Commune','bac_ninh_hoa','56',4),
 ('22552',N'Tây Ninh Hòa',N'Tay Ninh Hoa',N'Xã Tây Ninh Hòa',N'Tay Ninh Hoa Commune','tay_ninh_hoa','56',4),
@@ -2416,7 +2497,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('24121',N'Tân Lập',N'Tan Lap',N'Phường Tân Lập',N'Tan Lap Ward','tan_lap','66',3),
 ('24133',N'Buôn Ma Thuột',N'Buon Ma Thuot',N'Phường Buôn Ma Thuột',N'Buon Ma Thuot Ward','buon_ma_thuot','66',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('24154',N'Thành Nhất',N'Thanh Nhat',N'Phường Thành Nhất',N'Thanh Nhat Ward','thanh_nhat','66',3),
 ('24163',N'Tân An',N'Tan An',N'Phường Tân An',N'Tan An Ward','tan_an','66',3),
 ('24169',N'Ea Kao',N'Ea Kao',N'Phường Ea Kao',N'Ea Kao Ward','ea_kao','66',3),
@@ -2468,7 +2549,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('24277',N'Ea Tul',N'Ea Tul',N'Xã Ea Tul',N'Ea Tul Commune','ea_tul','66',4),
 ('24280',N'Cư M''gar',N'Cu M''gar',N'Xã Cư M''gar',N'Cu M''gar Commune','cu_mgar','66',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('24286',N'Ea M''Droh',N'Ea M''Droh',N'Xã Ea M''Droh',N'Ea M''Droh Commune','ea_mdroh','66',4),
 ('24301',N'Cuôr Đăng',N'Cuor Dang',N'Xã Cuôr Đăng',N'Cuor Dang Commune','cuor_dang','66',4),
 ('24310',N'Krông Búk',N'Krong Buk',N'Xã Krông Búk',N'Krong Buk Commune','krong_buk','66',4),
@@ -2520,7 +2601,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('22960',N'Bình Thuận',N'Binh Thuan',N'Phường Bình Thuận',N'Binh Thuan Ward','binh_thuan','68',3),
 ('23231',N'Phước Hội',N'Phuoc Hoi',N'Phường Phước Hội',N'Phuoc Hoi Ward','phuoc_hoi','68',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('23235',N'La Gi',N'La Gi',N'Phường La Gi',N'La Gi Ward','la_gi','68',3),
 ('24611',N'Bắc Gia Nghĩa',N'Bac Gia Nghia',N'Phường Bắc Gia Nghĩa',N'Bac Gia Nghia Ward','bac_gia_nghia','68',3),
 ('24615',N'Nam Gia Nghĩa',N'Nam Gia Nghia',N'Phường Nam Gia Nghĩa',N'Nam Gia Nghia Ward','nam_gia_nghia','68',3),
@@ -2572,7 +2653,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('23266',N'Sơn Mỹ',N'Son My',N'Xã Sơn Mỹ',N'Son My Commune','son_my','68',4),
 ('24616',N'Quảng Sơn',N'Quang Son',N'Xã Quảng Sơn',N'Quang Son Commune','quang_son','68',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('24620',N'Quảng Hòa',N'Quang Hoa',N'Xã Quảng Hòa',N'Quang Hoa Commune','quang_hoa','68',4),
 ('24631',N'Quảng Khê',N'Quang Khe',N'Xã Quảng Khê',N'Quang Khe Commune','quang_khe','68',4),
 ('24637',N'Tà Đùng',N'Ta Dung',N'Xã Tà Đùng',N'Ta Dung Commune','ta_dung','68',4),
@@ -2624,7 +2705,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('25018',N'Bảo Thuận',N'Bao Thuan',N'Xã Bảo Thuận',N'Bao Thuan Commune','bao_thuan','68',4),
 ('25036',N'Hòa Ninh',N'Hoa Ninh',N'Xã Hòa Ninh',N'Hoa Ninh Commune','hoa_ninh','68',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('25042',N'Hòa Bắc',N'Hoa Bac',N'Xã Hòa Bắc',N'Hoa Bac Commune','hoa_bac','68',4),
 ('25051',N'Sơn Điền',N'Son Dien',N'Xã Sơn Điền',N'Son Dien Commune','son_dien','68',4),
 ('25054',N'Bảo Lâm 1',N'Bao Lam 1',N'Xã Bảo Lâm 1',N'Bao Lam 1 Commune','bao_lam_1','68',4),
@@ -2676,7 +2757,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('25270',N'Lộc Ninh',N'Loc Ninh',N'Xã Lộc Ninh',N'Loc Ninh Commune','loc_ninh','75',4),
 ('25279',N'Lộc Tấn',N'Loc Tan',N'Xã Lộc Tấn',N'Loc Tan Commune','loc_tan','75',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('25280',N'Lộc Thạnh',N'Loc Thanh',N'Xã Lộc Thạnh',N'Loc Thanh Commune','loc_thanh','75',4),
 ('25292',N'Lộc Quang',N'Loc Quang',N'Xã Lộc Quang',N'Loc Quang Commune','loc_quang','75',4),
 ('25294',N'Lộc Thành',N'Loc Thanh',N'Xã Lộc Thành',N'Loc Thanh Commune','loc_thanh','75',4),
@@ -2728,7 +2809,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('26368',N'Long Thành',N'Long Thanh',N'Xã Long Thành',N'Long Thanh Commune','long_thanh','75',4),
 ('26383',N'An Phước',N'An Phuoc',N'Xã An Phước',N'An Phuoc Commune','an_phuoc','75',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('26389',N'Bình An',N'Binh An',N'Xã Bình An',N'Binh An Commune','binh_an','75',4),
 ('26413',N'Long Phước',N'Long Phuoc',N'Xã Long Phước',N'Long Phuoc Commune','long_phuoc','75',4),
 ('26422',N'Phước Thái',N'Phuoc Thai',N'Xã Phước Thái',N'Phuoc Thai Commune','phuoc_thai','75',4),
@@ -2780,7 +2861,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('26740',N'Sài Gòn',N'Sai Gon',N'Phường Sài Gòn',N'Sai Gon Ward','sai_gon','79',3),
 ('26743',N'Bến Thành',N'Ben Thanh',N'Phường Bến Thành',N'Ben Thanh Ward','ben_thanh','79',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('26758',N'Cầu Ông Lãnh',N'Cau Ong Lanh',N'Phường Cầu Ông Lãnh',N'Cau Ong Lanh Ward','cau_ong_lanh','79',3),
 ('26767',N'An Phú Đông',N'An Phu Dong',N'Phường An Phú Đông',N'An Phu Dong Ward','an_phu_dong','79',3),
 ('26773',N'Thới An',N'Thoi An',N'Phường Thới An',N'Thoi An Ward','thoi_an','79',3),
@@ -2832,7 +2913,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('27190',N'Vườn Lài',N'Vuon Lai',N'Phường Vườn Lài',N'Vuon Lai Ward','vuon_lai','79',3),
 ('27211',N'Hòa Bình',N'Hoa Binh',N'Phường Hòa Bình',N'Hoa Binh Ward','hoa_binh','79',3);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('27226',N'Phú Thọ',N'Phu Tho',N'Phường Phú Thọ',N'Phu Tho Ward','phu_tho','79',3),
 ('27232',N'Bình Thới',N'Binh Thoi',N'Phường Bình Thới',N'Binh Thoi Ward','binh_thoi','79',3),
 ('27238',N'Minh Phụng',N'Minh Phung',N'Phường Minh Phụng',N'Minh Phung Ward','minh_phung','79',3),
@@ -2884,7 +2965,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('26647',N'Hòa Hiệp',N'Hoa Hiep',N'Xã Hòa Hiệp',N'Hoa Hiep Commune','hoa_hiep','79',4),
 ('26656',N'Bình Châu',N'Binh Chau',N'Xã Bình Châu',N'Binh Chau Commune','binh_chau','79',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('26659',N'Long Điền',N'Long Dien',N'Xã Long Điền',N'Long Dien Commune','long_dien','79',4),
 ('26662',N'Long Hải',N'Long Hai',N'Xã Long Hải',N'Long Hai Commune','long_hai','79',4),
 ('26680',N'Đất Đỏ',N'Dat Do',N'Xã Đất Đỏ',N'Dat Do Commune','dat_do','79',4),
@@ -2936,7 +3017,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('25516',N'Tân Châu',N'Tan Chau',N'Xã Tân Châu',N'Tan Chau Commune','tan_chau','80',4),
 ('25522',N'Tân Đông',N'Tan Dong',N'Xã Tân Đông',N'Tan Dong Commune','tan_dong','80',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('25525',N'Tân Hội',N'Tan Hoi',N'Xã Tân Hội',N'Tan Hoi Commune','tan_hoi','80',4),
 ('25531',N'Tân Hòa',N'Tan Hoa',N'Xã Tân Hòa',N'Tan Hoa Commune','tan_hoa','80',4),
 ('25534',N'Tân Thành',N'Tan Thanh',N'Xã Tân Thành',N'Tan Thanh Commune','tan_thanh','80',4),
@@ -2988,7 +3069,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('27979',N'Hòa Khánh',N'Hoa Khanh',N'Xã Hòa Khánh',N'Hoa Khanh Commune','hoa_khanh','80',4),
 ('27991',N'Bến Lức',N'Ben Luc',N'Xã Bến Lức',N'Ben Luc Commune','ben_luc','80',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('27994',N'Thạnh Lợi',N'Thanh Loi',N'Xã Thạnh Lợi',N'Thanh Loi Commune','thanh_loi','80',4),
 ('28003',N'Lương Hòa',N'Luong Hoa',N'Xã Lương Hòa',N'Luong Hoa Commune','luong_hoa','80',4),
 ('28015',N'Bình Đức',N'Binh Duc',N'Xã Bình Đức',N'Binh Duc Commune','binh_duc','80',4),
@@ -3040,7 +3121,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('28327',N'Tân Phước 2',N'Tan Phuoc 2',N'Xã Tân Phước 2',N'Tan Phuoc 2 Commune','tan_phuoc_2','82',4),
 ('28336',N'Hưng Thạnh',N'Hung Thanh',N'Xã Hưng Thạnh',N'Hung Thanh Commune','hung_thanh','82',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('28345',N'Tân Phước 3',N'Tan Phuoc 3',N'Xã Tân Phước 3',N'Tan Phuoc 3 Commune','tan_phuoc_3','82',4),
 ('28360',N'Cái Bè',N'Cai Be',N'Xã Cái Bè',N'Cai Be Commune','cai_be','82',4),
 ('28366',N'Hậu Mỹ',N'Hau My',N'Xã Hậu Mỹ',N'Hau My Commune','hau_my','82',4),
@@ -3092,7 +3173,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('30010',N'Tam Nông',N'Tam Nong',N'Xã Tam Nông',N'Tam Nong Commune','tam_nong','82',4),
 ('30019',N'An Hòa',N'An Hoa',N'Xã An Hòa',N'An Hoa Commune','an_hoa','82',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('30025',N'Phú Cường',N'Phu Cuong',N'Xã Phú Cường',N'Phu Cuong Commune','phu_cuong','82',4),
 ('30028',N'An Long',N'An Long',N'Xã An Long',N'An Long Commune','an_long','82',4),
 ('30034',N'Phú Thọ',N'Phu Tho',N'Xã Phú Thọ',N'Phu Tho Commune','phu_tho','82',4),
@@ -3144,7 +3225,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('28810',N'Phú Túc',N'Phu Tuc',N'Xã Phú Túc',N'Phu Tuc Commune','phu_tuc','86',4),
 ('28840',N'Tân Phú',N'Tan Phu',N'Xã Tân Phú',N'Tan Phu Commune','tan_phu','86',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('28861',N'Tiên Thủy',N'Tien Thuy',N'Xã Tiên Thủy',N'Tien Thuy Commune','tien_thuy','86',4),
 ('28870',N'Chợ Lách',N'Cho Lach',N'Xã Chợ Lách',N'Cho Lach Commune','cho_lach','86',4),
 ('28879',N'Phú Phụng',N'Phu Phung',N'Xã Phú Phụng',N'Phu Phung Commune','phu_phung','86',4),
@@ -3196,7 +3277,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('29335',N'Tam Ngãi',N'Tam Ngai',N'Xã Tam Ngãi',N'Tam Ngai Commune','tam_ngai','86',4),
 ('29341',N'Tiểu Cần',N'Tieu Can',N'Xã Tiểu Cần',N'Tieu Can Commune','tieu_can','86',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('29362',N'Hùng Hòa',N'Hung Hoa',N'Xã Hùng Hòa',N'Hung Hoa Commune','hung_hoa','86',4),
 ('29365',N'Tập Ngãi',N'Tap Ngai',N'Xã Tập Ngãi',N'Tap Ngai Commune','tap_ngai','86',4),
 ('29371',N'Tân Hòa',N'Tan Hoa',N'Xã Tân Hòa',N'Tan Hoa Commune','tan_hoa','86',4),
@@ -3248,7 +3329,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('29830',N'Hòa Bình',N'Hoa Binh',N'Xã Hòa Bình',N'Hoa Binh Commune','hoa_binh','86',4),
 ('29836',N'Trà Côn',N'Tra Con',N'Xã Trà Côn',N'Tra Con Commune','tra_con','86',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('29845',N'Vĩnh Xuân',N'Vinh Xuan',N'Xã Vĩnh Xuân',N'Vinh Xuan Commune','vinh_xuan','86',4),
 ('29857',N'Lục Sĩ Thành',N'Luc Si Thanh',N'Xã Lục Sĩ Thành',N'Luc Si Thanh Commune','luc_si_thanh','86',4),
 ('30292',N'Bình Đức',N'Binh Duc',N'Phường Bình Đức',N'Binh Duc Ward','binh_duc','91',3),
@@ -3300,7 +3381,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('30628',N'Chợ Mới',N'Cho Moi',N'Xã Chợ Mới',N'Cho Moi Commune','cho_moi','91',4),
 ('30631',N'Long Điền',N'Long Dien',N'Xã Long Điền',N'Long Dien Commune','long_dien','91',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('30643',N'Cù Lao Giêng',N'Cu Lao Gieng',N'Xã Cù Lao Giêng',N'Cu Lao Gieng Commune','cu_lao_gieng','91',4),
 ('30658',N'Nhơn Mỹ',N'Nhon My',N'Xã Nhơn Mỹ',N'Nhon My Commune','nhon_my','91',4),
 ('30664',N'Long Kiến',N'Long Kien',N'Xã Long Kiến',N'Long Kien Commune','long_kien','91',4),
@@ -3352,7 +3433,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('31051',N'Vĩnh Phong',N'Vinh Phong',N'Xã Vĩnh Phong',N'Vinh Phong Commune','vinh_phong','91',4),
 ('31064',N'Vĩnh Bình',N'Vinh Binh',N'Xã Vĩnh Bình',N'Vinh Binh Commune','vinh_binh','91',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('31069',N'Vĩnh Thuận',N'Vinh Thuan',N'Xã Vĩnh Thuận',N'Vinh Thuan Commune','vinh_thuan','91',4),
 ('31078',N'Phú Quốc',N'Phu Quoc',N'Đặc khu Phú Quốc',N'Phu Quoc Special administrative region','phu_quoc','91',5),
 ('31105',N'Thổ Châu',N'Tho Chau',N'Đặc khu Thổ Châu',N'Tho Chau Special administrative region','tho_chau','91',5),
@@ -3404,7 +3485,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('31299',N'Phong Điền',N'Phong Dien',N'Xã Phong Điền',N'Phong Dien Commune','phong_dien','92',4),
 ('31309',N'Trường Long',N'Truong Long',N'Xã Trường Long',N'Truong Long Commune','truong_long','92',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('31315',N'Nhơn Ái',N'Nhon Ai',N'Xã Nhơn Ái',N'Nhon Ai Commune','nhon_ai','92',4),
 ('31338',N'Hỏa Lựu',N'Hoa Luu',N'Xã Hỏa Lựu',N'Hoa Luu Commune','hoa_luu','92',4),
 ('31342',N'Tân Hòa',N'Tan Hoa',N'Xã Tân Hòa',N'Tan Hoa Commune','tan_hoa','92',4),
@@ -3456,7 +3537,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('31717',N'Hòa Tú',N'Hoa Tu',N'Xã Hòa Tú',N'Hoa Tu Commune','hoa_tu','92',4),
 ('31723',N'Ngọc Tố',N'Ngoc To',N'Xã Ngọc Tố',N'Ngoc To Commune','ngoc_to','92',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('31726',N'Gia Hòa',N'Gia Hoa',N'Xã Gia Hòa',N'Gia Hoa Commune','gia_hoa','92',4),
 ('31741',N'Tân Long',N'Tan Long',N'Xã Tân Long',N'Tan Long Commune','tan_long','92',4),
 ('31756',N'Phú Lộc',N'Phu Loc',N'Xã Phú Lộc',N'Phu Loc Commune','phu_loc','92',4),
@@ -3508,7 +3589,7 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 ('32110',N'Khánh Bình',N'Khanh Binh',N'Xã Khánh Bình',N'Khanh Binh Commune','khanh_binh','96',4),
 ('32119',N'Khánh Hưng',N'Khanh Hung',N'Xã Khánh Hưng',N'Khanh Hung Commune','khanh_hung','96',4);
 
-INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
+INSERT INTO #wards(code,name,name_en,full_name,full_name_en,code_name,province_code,administrative_unit_id) VALUES
 ('32128',N'Cái Nước',N'Cai Nuoc',N'Xã Cái Nước',N'Cai Nuoc Commune','cai_nuoc','96',4),
 ('32134',N'Lương Thế Trân',N'Luong The Tran',N'Xã Lương Thế Trân',N'Luong The Tran Commune','luong_the_tran','96',4),
 ('32137',N'Tân Hưng',N'Tan Hung',N'Xã Tân Hưng',N'Tan Hung Commune','tan_hung','96',4),
@@ -3533,3 +3614,58 @@ INSERT INTO staging.wards(code,name,name_en,full_name,full_name_en,code_name,pro
 
 -- ----------------------------------
 -- END OF SCRIPT FILE --
+GO
+
+-- =======================================================================
+-- 3) TRANSFORM + GHI VÀO BẢNG THẬT — mỗi câu INSERT tự bỏ qua nếu bảng đích đã có dữ liệu
+-- (an toàn chạy lại nhiều lần, không lỗi trùng khoá [Code]).
+-- =======================================================================
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Province])
+BEGIN
+    INSERT INTO [dbo].[Province] ([Code], [Name], [Type], [NameWithType], [Slug], [CreatedDate])
+    SELECT
+        p.code,
+        p.name,
+        au.short_name,
+        p.full_name,
+        p.code_name,
+        SYSDATETIME()
+    FROM #provinces p
+    JOIN #administrative_units au ON au.id = p.administrative_unit_id;
+
+    PRINT N'Đã seed [dbo].[Province].';
+END
+ELSE
+BEGIN
+    PRINT N'[dbo].[Province] đã có dữ liệu — bỏ qua, không seed lại.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Ward])
+BEGIN
+    INSERT INTO [dbo].[Ward] ([Code], [Name], [Type], [NameWithType], [ProvinceCode], [Slug], [CreatedDate])
+    SELECT
+        w.code,
+        w.name,
+        au.short_name,
+        w.full_name,
+        w.province_code,
+        w.code_name,
+        SYSDATETIME()
+    FROM #wards w
+    JOIN #administrative_units au ON au.id = w.administrative_unit_id;
+
+    PRINT N'Đã seed [dbo].[Ward].';
+END
+ELSE
+BEGIN
+    PRINT N'[dbo].[Ward] đã có dữ liệu — bỏ qua, không seed lại.';
+END
+GO
+
+-- =======================================================================
+-- 4) ĐỐI CHIẾU KẾT QUẢ — kỳ vọng: 34 Province, 3321 Ward
+-- =======================================================================
+SELECT COUNT(*) AS ProvinceCount FROM [dbo].[Province];
+SELECT COUNT(*) AS WardCount FROM [dbo].[Ward];
+GO

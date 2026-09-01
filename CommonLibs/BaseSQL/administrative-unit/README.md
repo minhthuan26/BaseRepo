@@ -13,9 +13,7 @@ không còn tồn tại và không có dữ liệu "mới" nào để insert và
 - Chỉ insert dữ liệu vào `Province` và `Ward`.
 
 `BaseAdministrativeUnit.sql` (cạnh thư mục này) đã được chuẩn hoá theo đúng cấu trúc 2 cấp này —
-đây là script tạo schema **từ đầu** cho DB `AdministrativeUnit` hoàn toàn mới. `01_migrate_schema.sql`
-chỉ cần dùng khi DB đã tồn tại từ trước theo schema 3 cấp cũ (đã có bảng `District`/`Ward.DistrictCode`)
-và cần ALTER lại cho khớp — DB mới tạo từ `BaseAdministrativeUnit.sql` thì bỏ qua bước này.
+đây là script tạo schema **từ đầu** cho DB `AdministrativeUnit` hoàn toàn mới.
 
 ## Nguồn dữ liệu
 
@@ -24,24 +22,27 @@ tag [`v3.0.2`](https://github.com/thanglequoc/vietnamese-provinces-database/rele
 ("Breaking Change: Nghị Quyết 202/2025/QH15", công bố 2025-07-28) — dữ liệu build sẵn theo đúng
 [toàn văn 34 nghị quyết của UBTVQH về sắp xếp đơn vị hành chính cấp xã](https://xaydungchinhsach.chinhphu.vn/toan-van-34-nghi-quyet-cua-ubtvqh-ve-sap-xep-cac-don-vi-hanh-chinh-cap-xa-119250616215143373.htm).
 File gốc dùng: `sqlserver/ImportData_vn_units.sql` — tải nguyên văn ngày 2026-08-02, không chỉnh sửa
-dữ liệu, chỉ đổi tên bảng đích sang schema `staging` (xem đầu file `03_seed_staging_data.sql`).
+dữ liệu (xem đầu file `seed_administrative_unit.sql`).
 
 Số liệu: **34 Province**, **3.321 Ward**.
 
-## Cách chạy (theo đúng thứ tự)
+## Cách chạy
 
-Chạy tuần tự trên SQL Server, database `AdministrativeUnit` (mỗi file dùng `sqlserver` client,
-VD `sqlcmd`, SSMS, Azure Data Studio):
+```
+1. BaseAdministrativeUnit.sql        -- tạo schema Province/Ward
+2. seed_administrative_unit.sql      -- seed 34 Province + 3.321 Ward trong 1 file
+```
 
-1. `01_migrate_schema.sql` — **chỉ chạy nếu DB đã tồn tại theo schema 3 cấp cũ** (đã có bảng
-   `District`) và cần ALTER lại. Nếu tạo DB mới từ `BaseAdministrativeUnit.sql` thì bỏ qua bước
-   này — schema đã đúng 2 cấp sẵn.
-   ⚠️ File có DROP TABLE — đọc kỹ ghi chú đầu file trước khi chạy, đặc biệt nếu DB đã có dữ liệu thật.
-2. `02_create_staging_tables.sql` — tạo schema `staging` + 4 bảng tạm đúng cấu trúc nguồn gốc.
-3. `03_seed_staging_data.sql` — nạp dữ liệu gốc (nguyên văn, không chỉnh sửa) vào bảng staging.
-4. `04_transform_to_target_tables.sql` — map dữ liệu từ staging sang `dbo.Province` / `dbo.Ward`,
-   in ra số dòng để kiểm tra (kỳ vọng 34 / 3321).
-5. `05_cleanup_staging.sql` — xoá bảng + schema staging sau khi đã xác nhận kết quả đúng.
+`seed_administrative_unit.sql` tự nạp dữ liệu gốc vào **local temp table** (tiền tố `#`) rồi
+transform sang `Province`/`Ward` trong cùng 1 file — tự huỷ temp table khi phiên kết nối kết
+thúc, không cần file dọn dẹp riêng. An toàn chạy lại nhiều lần (`INSERT` vào `Province`/`Ward`
+tự bỏ qua nếu bảng đích đã có dữ liệu).
+
+**[2026-09-01]** Trước đây quy trình này chạy qua 5 file `01`-`05` riêng (schema 3 cấp cũ còn
+bảng `District` → ALTER bỏ `District` → tạo bảng `staging` → nạp dữ liệu → transform → dọn
+`staging`). Đã gộp lại thành 2 file ở trên và **xoá 5 file cũ** vì môi trường hiện tại luôn tạo
+DB mới từ đầu (drop-and-recreate khi cần đổi schema), không còn DB nào ở schema 3 cấp cũ cần
+tiến hoá dần nữa.
 
 ## Mapping field
 
@@ -65,8 +66,9 @@ thật sau này.
 
 ## Lưu ý / điểm mở
 
-- Script giả định `Province`/`Ward` đang **rỗng** khi chạy lần đầu. Chạy lại lần 2 mà chưa
-  `TRUNCATE` sẽ lỗi trùng khoá chính `Code` (xem ghi chú trong `04_transform_to_target_tables.sql`).
+- `seed_administrative_unit.sql` tự bỏ qua nếu `Province`/`Ward` đã có dữ liệu (an toàn chạy lại
+  nhiều lần) — muốn seed lại từ đầu với dữ liệu mới, tự `TRUNCATE TABLE [dbo].[Ward];
+  TRUNCATE TABLE [dbo].[Province];` trước khi chạy lại file.
 - `Slug` lấy nguyên `code_name` từ nguồn (dùng gạch dưới `_`, VD `ba_dinh`), không tự đổi sang
   gạch ngang `-` — nếu FE/BE cần format slug khác (VD `ba-dinh`), xử lý transform riêng, không sửa
   trực tiếp trong các script này.

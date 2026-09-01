@@ -209,7 +209,8 @@ CREATE TABLE [dbo].[tbl_Roles] (
 
     CONSTRAINT [PK_tbl_Roles] PRIMARY KEY CLUSTERED ([AutoId] ASC),
     -- RoleId cố ý KHÔNG unique 1 mình — được phép trùng giữa các Site khác nhau (multi-tenant),
-    -- unique thật sự là theo cặp (SiteId, RoleId). Xem CommonLibs/BaseSQL/multi-tenant/08_fix_roleid_unique_scope.sql.
+    -- unique thật sự là theo cặp (SiteId, RoleId). Xem CommonLibs/BaseSQL/multi-tenant/README.md
+    -- mục "Fix: RoleId vẫn unique toàn cục".
     CONSTRAINT [UQ_tbl_Roles_SiteId_RoleId] UNIQUE ([SiteId], [RoleId]),
     CONSTRAINT [FK_tbl_Roles_Site] FOREIGN KEY ([SiteId]) REFERENCES [dbo].[tbl_Site]([SiteId])
 );

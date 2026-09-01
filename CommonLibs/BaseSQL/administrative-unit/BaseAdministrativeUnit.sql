@@ -1,6 +1,9 @@
 USE AdministrativeUnit
 GO
 
+-- Sau khi chạy xong file này, seed dữ liệu 34 Province + 3.321 Ward bằng
+-- CommonLibs/BaseSQL/administrative-unit/seed_administrative_unit.sql (xem README.md cùng thư mục).
+
 -- =======================================================================
 -- 1. TẠO BẢNG TỈNH / THÀNH PHỐ (CẤP 1)
 -- =======================================================================

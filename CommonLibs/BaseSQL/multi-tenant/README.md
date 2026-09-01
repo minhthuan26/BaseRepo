@@ -241,9 +241,23 @@ giữ đúng nguyên tắc "Site Admin không tự bật được Module chưa m
 
 ## Lưu ý / điểm mở
 
-- Toàn bộ script giữ đúng convention của `BaseSQL.sql`: không dùng `FOREIGN KEY`, chỉ
-  dùng `INDEX` — DB không tự enforce tham chiếu, tầng ứng dụng tự đảm bảo tính toàn vẹn
-  như các bảng khác trong hệ thống.
+- **[Cập nhật sau khi retrofit constraint]** `BaseSQL.sql` đã được viết lại để có đầy đủ
+  `PRIMARY KEY`/`UNIQUE`/`FOREIGN KEY` đặt tên tường minh (không còn chỉ dùng `INDEX` trần
+  như mô tả gốc bên dưới) — quyết định này áp dụng cho DB **tạo mới hoàn toàn** từ file này.
+  Các script `00`-`08` trong thư mục này **không** viết lại theo constraint mới, vì chúng
+  là migration lịch sử cho 1 DB đã tồn tại từ trước (dùng index trần) — **không chạy lại
+  `00`-`08`** sau khi đã tạo DB từ `BaseSQL.sql` bản mới này (index tên cũ mà các script đó
+  tìm, VD `IX_Users_SiteId_UserId`, `IX_tbl_Site_Module_SiteId_ModuleId`,
+  `IX_Roles_SiteId_RoleId`, đã đổi thành `CONSTRAINT` tên khác — script sẽ lỗi hoặc tạo
+  trùng). `BaseSQL.sql` hiện tại vốn đã phản ánh đúng trạng thái *sau khi* áp dụng hết
+  `01`-`08` (đã có `tbl_Users.SiteId`, `tbl_Site_Module`, `tbl_Roles` unique theo
+  `(SiteId, RoleId)`...) — mô tả gốc dưới đây giữ lại để biết lý do lịch sử tại sao DB cũ
+  (trước retrofit) không dùng FK:
+
+- ~~Toàn bộ script giữ đúng convention của `BaseSQL.sql`: không dùng `FOREIGN KEY`, chỉ
+  dùng `INDEX`~~ — DB không tự enforce tham chiếu, tầng ứng dụng tự đảm bảo tính toàn vẹn
+  như các bảng khác trong hệ thống (**mô tả này đúng với `BaseSQL.sql` TRƯỚC khi retrofit
+  constraint, không còn đúng với bản hiện tại**).
 - `tbl_Roles.SiteId` trong schema gốc khai báo `VARCHAR(50)` (khác `tbl_Site.SiteId` là
   `VARCHAR(20)`) — lệch kiểu có sẵn từ trước, không phải phát sinh ở migration này. Hai
   cột `SiteId` mới trên `tbl_Role_Function`/`tbl_User_Role` dùng theo đúng kiểu nguồn

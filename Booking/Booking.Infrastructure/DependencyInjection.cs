@@ -22,7 +22,7 @@ namespace Booking.Infrastructure
 
             services.AddScoped<IFieldTypeRepository, FieldTypeRepository>();
             services.AddScoped<IFieldRepository, FieldRepository>();
-            // Repository registrations added by later tasks (PricingRule).
+            services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
 
             return services;
         }

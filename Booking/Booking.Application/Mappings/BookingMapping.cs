@@ -17,6 +17,12 @@ namespace Booking.Application.Mappings
                 .ForMember(dest => dest.OperationalStatus, opt => opt.MapFrom(src => src.OperationalStatus.ToString()));
             CreateMap<FieldInputDTO, FieldOutputDTO>()
                 .ForMember(dest => dest.OperationalStatus, opt => opt.MapFrom(src => ((Domain.Entities.FieldOperationalStatus)src.OperationalStatus).ToString()));
+
+            CreateMap<Domain.Entities.PricingRule, PricingRuleOutputDTO>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.DayOfWeek, opt => opt.MapFrom(src => src.DayOfWeek.ToString()));
+            CreateMap<PricingRuleInputDTO, PricingRuleOutputDTO>()
+                .ForMember(dest => dest.DayOfWeek, opt => opt.MapFrom(src => ((DayOfWeek)src.DayOfWeek).ToString()));
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using CommonLibs.Utils;
+﻿using CommonLibs.Logging;
+using CommonLibs.Utils;
 using Microsoft.AspNetCore.Http;
 using Serilog;
 using System.Diagnostics;
@@ -70,7 +71,7 @@ public sealed class GlobalExceptionMiddleware
 
         var requestHeaders = context.Request.Headers.ToDictionary(
             h => h.Key,
-            h => h.Value.ToString());
+            h => SensitiveHeaderMasker.Mask(h.Key, h.Value.ToString()));
 
         context.Response.Clear();
         context.Response.ContentType = "application/json; charset=utf-8";

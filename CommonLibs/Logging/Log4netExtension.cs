@@ -24,11 +24,6 @@ namespace CommonLibs.Logging
         // Logger chuyên dụng dùng để ghi file JSON chuẩn ElasticSearch
         private static readonly ILog _elasticLogger = LogManager.GetLogger("ElasticSearchLogger");
 
-        private static readonly string[] SensitiveHeaders =
-        {
-            "Authorization", "Cookie", "Set-Cookie", "Password", "RefreshToken", "AccessToken"
-        };
-
         private static readonly string[] ExcludedPaths =
         {
             "/swagger", "/health", "/favicon.ico"
@@ -101,7 +96,7 @@ namespace CommonLibs.Logging
                     #region Xử lý và đọc nội dung Request
                     requestHeaders = context.Request.Headers.ToDictionary(
                         h => h.Key,
-                        h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                        h => SensitiveHeaderMasker.Mask(h.Key, h.Value.ToString())
                     );
 
                     if (options.LogRequestBody && context.Request.ContentLength > 0 && context.Request.Body.CanRead && IsLoggableContentType(context.Request.ContentType))
@@ -128,7 +123,7 @@ namespace CommonLibs.Logging
                         #region Xử lý và đọc nội dung Response Headers
                         var responseHeaders = context.Response.Headers.ToDictionary(
                             h => h.Key,
-                            h => MaskSensitiveValue(h.Key, h.Value.ToString())
+                            h => SensitiveHeaderMasker.Mask(h.Key, h.Value.ToString())
                         );
                         #endregion
 
@@ -236,15 +231,6 @@ namespace CommonLibs.Logging
         {
             if (string.IsNullOrWhiteSpace(body)) return string.Empty;
             return body.Length <= maxLength ? body : body[..maxLength] + "...(trimmed)";
-        }
-
-        private static string MaskSensitiveValue(string key, string value)
-        {
-            if (SensitiveHeaders.Any(x => key.Contains(x, StringComparison.OrdinalIgnoreCase)))
-            {
-                return "***MASKED***";
-            }
-            return value;
         }
 
         private static bool IsLoggableContentType(string? contentType, bool allowHtml = false)

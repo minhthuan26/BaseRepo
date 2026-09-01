@@ -1,5 +1,6 @@
 ﻿using CommonLibs.DTOs;
 using CommonLibs.Entities;
+using CommonLibs.Logging;
 using CommonLibs.Utils;
 using Dapper;
 using FastMember;
@@ -11,6 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Net;
 
 namespace CommonLibs.BaseDbContext
@@ -153,21 +155,15 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                return await Connection.QueryAsync<T>(
-                                new CommandDefinition(
-                                    sql,
-                                    param,
-                                    transaction: CurrentTransaction,
-                                    cancellationToken: cancellationToken
-                                ));
-            }
-            catch
-            {
-                throw;
-            }
-
+            return await ExecuteLoggedAsync(
+                nameof(QueryAsync), sql, param,
+                () => Connection.QueryAsync<T>(
+                    new CommandDefinition(
+                        sql,
+                        param,
+                        transaction: CurrentTransaction,
+                        cancellationToken: cancellationToken
+                    )));
         }
 
         public async Task<T?> QueryFirstOrDefaultAsync<T>(
@@ -175,21 +171,15 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                return await Connection.QueryFirstOrDefaultAsync<T>(
-                                new CommandDefinition(
-                                    sql,
-                                    param,
-                                    transaction: CurrentTransaction,
-                                    cancellationToken: cancellationToken
-                                ));
-            }
-            catch
-            {
-                throw;
-            }
-
+            return await ExecuteLoggedAsync(
+                nameof(QueryFirstOrDefaultAsync), sql, param,
+                () => Connection.QueryFirstOrDefaultAsync<T>(
+                    new CommandDefinition(
+                        sql,
+                        param,
+                        transaction: CurrentTransaction,
+                        cancellationToken: cancellationToken
+                    )));
         }
 
         public async Task<T> ExecuteScalarAsync<T>(
@@ -197,20 +187,15 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                return await Connection.ExecuteScalarAsync<T>(
-                                new CommandDefinition(
-                                    sql,
-                                    param,
-                                    transaction: CurrentTransaction,
-                                    cancellationToken: cancellationToken
-                                ));
-            }
-            catch
-            {
-                throw;
-            }
+            return await ExecuteLoggedAsync(
+                nameof(ExecuteScalarAsync), sql, param,
+                () => Connection.ExecuteScalarAsync<T>(
+                    new CommandDefinition(
+                        sql,
+                        param,
+                        transaction: CurrentTransaction,
+                        cancellationToken: cancellationToken
+                    )));
         }
 
         public async Task<int> ExecuteAsync(
@@ -218,18 +203,52 @@ namespace CommonLibs.BaseDbContext
             object? param = null,
             CancellationToken cancellationToken = default)
         {
+            return await ExecuteLoggedAsync(
+                nameof(ExecuteAsync), sql, param,
+                () => Connection.ExecuteAsync(
+                    new CommandDefinition(
+                        sql,
+                        param,
+                        transaction: CurrentTransaction,
+                        cancellationToken: cancellationToken
+                    )));
+        }
+
+        private async Task<TResult> ExecuteLoggedAsync<TResult>(
+            string operation,
+            string sql,
+            object? parameters,
+            Func<Task<TResult>> execute)
+        {
+            var safeParameters = SqlLoggingHelper.GetSafeParameters(parameters);
+            var declareParameters = SqlLoggingHelper.BuildDeclareStatements(safeParameters);
+            _logger.LogInformation(
+                "SQL {Operation} executing | {SqlParameters} {SqlCommand}",
+                operation,
+                declareParameters,
+                sql);
+
+            var stopwatch = Stopwatch.StartNew();
             try
             {
-                return await Connection.ExecuteAsync(
-                                new CommandDefinition(
-                                    sql,
-                                    param,
-                                    transaction: CurrentTransaction,
-                                    cancellationToken: cancellationToken
-                                ));
+                var result = await execute();
+                stopwatch.Stop();
+                _logger.LogInformation(
+                    "SQL {Operation} completed in {ElapsedMilliseconds}ms",
+                    operation,
+                    stopwatch.ElapsedMilliseconds);
+                return result;
             }
-            catch
+            catch (Exception exception)
             {
+                stopwatch.Stop();
+                _logger.LogError(
+                    exception,
+                    "SQL {Operation} failed after {ElapsedMilliseconds}ms | {SqlParameters} {SqlCommand}",
+                    operation,
+                    stopwatch.ElapsedMilliseconds,
+                    declareParameters,
+                    sql);
                 throw;
             }
         }

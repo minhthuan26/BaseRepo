@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <Reference Include="EncryptionLibrary">
-      <HintPath>..\..\CommonLibs\Libs\EncryptionLibrary.dll</HintPath>
+      <HintPath>..\..\..\CommonLibs\Libs\EncryptionLibrary.dll</HintPath>
     </Reference>
   </ItemGroup>
 

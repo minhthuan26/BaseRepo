@@ -1,35 +1,31 @@
 <Solution>
-  <Folder Name="/Base/">
-    <Folder Name="/Base/AdministrativeUnit/">
-      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
-      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
-      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
-      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
-      <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
-    </Folder>
-    <Folder Name="/Base/Gateway/">
-      <Project Path="Base/Gateway/Gateway.Application/Gateway.Application.csproj" />
-      <Project Path="Base/Gateway/Gateway.Contract/Gateway.Contract.csproj" />
-      <Project Path="Base/Gateway/Gateway.Domain/Gateway.Domain.csproj" />
-      <Project Path="Base/Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
-      <Project Path="Base/Gateway/Gateway.Api/Gateway.Api.csproj" />
-    </Folder>
-    <Folder Name="/Base/Site/">
-      <Project Path="Base/Site/Site.Application/Site.Application.csproj" />
-      <Project Path="Base/Site/Site.Contract/Site.Contract.csproj" />
-      <Project Path="Base/Site/Site.Domain/Site.Domain.csproj" />
-      <Project Path="Base/Site/Site.Infrastructure/Site.Infrastructure.csproj" />
-      <Project Path="Base/Site/Site.Api/Site.Api.csproj" />
-    </Folder>
+  <Folder Name="/Base/AdministrativeUnit/">
+    <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Application/AdministrativeUnit.Application.csproj" />
+    <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Contract/AdministrativeUnit.Contract.csproj" />
+    <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Domain/AdministrativeUnit.Domain.csproj" />
+    <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Infrastructure/AdministrativeUnit.Infrastructure.csproj" />
+    <Project Path="Base/AdministrativeUnit/AdministrativeUnit.Api/AdministrativeUnit.Api.csproj" />
   </Folder>
-  <Folder Name="/SportsBooking/">
-    <Folder Name="/SportsBooking/Booking/">
-      <Project Path="SportsBooking/Booking/Booking.Application/Booking.Application.csproj" />
-      <Project Path="SportsBooking/Booking/Booking.Contract/Booking.Contract.csproj" />
-      <Project Path="SportsBooking/Booking/Booking.Domain/Booking.Domain.csproj" />
-      <Project Path="SportsBooking/Booking/Booking.Infrastructure/Booking.Infrastructure.csproj" />
-      <Project Path="SportsBooking/Booking/Booking.Api/Booking.Api.csproj" />
-    </Folder>
+  <Folder Name="/Base/Gateway/">
+    <Project Path="Base/Gateway/Gateway.Application/Gateway.Application.csproj" />
+    <Project Path="Base/Gateway/Gateway.Contract/Gateway.Contract.csproj" />
+    <Project Path="Base/Gateway/Gateway.Domain/Gateway.Domain.csproj" />
+    <Project Path="Base/Gateway/Gateway.Infrastructure/Gateway.Infrastructure.csproj" />
+    <Project Path="Base/Gateway/Gateway.Api/Gateway.Api.csproj" />
+  </Folder>
+  <Folder Name="/Base/Site/">
+    <Project Path="Base/Site/Site.Application/Site.Application.csproj" />
+    <Project Path="Base/Site/Site.Contract/Site.Contract.csproj" />
+    <Project Path="Base/Site/Site.Domain/Site.Domain.csproj" />
+    <Project Path="Base/Site/Site.Infrastructure/Site.Infrastructure.csproj" />
+    <Project Path="Base/Site/Site.Api/Site.Api.csproj" />
+  </Folder>
+  <Folder Name="/SportsBooking/Booking/">
+    <Project Path="SportsBooking/Booking/Booking.Application/Booking.Application.csproj" />
+    <Project Path="SportsBooking/Booking/Booking.Contract/Booking.Contract.csproj" />
+    <Project Path="SportsBooking/Booking/Booking.Domain/Booking.Domain.csproj" />
+    <Project Path="SportsBooking/Booking/Booking.Infrastructure/Booking.Infrastructure.csproj" />
+    <Project Path="SportsBooking/Booking/Booking.Api/Booking.Api.csproj" />
   </Folder>
   <Folder Name="/CommonLibs/">
     <Project Path="CommonLibs/CommonLibs.csproj" />

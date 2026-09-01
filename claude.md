@@ -1029,7 +1029,7 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
   `AdministrativeUnit` — **nếu DB đã tồn tại từ trước theo schema PK `Code` cũ (đã lỡ chạy bản trước khi sửa),
   cần xoá/tạo lại bảng `Province`/`Ward`** vì đổi PK không thể ALTER an toàn khi bảng đã có dữ liệu/PK khác; nếu
   DB chưa từng tạo thì chạy thẳng bản mới là đủ, (2) chạy tiếp `01`-`05` để seed dữ liệu (34 Province/3321 Ward)
-  nếu chưa có, (3) xác nhận UserName/Password kết nối DB trong `AdministrativeUnit/appsettings.json` đúng (đang
+  nếu chưa có, (3) xác nhận UserName/Password kết nối DB trong `Base/AdministrativeUnit/AdministrativeUnit.Api/appsettings.json` đúng (đang
   tạm dùng chung với Site). Theo `06-testing.md`, cần hỏi xác nhận trước khi test và chỉ test riêng API này. Lưu
   ý API đọc (`GetById`/`GetAll`/`Export`/`GetWardsByProvince`) không cần token (anonymous), chỉ API mutating mới
   cần. Test account cần Function `CreateProvince`/`UpdateProvince`/`DeleteProvince`/`ImportProvinces` (và tương
@@ -1048,7 +1048,7 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
   không còn đúng nữa — giờ chỉ cần có **bất kỳ** Role claim nào.
 - **Toàn bộ 8/8 entity của Site service đã có API đầy đủ** (Site, Module, Role, Function, RoleFunction, Screen,
   UserRole, UserSite) — không còn entity nào thiếu Repository/Controller trong service Site nữa.
-- Route YARP `site-route` trong `Gateway/appsettings.json` có `Match.Path: "api/site/{**catch-all}"` thiếu dấu
+- Route YARP `site-route` trong `Base/Gateway/Gateway.Api/appsettings.json` có `Match.Path: "api/site/{**catch-all}"` thiếu dấu
   `/` đầu so với các route khác — chưa xác nhận có gây lỗi thật hay không, cần kiểm tra khi test end-to-end qua
   Gateway.
 - Port 8001 của Site đang `ListenAnyIP` (mở trên mọi network interface) — cần đảm bảo ở tầng hạ tầng/firewall

@@ -18,7 +18,7 @@ CommonLibs   → Không phụ thuộc service nào
 - Domain layer **không** được reference Infrastructure hay Application.
 - Contract layer **không** được reference Domain/Application/Infrastructure — chỉ CommonLibs.
 - CommonLibs **không** được reference bất kỳ service cụ thể nào (Gateway, Site, ...).
-- Cả 3 service hiện có (`Gateway`, `Site`, `AdministrativeUnit`) đều đã tách Contract — DTO luôn nằm ở
+- Cả 4 service hiện có (`Gateway`, `Site`, `AdministrativeUnit`, `Booking`) đều đã tách Contract — DTO luôn nằm ở
   `{Service}.Contract/DTOs/`, không còn ở `{Service}.Domain/DTOs/` (xem `claude.md` mục Progress Log 2026-09-01).
   Service mới tạo sau này áp dụng ngay quy ước này từ đầu.
 

@@ -207,6 +207,7 @@ git commit -m "chore: scaffold Booking microservice project structure"
 - Create: `Booking/Booking.Api/Program.cs`
 - Create: `Booking/Booking.Api/appsettings.json`
 - Create: `Booking/Booking.Api/appsettings.Serilog.json`
+- Create: `Booking/Booking.Api/Properties/launchSettings.json`
 - Create: `Booking/Booking.Api/Utils/AddRequiredHeaderParameter.cs`
 - Create: `Booking/Booking.Infrastructure/DBContext/BookingDbContext.cs`
 - Create: `Booking/Booking.Infrastructure/DependencyInjection.cs`
@@ -496,10 +497,46 @@ app.UseEndpoints(endpoints =>
 app.Run();
 ```
 
+- [ ] **Step 6.5: Create `Properties/launchSettings.json`** — every sibling service (Gateway/Site/AdministrativeUnit) ships one; without it a bare `dotnet run` defaults to the `Production` environment, and `Program.cs`'s `if (app.Environment.IsDevelopment())` gate then hides `/swagger/v1/swagger.json` — which is exactly what Step 7 below checks. Mirrors `AdministrativeUnit.Api/Properties/launchSettings.json`, port/name swapped:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:53287",
+      "sslPort": 44348
+    }
+  },
+  "profiles": {
+    "Booking": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:8003",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
 - [ ] **Step 7: Verify it boots**
 
 Run: `dotnet build BaseRepo.slnx` — expect 0 Error.
-Run: `dotnet run --project Booking/Booking.Api/Booking.Api.csproj` (from repo root), then in another terminal: `curl http://localhost:8003/swagger/v1/swagger.json`
+Run: `dotnet run --project Booking/Booking.Api/Booking.Api.csproj` (from repo root — no `ASPNETCORE_ENVIRONMENT` override needed now that Step 6.5's `launchSettings.json` sets it), then in another terminal: `curl http://localhost:8003/swagger/v1/swagger.json`
 Expected: HTTP 200 with a Swagger JSON document (title "Booking API", no paths yet since no controllers exist). Stop the running process afterward (Ctrl+C).
 
 - [ ] **Step 8: Commit**

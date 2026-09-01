@@ -29,10 +29,11 @@
 - Create: `Booking/Booking.Application/Booking.Application.csproj`
 - Create: `Booking/Booking.Infrastructure/Booking.Infrastructure.csproj`
 - Create: `Booking/Booking.Api/Booking.Api.csproj`
+- Create: `Booking/Booking.Api/Program.cs` (minimal placeholder — see Step 6.5; Task 2 Step 6 replaces its content)
 - Modify: `BaseRepo.slnx`
 
 **Interfaces:**
-- Produces: 5 buildable (empty) projects that later tasks add files to.
+- Produces: 5 buildable projects that later tasks add files to (`Booking.Api` needs a placeholder `Program.cs` to be buildable at all — see Step 6.5).
 
 - [ ] **Step 1: Create `Booking.Domain.csproj`**
 
@@ -174,7 +175,19 @@ Add a new `<Folder Name="/Booking/">` block (alongside the existing `/Administra
   </Folder>
 ```
 
-- [ ] **Step 7: Verify the solution restores/builds with the (empty) new projects**
+- [ ] **Step 6.5: Create a placeholder `Booking/Booking.Api/Program.cs`** — `Booking.Api.csproj` uses `Microsoft.NET.Sdk.Web`, which implicitly requires an entry point (`OutputType=Exe`); with zero source files the build fails with CS5001 ("Program does not contain a static 'Main' method"), contradicting this task's own build-verification step below. This minimal placeholder exists only to satisfy that requirement — Task 2 Step 6 fully overwrites it with the real bootstrap content:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+var app = builder.Build();
+
+app.UseHttpsRedirection();
+
+app.Run();
+```
+
+- [ ] **Step 7: Verify the solution restores/builds with the new projects**
 
 Run: `dotnet build BaseRepo.slnx`
 Expected: build succeeds, 0 Error (new projects have no source files yet, so nothing to compile beyond the project shells).
@@ -389,7 +402,7 @@ namespace Booking.Api.Utils
 }
 ```
 
-- [ ] **Step 6: Create `Program.cs`** (mirrors `AdministrativeUnit.Api/Program.cs` exactly, names swapped, port 8003)
+- [ ] **Step 6: Overwrite `Program.cs`** — Task 1 left a minimal placeholder there (just enough to make `Booking.Api.csproj` buildable with zero other source files); replace its entire content with the real bootstrap below (mirrors `AdministrativeUnit.Api/Program.cs` exactly, names swapped, port 8003)
 
 ```csharp
 using Booking.Infrastructure;

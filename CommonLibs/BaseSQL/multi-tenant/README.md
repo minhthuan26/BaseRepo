@@ -102,7 +102,7 @@ Site sẽ mất hết quyền đã hoạt động trước đó nếu chưa có 
 từng cấp lại đúng 1 lần toàn bộ Function đang active cho mọi Role tên "Admin" khi deploy đợt
 code này lên DB cũ — không còn áp dụng cho DB mới tạo từ `BaseSQL.sql` (chưa có Role "Admin"
 nào để backfill). Cấp quyền cho tài khoản test chuẩn dùng
-`CommonLibs/BaseSQL/seed_admin_account.sql`; cấp cho Role/Site khác dùng API
+`Base/Gateway/Gateway.Api/SQL/seed_admin_account.sql`; cấp cho Role/Site khác dùng API
 `AssignRolePermissions` có sẵn.
 
 **Sau khi deploy ổn định**, quyền cụ thể của từng Role "Admin" (theo từng Site) nên được rà

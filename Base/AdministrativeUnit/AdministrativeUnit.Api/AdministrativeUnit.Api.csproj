@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\CommonLibs\CommonLibs.csproj" />
+    <ProjectReference Include="..\..\..\CommonLibs\CommonLibs.csproj" />
     <ProjectReference Include="..\AdministrativeUnit.Application\AdministrativeUnit.Application.csproj" />
     <ProjectReference Include="..\AdministrativeUnit.Contract\AdministrativeUnit.Contract.csproj" />
     <ProjectReference Include="..\AdministrativeUnit.Domain\AdministrativeUnit.Domain.csproj" />

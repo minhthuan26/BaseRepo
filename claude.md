@@ -17,7 +17,6 @@ Project **BaseRepo** là một hệ thống Microservices backend sử dụng **
 | API Gateway | YARP (Yet Another Reverse Proxy) |
 | Authentication | JWT Bearer Token |
 | Logging | log4net, Dynamic Logging |
-| Service Discovery | Consul |
 | Message Queue | RabbitMQ |
 | Caching | Redis |
 | Search Engine | Elasticsearch + Filebeat + Kibana |
@@ -37,7 +36,6 @@ BaseRepo/
 │   │   └── BaseDbContext.cs
 │   ├── BaseRabbitMQ/                 # RabbitMQ base consumer
 │   ├── BaseSQL/                      # SQL helpers
-│   ├── Consul/                       # Consul service discovery
 │   ├── Controllers/                  # Base controller
 │   │   └── BaseController.cs
 │   ├── DTOs/                         # Base DTOs (Input, Output, Filter)
@@ -84,7 +82,7 @@ BaseRepo/
 │   │   │   ├── Utils/
 │   │   │   ├── Keys/                 # JWT signing keys
 │   │   │   ├── Program.cs            # Entry point + DI + YARP + Auth config
-│   │   │   ├── appsettings.json      # Config (YARP routes, DB, JWT, Consul...)
+│   │   │   ├── appsettings.json      # Config (YARP routes, DB, JWT...)
 │   │   │   └── log4net.config
 │   │   │
 │   │   ├── Gateway.Application/      # 📋 Application Layer (CQRS Handlers)
@@ -466,6 +464,20 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Xoá `CommonLibs/Consul/` — dead code chưa từng được nối dây** (2026-09-01). Rà lại theo câu hỏi
+  "Consul có còn cần dùng không" — grep toàn repo xác nhận `ConsulExtensions`/`ConsulHostedService`/
+  `AddConsulRegistration` **không có nơi nào gọi tới**, kể cả `Program.cs` của cả 4 service. YARP
+  Gateway route bằng địa chỉ tĩnh viết cứng trong `appsettings.json`, không dùng Consul để discovery.
+  Service discovery thật sự (nếu bật) đi qua cơ chế khác đã có sẵn: Redis (key `Local_Url:{ApplicationId}`)
+  + RabbitMQ (sự kiện `system.service.started/heartbeat/stopped`, xem `AddServiceDiscovery`/
+  `ServiceDiscoveryHostedService` trong `CommonLibs/Services/ServiceCollectionExtensions.cs`) — hiện
+  chỉ thực sự bật ở Booking (3 service kia đang comment `RabbitMqConnectionString`).
+  - Xoá: `CommonLibs/Consul/` (3 file), `PackageReference Consul` trong `CommonLibs.csproj`, 2 dòng
+    `using` thừa (`CommonLibs.Consul`, `Consul`) trong `ServiceCollectionExtensions.cs`, section
+    `"Consul": {...}` trong `appsettings.json` của cả 4 service.
+  - Cập nhật `claude.md` (bảng công nghệ chính, cây thư mục) bỏ mọi nhắc tới Consul như 1 công nghệ
+    đang dùng.
+  - `dotnet build BaseRepo.slnx`: 0 Error.
 - **Tái cấu trúc thư mục repo theo nhóm domain** (2026-09-01) — gom `Gateway`/`Site`/`AdministrativeUnit` vào
   `Base/`, `Booking` vào `SportsBooking/`, thêm `BloodDonation/` làm chỗ chứa domain kế tiếp. Không đổi tên
   project/namespace nào, chỉ dời vị trí vật lý (`git mv`, giữ lịch sử) + sửa `ProjectReference` trỏ

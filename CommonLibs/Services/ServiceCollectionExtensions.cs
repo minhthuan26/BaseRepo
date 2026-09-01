@@ -1,8 +1,6 @@
 ﻿using CommonLibs.BaseDbContext;
-using CommonLibs.Consul;
 using CommonLibs.Options;
 using CommonLibs.Utils;
-using Consul;
 using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

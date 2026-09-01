@@ -21,7 +21,8 @@ namespace Booking.Infrastructure
             services.AddScoped<JwtSecurityTokenHandler>();
 
             services.AddScoped<IFieldTypeRepository, FieldTypeRepository>();
-            // Repository registrations added by later tasks (Field, PricingRule).
+            services.AddScoped<IFieldRepository, FieldRepository>();
+            // Repository registrations added by later tasks (PricingRule).
 
             return services;
         }

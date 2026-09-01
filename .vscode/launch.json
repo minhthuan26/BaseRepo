@@ -5,9 +5,9 @@
             "name": ".NET Core Launch (web) - Gateway",
             "type": "coreclr",
             "request": "launch",
-            "program": "${workspaceFolder}/Gateway/bin/Debug/net6.0/Gateway.dll",
+            "program": "${workspaceFolder}/Base/Gateway/Gateway.Api/bin/Debug/net10.0/Gateway.Api.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Gateway",
+            "cwd": "${workspaceFolder}/Base/Gateway/Gateway.Api",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",
@@ -21,9 +21,25 @@
             "name": ".NET Core Launch (web) - Site",
             "type": "coreclr",
             "request": "launch",
-            "program": "${workspaceFolder}/Site/bin/Debug/net6.0/Site.dll",
+            "program": "${workspaceFolder}/Base/Site/Site.Api/bin/Debug/net10.0/Site.Api.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Site",
+            "cwd": "${workspaceFolder}/Base/Site/Site.Api",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": ".NET Core Launch (web) - AdministrativeUnit",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/Base/AdministrativeUnit/AdministrativeUnit.Api/bin/Debug/net10.0/AdministrativeUnit.Api.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Base/AdministrativeUnit/AdministrativeUnit.Api",
             "stopAtEntry": false,
             "serverReadyAction": {
                 "action": "openExternally",

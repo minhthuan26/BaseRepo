@@ -24,4 +24,8 @@
     <Folder Include="Logs\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="SQL\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

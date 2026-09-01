@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Booking.Infrastructure.DBContext;
+using Booking.Application.Interfaces;
+using Booking.Infrastructure.Repositories;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace Booking.Infrastructure
@@ -18,7 +20,8 @@ namespace Booking.Infrastructure
             services.AddCommonServices<BookingDbContext>(configuration, "Booking.Application");
             services.AddScoped<JwtSecurityTokenHandler>();
 
-            // Repository registrations added by later tasks (FieldType, Field, PricingRule).
+            services.AddScoped<IFieldTypeRepository, FieldTypeRepository>();
+            // Repository registrations added by later tasks (Field, PricingRule).
 
             return services;
         }

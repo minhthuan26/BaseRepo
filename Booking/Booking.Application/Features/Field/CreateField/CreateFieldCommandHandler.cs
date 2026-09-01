@@ -15,7 +15,7 @@ namespace Booking.Application.Features.Field.CreateField
 
         public async Task<FieldOutputDTO> Handle(CreateFieldCommand request, CancellationToken cancellationToken)
         {
-            return await _repository.CreateField(request.Data, cancellationToken);
+            return await _repository.CreateField(request.Data, request.CallerSiteId, cancellationToken);
         }
     }
 }

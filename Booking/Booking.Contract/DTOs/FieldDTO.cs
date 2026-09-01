@@ -43,6 +43,7 @@ namespace Booking.Contract.DTOs
     {
         public string? FieldName { get; set; }
         public string? FieldTypeId { get; set; }
+        public string? SiteId { get; set; }
     }
     #endregion
 }

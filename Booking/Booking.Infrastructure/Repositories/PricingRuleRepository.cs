@@ -45,7 +45,16 @@ namespace Booking.Infrastructure.Repositories
             if (input == null)
                 throw new AppException($"[{_errorPrefix}CreatePricingRule-01] Input is null.", HttpStatusCode.BadRequest);
 
-            var field = await GetFieldOwnedBySite(input.FieldId, callerSiteId, cancellationToken, "CreatePricingRule-02");
+            if (input.DayOfWeek < 0 || input.DayOfWeek > 6)
+                throw new AppException($"[{_errorPrefix}CreatePricingRule-04] DayOfWeek must be between 0 and 6.", HttpStatusCode.BadRequest);
+
+            if (input.EndTime <= input.StartTime)
+                throw new AppException($"[{_errorPrefix}CreatePricingRule-05] EndTime must be after StartTime.", HttpStatusCode.BadRequest);
+
+            if (input.PricePerHour <= 0)
+                throw new AppException($"[{_errorPrefix}CreatePricingRule-06] PricePerHour must be greater than 0.", HttpStatusCode.BadRequest);
+
+            await GetFieldOwnedBySite(input.FieldId, callerSiteId, cancellationToken, "CreatePricingRule-02");
 
             input.SetAuditInfo(_auditContext.UserName, _auditContext.DeviceId, _auditContext.DeviceName);
 
@@ -77,6 +86,15 @@ namespace Booking.Infrastructure.Repositories
         {
             if (input == null)
                 throw new AppException($"[{_errorPrefix}UpdatePricingRule-01] Input is null.", HttpStatusCode.BadRequest);
+
+            if (input.DayOfWeek < 0 || input.DayOfWeek > 6)
+                throw new AppException($"[{_errorPrefix}UpdatePricingRule-06] DayOfWeek must be between 0 and 6.", HttpStatusCode.BadRequest);
+
+            if (input.EndTime <= input.StartTime)
+                throw new AppException($"[{_errorPrefix}UpdatePricingRule-07] EndTime must be after StartTime.", HttpStatusCode.BadRequest);
+
+            if (input.PricePerHour <= 0)
+                throw new AppException($"[{_errorPrefix}UpdatePricingRule-08] PricePerHour must be greater than 0.", HttpStatusCode.BadRequest);
 
             var existing = await _dbContext.QueryFirstOrDefaultAsync<PricingRule>(
                 @"SELECT * FROM PricingRule WHERE AutoId = @AutoId", new { input.AutoId }, cancellationToken);
@@ -240,10 +258,10 @@ namespace Booking.Infrastructure.Repositories
                 @"SELECT * FROM Field WHERE FieldId = @FieldId", new { FieldId = fieldId }, cancellationToken);
 
             if (field == null)
-                throw new AppException($"[{_errorPrefix}{errorStep}] Field with Id '{fieldId}' not found.", HttpStatusCode.BadRequest);
+                throw new AppException($"[{_errorPrefix}{errorStep}a] Field with Id '{fieldId}' not found.", HttpStatusCode.BadRequest);
 
             if (field.SiteId != callerSiteId)
-                throw new AppException($"[{_errorPrefix}{errorStep}] Access denied. This Field does not belong to your Site.", HttpStatusCode.Forbidden);
+                throw new AppException($"[{_errorPrefix}{errorStep}b] Access denied. This Field does not belong to your Site.", HttpStatusCode.Forbidden);
 
             return field;
         }

@@ -26,8 +26,9 @@ namespace Booking.Api.Controllers
         [RequireFunction("CreateField")]
         public async Task<IActionResult> CreateField([FromBody] FieldInputDTO data)
         {
-            data.SiteId = CurrentSiteId ?? throw new AppException("Missing site_id claim.", System.Net.HttpStatusCode.Forbidden);
-            var result = await _mediator.Send(new CreateFieldCommand { Data = data });
+            var callerSiteId = CurrentSiteId ?? throw new AppException("Missing site_id claim.", System.Net.HttpStatusCode.Forbidden);
+            data.SiteId = callerSiteId;
+            var result = await _mediator.Send(new CreateFieldCommand { Data = data, CallerSiteId = callerSiteId });
             return Ok(new Response<FieldOutputDTO>
             {
                 Success = true,

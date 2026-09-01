@@ -2,6 +2,14 @@ USE Booking
 GO
 
 -- =======================================================================
+-- LƯU Ý VẬN HÀNH: 9 FunctionId dùng bởi [RequireFunction("...")] trên các action ghi của Booking
+-- (CreateFieldType, UpdateFieldType, DeleteFieldType, CreateField, UpdateField, DeleteField,
+-- CreatePricingRule, UpdatePricingRule, DeletePricingRule) không tự có sẵn — theo thiết kế RBAC
+-- của repo, không có "Admin bypass" toàn cục, nên phải tạo các Function này qua Function API rồi
+-- gán cho Role tương ứng qua Role_Function trước khi tài khoản staff gọi được các endpoint ghi này.
+-- =======================================================================
+
+-- =======================================================================
 -- 1. FIELDTYPE — danh mục loại sân (bóng đá, cầu lông, pickleball...), dùng chung
 -- =======================================================================
 CREATE TABLE [dbo].[FieldType] (

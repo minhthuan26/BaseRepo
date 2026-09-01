@@ -193,6 +193,11 @@ namespace Booking.Infrastructure.Repositories
             }
             else
             {
+                var fieldCount = await _dbContext.ExecuteScalarAsync<int>(
+                    @"SELECT COUNT(1) FROM Field WHERE FieldTypeId = @FieldTypeId", new { input.FieldTypeId }, cancellationToken);
+                if (fieldCount > 0)
+                    throw new AppException($"[{_errorPrefix}DeleteFieldType-04] Cannot hard-delete FieldType '{input.FieldTypeId}': {fieldCount} Field row(s) still reference it. Remove them first or use soft-delete.", HttpStatusCode.Conflict);
+
                 rowsAffected = await _dbContext.ExecuteAsync(
                     @"DELETE FROM FieldType WHERE FieldTypeId = @FieldTypeId",
                     new { input.FieldTypeId }, cancellationToken);

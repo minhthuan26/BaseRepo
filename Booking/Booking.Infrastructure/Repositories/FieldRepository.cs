@@ -40,10 +40,12 @@ namespace Booking.Infrastructure.Repositories
 
         #region Repository Methods
 
-        public async Task<FieldOutputDTO> CreateField(FieldInputDTO input, CancellationToken cancellationToken)
+        public async Task<FieldOutputDTO> CreateField(FieldInputDTO input, string callerSiteId, CancellationToken cancellationToken)
         {
             if (input == null)
                 throw new AppException($"[{_errorPrefix}CreateField-01] Input is null.", HttpStatusCode.BadRequest);
+
+            input.SiteId = callerSiteId;
 
             if (string.IsNullOrWhiteSpace(input.FieldId))
                 throw new AppException($"[{_errorPrefix}CreateField-02] FieldId is required.", HttpStatusCode.BadRequest);
@@ -151,6 +153,11 @@ namespace Booking.Infrastructure.Repositories
                 whereBuilder.Append(" AND FieldTypeId = @FieldTypeId ");
                 parameters.Add("FieldTypeId", filter.FieldTypeId);
             }
+            if (!string.IsNullOrWhiteSpace(filter.SiteId))
+            {
+                whereBuilder.Append(" AND SiteId = @SiteId ");
+                parameters.Add("SiteId", filter.SiteId);
+            }
             if (filter.FromDate.HasValue)
             {
                 whereBuilder.Append(" AND CreatedDate >= @FromDate ");
@@ -216,6 +223,11 @@ namespace Booking.Infrastructure.Repositories
             }
             else
             {
+                var pricingRuleCount = await _dbContext.ExecuteScalarAsync<int>(
+                    @"SELECT COUNT(1) FROM PricingRule WHERE FieldId = @FieldId", new { input.FieldId }, cancellationToken);
+                if (pricingRuleCount > 0)
+                    throw new AppException($"[{_errorPrefix}DeleteField-05] Cannot hard-delete Field '{input.FieldId}': {pricingRuleCount} PricingRule row(s) still reference it. Remove them first or use soft-delete.", HttpStatusCode.Conflict);
+
                 rowsAffected = await _dbContext.ExecuteAsync(
                     @"DELETE FROM Field WHERE FieldId = @FieldId", new { input.FieldId }, cancellationToken);
             }

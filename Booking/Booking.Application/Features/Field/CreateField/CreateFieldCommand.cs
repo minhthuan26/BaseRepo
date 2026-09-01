@@ -6,5 +6,6 @@ namespace Booking.Application.Features.Field.CreateField
     public class CreateFieldCommand : IRequest<FieldOutputDTO>
     {
         public FieldInputDTO Data { get; set; } = null!;
+        public string CallerSiteId { get; set; } = null!;
     }
 }

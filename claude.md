@@ -477,6 +477,35 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Microservice `Booking` — "Quản lý thuê sân thể thao", mới chỉ xong Phase 1 Foundation (chưa hết Phase 1)**
+  (2026-09-01). Brainstorm ra spec đầy đủ trước
+  (`docs/superpowers/specs/2026-09-01-booking-phase1-design.md`), nhưng plan triển khai đầu tiên
+  (`docs/superpowers/plans/2026-09-01-booking-phase1-foundation-plan.md`) **cố tình chỉ làm phần nền** —
+  không phải trọn Phase 1. Cũng đã xuất bộ tài liệu chính thức (BRD/FSR/SRS + DFD Mức 0/1/2) vào
+  `docs/quan_li_thue_san/phase_1/`.
+  - **Đã làm (build + commit + merge `master`)**: 5 project chuẩn `Booking.{Api,Application,Contract,Domain,
+    Infrastructure}` (port 8003), CRUD đầy đủ cho `FieldType`/`Field`/`PricingRule` — `Field`/`PricingRule`
+    Site-scoped đúng pattern bảo mật đã có của repo (SiteId luôn lấy từ claim `site_id`, không tin client input;
+    `PricingRule` kiểm tra quyền sở hữu qua `Field` cha, đã fix 1 lỗi IDOR cross-Site lúc review). Wiring qua
+    Gateway (route public-read/staff-write tách riêng, cluster, swagger). Script `CommonLibs/BaseSQL/booking/
+    BaseBooking.sql` đã viết xong.
+  - **Chưa làm (phần còn lại của Phase 1 theo spec mục 3.1/4/5/7 — chưa có plan triển khai)**:
+    1. Entity `Customer` (khách đặt sân) — đăng ký/đăng nhập Email/SĐT + mật khẩu, `CustomerAuthController` dùng
+       JWT scheme riêng (khác Bearer của staff, không đi qua `AuthorizationMiddleware`/RBAC hiện có),
+       `CustomerPolicy` check claim `CustomerId`.
+    2. Entity `Booking` (bản ghi đặt sân) — `BookingStatus` (Pending/Confirmed/CheckedIn/Completed/Cancelled/
+       NoShow), `PaymentStatus` (Unpaid/Deposited/Paid, Phase 1 chỉ đánh dấu thủ công, chưa tích hợp cổng thanh
+       toán online).
+    3. Entity `RecurringGroup` (đặt sân định kỳ) — sinh nhiều `Booking` từ 1 nhóm.
+    4. **Logic chống trùng lịch** — nghiệp vụ quan trọng nhất Phase 1 theo spec ("không phải CRUD thuần"), áp
+       dụng cho cả đặt lẻ lẫn từng bản ghi sinh từ `RecurringGroup`.
+    5. Web nội bộ cho Lễ tân/Admin quản lý `Booking`/`Customer` (huỷ, sửa, đánh dấu thu tiền mặt thủ công).
+  - **Vận hành còn tồn đọng** (dù đã có phần Foundation): (a) chưa chạy `BaseBooking.sql` lên SQL Server thật;
+    (b) chưa seed các `Function` khớp tên action (`CreateFieldType`, `UpdateField`, `DeleteFieldType`,
+    `CreatePricingRule`... đúng quy ước `[RequireFunction]` đã dùng cho Site/AdministrativeUnit) + gán qua
+    `Role_Function`, nếu không API mutating của Booking sẽ luôn 403.
+  - Ngoài phạm vi Phase 1 (nhắc lại từ spec, để lại Phase 2/3): POS bán hàng hoá, tích hợp cổng thanh toán online
+    (VNPay/MoMo/ZaloPay), thống kê/Power BI.
 - **Tách `SensitiveHeaderMasker` dùng chung + fix lỗ hổng log token/cookie thô ở `GlobalExceptionMiddleware`**
   (2026-09-01, cùng ngày, ngay sau việc thêm SQL logging phía dưới). Phát hiện qua brainstorm: `SerilogExtension.cs`
   và `Log4netExtension.cs` đều có sẵn 1 bản riêng của mảng `SensitiveHeaders` + hàm `MaskSensitiveValue` (trùng lặp
@@ -981,6 +1010,12 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
+- **Booking Phase 1 chưa hoàn tất (mục mới nhất phía trên)** — mới xong phần Foundation
+  (`FieldType`/`Field`/`PricingRule` CRUD). Trước khi làm tiếp cần: (1) chạy `BaseBooking.sql` lên DB thật + seed
+  `Function`/`Role_Function` cho các action mutating hiện có (nếu không sẽ luôn 403 khi test); (2) brainstorm +
+  viết plan triển khai riêng cho phần còn lại của Phase 1 (`Customer`, `Booking`, `RecurringGroup`, logic chống
+  trùng lịch, web nội bộ cho Lễ tân/Admin) — spec đã có sẵn ở `docs/superpowers/specs/
+  2026-09-01-booking-phase1-design.md`, chỉ còn thiếu plan.
 - **`SensitiveHeaderMasker` + SQL logging (2 mục mới nhất phía trên) mới chỉ xác nhận build, chưa test runtime**:
   (1) gọi 1 request có header `Authorization` mà rơi vào exception (VD token sai/hết hạn) ở ít nhất 1 service,
   xác nhận log (Serilog/log4net/GlobalExceptionMiddleware) không còn hiện token/cookie plaintext; (2) chạy thử

@@ -154,3 +154,8 @@ Desktop.ini
 # Optional: Keep empty folders
 # =========================================
 !.gitkeep
+
+# =========================================
+# Superpowers: local worktrees for isolated task execution
+# =========================================
+.worktrees/

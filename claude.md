@@ -477,6 +477,43 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Đã hoàn thành
 
+- **Tách `SensitiveHeaderMasker` dùng chung + fix lỗ hổng log token/cookie thô ở `GlobalExceptionMiddleware`**
+  (2026-09-01, cùng ngày, ngay sau việc thêm SQL logging phía dưới). Phát hiện qua brainstorm: `SerilogExtension.cs`
+  và `Log4netExtension.cs` đều có sẵn 1 bản riêng của mảng `SensitiveHeaders` + hàm `MaskSensitiveValue` (trùng lặp
+  y hệt nhau), nhưng `CommonLibs/Middlewares/GlobalExceptionMiddleware.cs` (log `RequestHeaders` mỗi khi có
+  exception, cả business lẫn fatal) lại log **`h.Value.ToString()` thô, không mask** — nghĩa là header
+  `Authorization`/`Cookie` bị ghi plaintext ra log bất cứ khi nào request đó rơi vào exception. Fix theo đúng
+  hướng repo `viettin.bloodstore.back` từng áp dụng khi gặp bug tương tự:
+  - Tạo `CommonLibs/Logging/SensitiveHeaderMasker.cs` (public static, hàm `Mask(key, value)` + mảng
+    `SensitiveHeaders`: `Authorization`, `Cookie`, `Set-Cookie`, `Password`, `RefreshToken`, `AccessToken`) làm
+    nguồn sự thật duy nhất.
+  - `SerilogExtension.cs`/`Log4netExtension.cs`: xóa bản `SensitiveHeaders`/`MaskSensitiveValue` riêng, đổi toàn
+    bộ chỗ gọi (request + response headers) sang `SensitiveHeaderMasker.Mask(...)`.
+  - `GlobalExceptionMiddleware.cs`: áp `SensitiveHeaderMasker.Mask(...)` cho `requestHeaders` trước khi log —
+    đây là fix chính, trước đó hoàn toàn không mask.
+  - `dotnet build BaseRepo.slnx`: 0 Error.
+  - **Chưa test lại end-to-end** — cần gọi 1 request có header `Authorization` mà rơi vào exception (VD token
+    sai/hết hạn) ở ít nhất 1 service, xác nhận log không còn hiện token/cookie plaintext.
+- **Thêm SQL logging (mask tham số nhạy cảm) vào `BaseDbContext`, áp dụng cho toàn bộ hàm Dapper** (2026-09-01).
+  Tham khảo cách xử lý che dữ liệu nhạy cảm + ghi log SQL đã có sẵn ở repo `viettin.bloodstore.back`
+  (`OneLIS.API.BloodStorage.CommonLibs/Logging/SqlLoggingHelper.cs` +
+  `.../Middlewares/GlobalExceptionMiddleware.cs`), port sang `CommonLibs/BaseDbContext/BaseDbContext.cs`:
+  - Tạo `CommonLibs/Logging/SqlLoggingHelper.cs` (internal static) — che tham số SQL theo tên (chứa
+    `password`/`token`/`secret`/`authorization`/`connectionstring`/`apikey`, không phân biệt hoa thường) trước khi
+    log, đồng thời build sẵn script `DECLARE @Param TYPE = value;` từ tham số đã che để tiện copy vào SSMS debug
+    lại câu SQL. **Cố tình không port** overload `GetSafeParameters(IEnumerable<DbParameter>?)` và các hàm
+    multi-connection (`QueryOneLisAsync`, `ISqlConnectionFactory`) của repo nguồn — BaseRepo hiện không có nhu cầu
+    multi-DB tương tự, tránh thêm code chết.
+  - Thêm hàm `ExecuteLoggedAsync<TResult>` (private) vào `BaseContext` — log `SQL {Operation} executing` trước khi
+    chạy, `completed in {ElapsedMilliseconds}ms` khi thành công, `failed after {ElapsedMilliseconds}ms` kèm
+    exception khi lỗi (dùng `_logger` đã có sẵn trong `BaseContext`, format log giữ nguyên như thiết kế gốc).
+  - Áp dụng `ExecuteLoggedAsync` cho cả 4 hàm Dapper (`QueryAsync`, `QueryFirstOrDefaultAsync`,
+    `ExecuteScalarAsync`, `ExecuteAsync`) — bỏ khối `try { } catch { throw; }` thừa cũ (không có tác dụng, giờ
+    logging + rethrow đã nằm trong `ExecuteLoggedAsync`).
+  - `dotnet build BaseRepo.slnx`: 0 Error.
+  - **Chưa test lại end-to-end** — vì đây là thay đổi trong `BaseRepository`/mọi truy vấn Dapper toàn hệ thống,
+    cần chạy thử ít nhất 1 API mỗi service (Gateway/Site/AdministrativeUnit/Booking) và kiểm tra log xuất hiện
+    đúng format `SQL {Operation} executing/completed/failed` trước khi coi là xong.
 - **Nâng toàn bộ solution từ .NET 6 lên .NET 10** (2026-09-01, cùng ngày, ngay sau đợt tái cấu trúc 5-layer phía
   dưới). Đổi `<TargetFramework>net6.0</TargetFramework>` → `net10.0` cho 16/17 project (`net6.0-windows` →
   `net10.0-windows` cho `SystemManagement`, project thứ 17) bằng thay thế hàng loạt, không đổi logic.
@@ -944,6 +981,12 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
+- **`SensitiveHeaderMasker` + SQL logging (2 mục mới nhất phía trên) mới chỉ xác nhận build, chưa test runtime**:
+  (1) gọi 1 request có header `Authorization` mà rơi vào exception (VD token sai/hết hạn) ở ít nhất 1 service,
+  xác nhận log (Serilog/log4net/GlobalExceptionMiddleware) không còn hiện token/cookie plaintext; (2) chạy thử
+  ít nhất 1 API dùng Dapper mỗi service (Gateway/Site/AdministrativeUnit/Booking), xác nhận log xuất hiện đúng
+  format `SQL {Operation} executing/completed/failed` và tham số nhạy cảm (password/token/secret/...) bị che
+  thành `***`.
 - **Nâng cấp .NET 10 (mục mới nhất phía trên) mới chỉ xác nhận build, chưa test runtime** — cần `dotnet run`
   thử cả 3 service (Gateway, Site, AdministrativeUnit) và chạy thử `SystemManagement.exe` (đặc biệt màn hình
   `ConfigEnv` dùng `Cypher.*`/`EncryptionLibrary`) trước khi coi việc nâng cấp là hoàn tất. Đồng thời còn 2 cảnh

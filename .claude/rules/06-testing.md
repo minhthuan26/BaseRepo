@@ -34,7 +34,7 @@ Xem `CommonLibs/BaseSQL/multi-tenant/README.md` để biết bối cảnh đầy
 được đánh dấu "Chưa làm" trong mục "Không nằm trong các script này" của README đó cho tới khi
 bộ test này được viết).
 
-- [ ] DB tạo từ `CommonLibs/BaseSQL/BaseSQL.sql` hiện tại (đã có sẵn `tbl_Users.SiteId`,
+- [ ] DB tạo từ `Base/Gateway/Gateway.Api/SQL/BaseSQL.sql` hiện tại (đã có sẵn `tbl_Users.SiteId`,
       `tbl_Site_Module`, `UQ_tbl_Roles_SiteId_RoleId` cho phép `RoleId` trùng giữa 2 Site —
       tiền đề của toàn bộ test này; xem `CommonLibs/BaseSQL/multi-tenant/README.md` nếu DB của
       bạn là DB cũ chưa multi-tenant, cần đối chiếu thủ công vì chuỗi migration `00`-`08` đã bị

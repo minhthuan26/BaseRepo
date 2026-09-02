@@ -460,7 +460,7 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 > hỏi lại từ đầu. Cập nhật section này sau khi hoàn thành công việc đáng kể — thêm mục mới lên đầu phần
 > "Đã hoàn thành", dọn/cập nhật lại phần "Việc tiếp theo" cho khớp thực tế.
 
-*Cập nhật gần nhất: 2026-09-01*
+*Cập nhật gần nhất: 2026-09-02*
 
 ### Đã hoàn thành
 
@@ -483,6 +483,58 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
     plan: `docs/superpowers/plans/2026-09-02-sql-file-relocation-plan.md`.
   - `dotnet build BaseRepo.slnx`: 0 Error, và đã xác nhận cả 6 file `.sql`/`.md` xuất hiện đúng trong
     `bin/Debug/net10.0/SQL/` của 3 service tương ứng.
+- **Đổi URL scheme YARP sang tiền tố theo TÊN SERVICE + gộp route cho cả 3 cluster** (2026-09-01,
+  **CHƯA TEST** — môi trường hiện tại không đủ SQL Server/Redis để chạy thật, người dùng sẽ test
+  ở máy khác). Xuất phát từ câu hỏi: mỗi lần thêm Controller mới đều phải nhớ sửa
+  `Gateway/appsettings.json`, dễ quên (kỹ sư không nắm được) khiến API mới build/chạy service OK
+  nhưng không gọi được qua Gateway. Bước 1 chỉ gộp được `site-cluster` (8 route trùng lặp → 1
+  catch-all); phát hiện ra `administrativeunit-cluster`/`booking-cluster` không gộp thêm được vì
+  mỗi entity là 1 path literal riêng ở gốc `/api/`, không có tiền tố chung theo service — dẫn tới
+  quyết định đổi hẳn URL scheme.
+  - **URL scheme mới**: mọi endpoint (trừ Gateway tự host như `/api/user`, `/api/authorization/login`)
+    giờ có tiền tố tên SERVICE, không phải domain-group (`Base`/`SportsBooking` gộp nhiều service
+    khác nhau nên không đủ để YARP phân biệt đích đến): `/api/site/...` (site-cluster),
+    `/api/administrativeunit/...` (administrativeunit-cluster), `/api/booking/...` (booking-cluster).
+    VD cũ `/api/ward` → mới `/api/administrativeunit/ward`, `/api/field` → `/api/booking/field`.
+    **Breaking change API contract** — FE phải cập nhật base path theo từng service.
+  - **Cơ chế**: mỗi route YARP dùng `"Transforms": [{ "PathPattern": "/api/{**catch-all}" }]` để bóc
+    tiền tố service ra trước khi forward xuống service con — **không cần đổi route attribute của
+    bất kỳ Controller nào** ở Site/AdministrativeUnit/Booking, downstream vẫn nhận đúng path cũ
+    (VD `/api/role`) như trước giờ.
+  - **Kết quả cuối**: `site-cluster` còn 1 route (`site-route`, catch-all, `Order: 100`) + 2 route
+    riêng `site-module-my-route`/`site-module-toggle-route` (SiteModuleController cố tình chỉ lộ
+    2/4 action qua Gateway) + `site-swagger-route`. `administrativeunit-cluster` và `booking-cluster`
+    mỗi cluster còn đúng 2 route (`-read-route` GET anonymous, `-write-route` POST/PUT/DELETE
+    UserOrAdminPolicy, áp dụng cho MỌI entity của cluster đó, không riêng từng entity nữa) + 1
+    swagger route. Tổng cộng từ 16 route (13 route thật + 3 swagger) xuống còn 10 (7 route thật + 3
+    swagger) — và quan trọng nhất: **entity mới thêm vào bất kỳ service nào theo đúng pattern phân
+    quyền sẵn có của service đó (Site: uniform auth; AdministrativeUnit/Booking: đọc công khai/ghi
+    cần auth) sẽ tự động hoạt động, không cần sửa `Gateway/appsettings.json` nữa**.
+  - **Đã cập nhật theo**: `CommonLibs/BaseSQL/multi-tenant/tests/test_two_site_isolation.sh` — 12
+    URL gọi qua `$GATEWAY_URL` tới Site service (`user-role`, `role`, `role-function`, `permission`,
+    `site-module/toggle`) đổi thêm tiền tố `/api/site/...` (2 URL gọi thẳng `$SITE_URL` nội bộ và 2
+    URL của Gateway tự host `/api/authorization/login`, `/api/user` giữ nguyên, không bị ảnh hưởng).
+  - **Chưa cập nhật (biết trước, chưa làm)**: `docs/quan_li_thue_san/phase_1/FSR.md`/`Diagrams.md`
+    (tài liệu hình thức đã xuất PDF, liệt kê endpoint kiểu `POST /api/field-type` — giờ thiếu tiền
+    tố `/api/booking/`) và bảng route trong `multi-tenant/README.md` mục "Code C# đã viết" (vẫn mô
+    tả đúng route CỦA CONTROLLER, chỉ thiếu tiền tố Gateway-facing mới) — không sửa vì ngoài phạm
+    vi yêu cầu (chỉnh YARP), cần làm riêng nếu muốn tài liệu khớp 100%.
+  - **Rủi ro lớn nhất cần verify khi có môi trường test thật**: route catch-all/2-route-đọc-ghi
+    mới có thể vô tình match sai thứ tự nếu hiểu sai precedence của YARP — đã tra cứu doc xác nhận
+    route path cụ thể (literal) luôn thắng `{**catch-all}` theo mặc định, và đã khai `Order: 100`
+    tường minh cho `site-route` làm lớp bảo vệ thứ 2 — nhưng **chưa kiểm chứng bằng request thật**.
+    Checklist test bắt buộc trước khi coi là xong: (1) toàn bộ API cũ (nay có tiền tố mới) của cả
+    3 service vẫn gọi được qua Gateway đúng path mới; (2) `GET /api/site/site-module/my`,
+    `PUT /api/site/site-module/toggle` vẫn hoạt động; (3) **quan trọng nhất** — xác nhận
+    `POST /api/site-module/provision`/`GET /api/site-module/site/{siteId}` (2 action nội bộ, path
+    KHÔNG có tiền tố `/api/site/`) **vẫn KHÔNG** gọi được qua Gateway dưới bất kỳ path nào — nếu lộ
+    ra được là regression bảo mật, phải revert ngay; (4) chạy lại
+    `test_two_site_isolation.sh` (đã cập nhật path) xác nhận PASS toàn bộ; (5) Swagger UI qua Gateway
+    (`/site-swagger`, `/administrativeunit-swagger`, `/booking-swagger`) không bị ảnh hưởng (path
+    riêng, không đụng `/api/` prefix mới).
+  - `dotnet build BaseRepo.slnx`: 0 Error. JSON đã kiểm tra hợp lệ bằng cách strip comment `//`
+    rồi parse thử (repo dùng comment `//` trong mọi `appsettings.json`, ASP.NET Core config
+    provider của repo đã dung nạp việc này từ trước, không phải điểm mới).
 - **Xoá `CommonLibs/Consul/` — dead code chưa từng được nối dây** (2026-09-01). Rà lại theo câu hỏi
   "Consul có còn cần dùng không" — grep toàn repo xác nhận `ConsulExtensions`/`ConsulHostedService`/
   `AddConsulRegistration` **không có nơi nào gọi tới**, kể cả `Program.cs` của cả 4 service. YARP
@@ -1037,6 +1089,16 @@ public class {Name}Repository : BaseRepository<{Name}Repository>, I{Name}Reposit
 
 ### Việc tiếp theo / còn tồn đọng
 
+- **Đổi URL scheme YARP theo tên service (mục mới nhất phía trên) — CHƯA TEST, bắt buộc test khi
+  có máy đủ SQL Server/Redis**. Checklist đã ghi chi tiết ở mục "Đã hoàn thành" tương ứng — quan
+  trọng nhất là xác nhận 2 action nội bộ `SiteModuleController` (`ProvisionSiteModule`,
+  `GetSiteModulesBySite`) **vẫn không** lộ ra qua Gateway dưới bất kỳ path nào sau khi đổi scheme.
+  Đồng thời **mọi URL cũ đã đổi** (`/api/ward` → `/api/administrativeunit/ward`, `/api/field` →
+  `/api/booking/field`, `/api/role` → `/api/site/role`...) — nếu có FE/Postman collection/tài
+  liệu nào khác đang gọi URL cũ ngoài phạm vi đã rà (`test_two_site_isolation.sh` đã sửa), cần cập
+  nhật thêm. `docs/quan_li_thue_san/phase_1/FSR.md`/`Diagrams.md` và bảng route trong
+  `multi-tenant/README.md` còn liệt kê path cũ (chưa có tiền tố mới) — cố tình chưa sửa, để riêng
+  nếu muốn tài liệu khớp 100% với behavior mới.
 - **Booking Phase 1 chưa hoàn tất (mục mới nhất phía trên)** — mới xong phần Foundation
   (`FieldType`/`Field`/`PricingRule` CRUD). Trước khi làm tiếp cần: (1) chạy `BaseBooking.sql` lên DB thật + seed
   `Function`/`Role_Function` cho các action mutating hiện có (nếu không sẽ luôn 403 khi test); (2) brainstorm +

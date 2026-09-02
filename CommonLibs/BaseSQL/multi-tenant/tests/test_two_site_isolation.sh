@@ -179,13 +179,13 @@ section "2) GetRolesByUser - User trùng UserId chỉ thấy Role ĐÚNG Site c�
 # GET /api/user-role/{userId} - SiteId luôn lấy từ CurrentSiteId (không nhận qua tham số), xem
 # UserRoleController.GetRolesByUser.
 
-call GET "/api/user-role/isotest_user" "$GATEWAY_URL" "" "$TOKEN_A"
+call GET "/api/site/user-role/isotest_user" "$GATEWAY_URL" "" "$TOKEN_A"
 assert_status 200 "GetRolesByUser(isotest_user) với token Site A"
 ROLES_A="$(cat "$BODY_FILE")"
 assert_contains "$(echo "$ROLES_A" | jq -c '.data // .Data')" '"ISOTEST_A"' "Role trả về cho Site A có SiteId=ISOTEST_A"
 assert_not_contains "$(echo "$ROLES_A" | jq -c '.data // .Data')" '"ISOTEST_B"' "Role trả về cho Site A KHÔNG được lẫn SiteId=ISOTEST_B"
 
-call GET "/api/user-role/isotest_user" "$GATEWAY_URL" "" "$TOKEN_B"
+call GET "/api/site/user-role/isotest_user" "$GATEWAY_URL" "" "$TOKEN_B"
 assert_status 200 "GetRolesByUser(isotest_user) với token Site B"
 ROLES_B="$(cat "$BODY_FILE")"
 assert_contains "$(echo "$ROLES_B" | jq -c '.data // .Data')" '"ISOTEST_B"' "Role trả về cho Site B có SiteId=ISOTEST_B"
@@ -197,14 +197,14 @@ section "3) GetRole - RoleId trùng tên phải resolve về ĐÚNG bản ghi c�
 # GET /api/role/{roleId} - roleId="ISOTEST_ROLE" tồn tại độc lập ở CẢ 2 Site. Nếu Repository chỉ
 # lọc theo RoleId (không kèm SiteId của người gọi) thì có thể trả nhầm RoleName của Site kia.
 
-call GET "/api/role/ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_A"
+call GET "/api/site/role/ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_A"
 assert_status 200 "GetRole(ISOTEST_ROLE) với token Site A"
 ROLE_NAME_A="$(jq -r '.data.roleName // .Data.RoleName // empty' "$BODY_FILE")"
 ROLE_SITE_A="$(jq -r '.data.siteId // .Data.SiteId // empty' "$BODY_FILE")"
 assert_eq "$ROLE_SITE_A" "ISOTEST_A" "GetRole trả đúng SiteId=ISOTEST_A cho token Site A"
 assert_contains "$ROLE_NAME_A" "Role A" "GetRole trả đúng RoleName của Site A (không lẫn Role B)"
 
-call GET "/api/role/ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_B"
+call GET "/api/site/role/ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_B"
 assert_status 200 "GetRole(ISOTEST_ROLE) với token Site B"
 ROLE_NAME_B="$(jq -r '.data.roleName // .Data.RoleName // empty' "$BODY_FILE")"
 ROLE_SITE_B="$(jq -r '.data.siteId // .Data.SiteId // empty' "$BODY_FILE")"
@@ -217,13 +217,13 @@ section "4) GetAllRoleFunctions - Function cấp LỆCH giữa 2 Site dù RoleId
 # Seed: Role A (ISOTEST_ROLE @ ISOTEST_A) có ToggleSiteModule + CreateUserRole.
 #       Role B (ISOTEST_ROLE @ ISOTEST_B) chỉ có CreateUserRole.
 
-call GET "/api/role-function?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_A"
+call GET "/api/site/role-function?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_A"
 assert_status 200 "GetAllRoleFunctions(ISOTEST_ROLE) với token Site A"
 RF_A="$(jq -c '[(.data // .Data).records[]? // (.data // .Data).Records[]? | (.functionId // .FunctionId)]' "$BODY_FILE")"
 assert_contains "$RF_A" "ToggleSiteModule" "Role A có Function ToggleSiteModule"
 assert_contains "$RF_A" "CreateUserRole" "Role A có Function CreateUserRole"
 
-call GET "/api/role-function?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_B"
+call GET "/api/site/role-function?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_B"
 assert_status 200 "GetAllRoleFunctions(ISOTEST_ROLE) với token Site B"
 RF_B="$(jq -c '[(.data // .Data).records[]? // (.data // .Data).Records[]? | (.functionId // .FunctionId)]' "$BODY_FILE")"
 assert_contains "$RF_B" "CreateUserRole" "Role B có Function CreateUserRole"
@@ -236,7 +236,7 @@ section "5) PermissionController.GetPermissionTree - route param siteId bị b�
 # CurrentSiteId. Gọi với token Site A nhưng cố tình truyền route siteId=ISOTEST_B để xác nhận
 # response vẫn là cây quyền của Site A (claim), không phải Site B (route).
 
-call GET "/api/permission/ISOTEST_B?roleId=ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_A"
+call GET "/api/site/permission/ISOTEST_B?roleId=ISOTEST_ROLE" "$GATEWAY_URL" "" "$TOKEN_A"
 assert_status 200 "GetPermissionTree(route siteId=ISOTEST_B, token Site A)"
 TREE_SITE="$(jq -r '.data.siteId // .Data.SiteId // empty' "$BODY_FILE")"
 assert_eq "$TREE_SITE" "ISOTEST_A" "GetPermissionTree bỏ qua route siteId, trả đúng SiteId=ISOTEST_A theo token (không rò cây quyền Site B qua URL)"
@@ -250,7 +250,7 @@ section "6) CreateUserRole - chặn gán Role của Site khác dù biết đúng
 # ràng (400/404) vì "khong_ton_tai_user_nay" không thuộc Site A - KHÔNG được vô tình tạo liên kết
 # chéo sang bản ghi Role của Site B.
 
-call POST "/api/user-role" "$GATEWAY_URL" \
+call POST "/api/site/user-role" "$GATEWAY_URL" \
     '{"userId":"khong_ton_tai_user_nay","roleId":"ISOTEST_ROLE"}' "$TOKEN_A"
 if [ "$STATUS" = "400" ] || [ "$STATUS" = "404" ]; then
     pass "CreateUserRole với UserId không thuộc Site A bị từ chối đúng cách (HTTP $STATUS)"
@@ -278,12 +278,12 @@ else
         # Site B: có RequireFunction("ToggleSiteModule") nhưng Role B KHÔNG được cấp Function này -
         # AuthorizationMiddleware phải chặn ở bước RequireFunction (403) TRƯỚC KHI chạm tới entitlement,
         # bất kể moduleId có tồn tại trong tbl_Site_Module của Site B hay không.
-        call PUT "/api/site-module/toggle" "$GATEWAY_URL" \
+        call PUT "/api/site/site-module/toggle" "$GATEWAY_URL" \
             "{\"moduleId\":\"$MODULE_ID\",\"enable\":true}" "$TOKEN_B"
         assert_status 403 "ToggleSiteModule với token Site B (Role B không có Function này) phải bị chặn 403"
 
         # Site A: Role A có Function này VÀ đã có entitlement -> phải thành công.
-        call PUT "/api/site-module/toggle" "$GATEWAY_URL" \
+        call PUT "/api/site/site-module/toggle" "$GATEWAY_URL" \
             "{\"moduleId\":\"$MODULE_ID\",\"enable\":true}" "$TOKEN_A"
         assert_status 200 "ToggleSiteModule với token Site A (đúng quyền + đúng entitlement) phải thành công"
     fi
@@ -296,12 +296,12 @@ section "8) GetAllUserRoles/GetAllUsers - danh sách không trả chéo dữ li�
 # roleId=ISOTEST_ROLE (chỉ do fixture 2 Site này tạo ra) và xác nhận số dòng đúng bằng 1 mỗi bên,
 # không phải 2 (nếu leak sẽ thấy cả bản ghi của Site kia).
 
-call GET "/api/user-role?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_A"
+call GET "/api/site/user-role?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_A"
 assert_status 200 "GetAllUserRoles(roleId=ISOTEST_ROLE) với token Site A"
 COUNT_A="$(jq -r '((.data // .Data).records // (.data // .Data).Records) | length' "$BODY_FILE")"
 assert_eq "$COUNT_A" "1" "GetAllUserRoles trả đúng 1 dòng cho Site A (không lẫn dòng của Site B)"
 
-call GET "/api/user-role?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_B"
+call GET "/api/site/user-role?roleId=ISOTEST_ROLE&pageSize=50" "$GATEWAY_URL" "" "$TOKEN_B"
 assert_status 200 "GetAllUserRoles(roleId=ISOTEST_ROLE) với token Site B"
 COUNT_B="$(jq -r '((.data // .Data).records // (.data // .Data).Records) | length' "$BODY_FILE")"
 assert_eq "$COUNT_B" "1" "GetAllUserRoles trả đúng 1 dòng cho Site B (không lẫn dòng của Site A)"

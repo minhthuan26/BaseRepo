@@ -1,7 +1,8 @@
 # N4-2 — ConfigEnv: giao diện hai lưới System / User · Coding Spec
 
 - **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-16
-- **Yêu cầu gốc:** `../N4-configenv-hai-luoi-user-system/01-requirement.md` (đã chốt 2026-11-16) · **Phụ thuộc:** **N4-1** (hàm dịch vụ theo scope; phải xong và verify trước) · **Làm sau N4-1**
+- **Yêu cầu gốc:** `../N4-configenv-hai-luoi-user-system/01-requirement.md` (đã chốt 2026-11-16) · **Phụ thuộc:** **N4-1** (hàm dịch vụ theo scope; phải xong và verify trước) và **N5** (4 form ConfigEnv đã chuyển sang Designer, `FrmCustomEnvEditor` đã ở file riêng) · **Làm sau N4-1 và N5**
+- **Sửa đổi 2026-11-16 (✅ đã duyệt lại bởi Minh Thuận ngày 2026-11-16):** thêm phụ thuộc N5; `FrmEnvRestorePicker` thêm cột Key và tham số scope nên sửa cả `FrmEnvRestorePicker.Designer.cs`; `FrmCustomEnvEditor` nay là file riêng `FrmCustomEnvEditor.cs` (không còn trong `UC_ConfigEnvCustom.cs`); control đặt tên theo `.claude/rules/convention-winforms.md`.
 
 ## 1. Phạm vi
 Đổi tab **Tùy chỉnh** từ một lưới thành **hai lưới trên/dưới**: **System** (Machine) và **User**, chung thanh công cụ. Gồm:
@@ -22,7 +23,7 @@ Không dùng CodeGraph. `dgv_Envs` và mọi handler (Add/Edit/Delete/Restore/Se
 | Đối tượng đổi | Bị ảnh hưởng | Cần cập nhật? |
 |---|---|---|
 | `dgv_Envs` → `dgv_System` + `dgv_User` (Designer) | Toàn bộ handler trong `UC_ConfigEnvCustom.cs`; `UC_ConfigEnv` chỉ nhúng control, không tham chiếu lưới | Có (trong task) |
-| `FrmCustomEnvEditor(...)` thêm tham số `EnvScope` | Chỉ `UC_ConfigEnvCustom.cs` (cùng file) | Có |
+| `FrmCustomEnvEditor(...)` thêm tham số `EnvScope` (file riêng sau N5) | Chỉ `UC_ConfigEnvCustom.cs` gọi | Có |
 | `FrmEnvListEditor(key, rawValue)` thêm tham số `EnvScope` mặc định `Machine` | chỉ `btn_Edit_Click` | Có |
 | `FrmEnvRestorePicker(string key)` → picker theo scope, mọi key | chỉ `btn_Restore_Click` | Có |
 <!-- TOOLING:END -->
@@ -31,9 +32,11 @@ Không dùng CodeGraph. `dgv_Envs` và mọi handler (Add/Edit/Delete/Restore/Se
 | Đường dẫn | Tạo/Sửa | Nội dung thay đổi |
 |---|---|---|
 | `SystemManagement/Views/ConfigEnv/UC_ConfigEnvCustom.Designer.cs` | Sửa | Thay `dgv_Envs` bằng `dgv_System` + `dgv_User` (+ 2 nhãn tiêu đề, bố cục trên/dưới, ví dụ `SplitContainer` ngang hoặc `TableLayoutPanel`), giữ thanh công cụ; đánh lại `TabIndex` |
-| `SystemManagement/Views/ConfigEnv/UC_ConfigEnvCustom.cs` | Sửa | Nạp/lọc/hiển thị hai danh sách, theo dõi lưới đang chọn, refactor Add/Edit/Delete/Restore theo `EnvScope`, `FrmCustomEnvEditor` nhận scope |
+| `SystemManagement/Views/ConfigEnv/UC_ConfigEnvCustom.cs` | Sửa | Nạp/lọc/hiển thị hai danh sách, theo dõi lưới đang chọn, refactor Add/Edit/Delete/Restore theo `EnvScope`, truyền scope khi gọi `FrmCustomEnvEditor` |
+| `SystemManagement/Views/ConfigEnv/FrmCustomEnvEditor.cs` | Sửa | Nhận `EnvScope`, gọi `CreateVariable`/`UpdateVariable` theo scope (logic sinh giá trị giữ nguyên) |
 | `SystemManagement/Views/ConfigEnv/FrmEnvListEditor.cs` | Sửa | Nhận `EnvScope`, lưu qua `CustomEnvService.UpdateVariable(scope, ...)` |
-| `SystemManagement/Views/ConfigEnv/FrmEnvRestorePicker.cs` | Sửa | Chọn bản backup theo scope (mọi key), hiện cột Key |
+| `SystemManagement/Views/ConfigEnv/FrmEnvRestorePicker.cs` | Sửa | Chọn bản backup theo scope (mọi key); sau N5 form đã dùng Designer |
+| `SystemManagement/Views/ConfigEnv/FrmEnvRestorePicker.Designer.cs` | Sửa | Thêm cột Key vào danh sách bản backup (chỉ đổi cột, không đổi layout khác) |
 
 > Coder không được sửa file ngoài danh sách này nếu chưa báo lại. Không có file `.resx` mới.
 
@@ -81,7 +84,7 @@ Không có.
 | AC7 | Sửa một key `BaseRepo__*` mặc định ở System (sau `reg export`): sửa được, có backup; xóa được (hỏi Yes/No), khôi phục tạo lại biến | Thủ công (Administrator) |
 | AC8 | Add/Edit/Delete/Restore luôn tác động lưới đang chọn (đổi lưới rồi thao tác) | Thủ công |
 | AC9 | Không hồi quy: sửa biến thường Machine vẫn có xác nhận `NeedsExtraWarning`; tab Mặc định hoạt động như cũ | Thủ công |
-| AC10 | `git diff` chỉ gồm 4 file ở mục 3 (trên nền N4-1); không log giá trị; không file `.resx` mới | Build/Review |
+| AC10 | `git diff` chỉ gồm 6 file ở mục 3 (trên nền N4-1); không log giá trị; không file `.resx` mới | Build/Review |
 
 ## 9. Lệnh kiểm tra
 - Build: `dotnet build BaseRepo.slnx -m:1`.

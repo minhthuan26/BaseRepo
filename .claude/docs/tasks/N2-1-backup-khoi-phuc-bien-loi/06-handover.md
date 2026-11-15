@@ -1,6 +1,6 @@
 # N2-1 — ConfigEnv: mở khóa sửa biến cốt lõi + backup + khôi phục · Bàn giao
 
-- **Ngày:** 2026-11-15 · **Trạng thái:** 🟡 một phần (code + test tự động + review APPROVE xong, **còn chạy tay** các AC cần UI/quyền Administrator) · **Sprint:** chưa gán
+- **Ngày:** 2026-11-15 · **Trạng thái:** ✅ xong (người dùng chạy tay checklist đạt 2026-11-16) · **Sprint:** chưa gán
 
 ## 1. Tóm tắt
 Trong tab **Tùy chỉnh** của ConfigEnv, 9 biến hệ thống cốt lõi không phải dạng danh sách (`ComSpec`, `SystemRoot`, `windir`, `SystemDrive`, `OS`, `TEMP`, `TMP`, `PROCESSOR_ARCHITECTURE`, `NUMBER_OF_PROCESSORS`) giờ sửa được value: tiến trình phải đang elevated và người dùng phải **gõ lại đúng tên key**. Trước mỗi lần ghi, giá trị cũ được **backup bắt buộc** vào `Backups/Env/` cạnh file exe; backup lỗi thì không ghi. Ghi qua registry Machine, giữ nguyên kiểu giá trị (`REG_EXPAND_SZ`/`REG_SZ`) và đọc giá trị thô (không mở rộng `%...%`), rồi broadcast `WM_SETTINGCHANGE`. Nút **Khôi phục** (mới) đưa một biến cốt lõi về một bản backup đã chọn. `Path`, `PATHEXT`, `PSModulePath` vẫn **khóa sửa** (cảnh báo "chưa hỗ trợ", làm ở N2-2) nhưng khôi phục được. Xóa biến cốt lõi vẫn bị chặn như N1. Không đổi DB, `system.config`, `CommonLibs`, không thêm package.

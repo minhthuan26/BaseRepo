@@ -1,6 +1,6 @@
 # N2-2 — ConfigEnv: trình sửa từng mục cho Path/PATHEXT/PSModulePath · Bàn giao
 
-- **Ngày:** 2026-11-15 · **Trạng thái:** 🟡 một phần (code + test tự động + review APPROVE xong, **còn chạy tay** các AC cần UI/quyền Administrator; N2-1 cũng chưa chạy tay) · **Sprint:** chưa gán
+- **Ngày:** 2026-11-15 · **Trạng thái:** ✅ xong (người dùng chạy tay checklist đạt 2026-11-16) · **Sprint:** chưa gán
 
 ## 1. Tóm tắt
 Nút **Sửa value** với ba biến dạng danh sách `Path`, `PATHEXT`, `PSModulePath` không còn bị chặn bằng cảnh báo "chưa hỗ trợ". Sau khi qua bước elevated và gõ lại đúng tên key (như N2-1), form **`FrmEnvListEditor`** mở ra, hiện từng mục `;` một dòng để **thêm, cập nhật, xóa, lên/xuống**. Vùng cảnh báo trực tiếp cho biết số mục, độ dài chuỗi ghép/2047, mục trùng (không phân biệt hoa thường) và đường dẫn không tồn tại (không áp dụng cho `PATHEXT`, bỏ qua mục có `%`). Khi Lưu: bỏ mục rỗng, chặn nếu danh sách rỗng hoặc dài hơn 2047 ký tự, có cảnh báo thì hỏi Có/Không, rồi ghi qua `CustomEnvService.UpdateCoreValue` của N2-1 (backup bắt buộc, giữ kiểu registry, đọc/ghi giá trị thô `%...%`, broadcast). Không đổi DB, `CustomEnvService.cs`, `system.config`, không thêm package.

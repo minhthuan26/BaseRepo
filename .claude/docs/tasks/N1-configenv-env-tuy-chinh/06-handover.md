@@ -1,6 +1,6 @@
 # N1 — ConfigEnv: env tùy chọn (thêm / sinh value / sửa / xóa) · Bàn giao
 
-- **Ngày:** 2026-11-15 · **Trạng thái:** 🟡 một phần (code + review xong, **còn chạy tay** các AC cần UI/quyền Administrator) · **Sprint:** chưa gán
+- **Ngày:** 2026-11-15 · **Trạng thái:** ✅ xong (code + review + người dùng xác nhận chạy tay checklist đạt ngày 2026-11-15) · **Sprint:** chưa gán
 
 ## 1. Tóm tắt
 Màn hình ConfigEnv của SystemManagement giờ có `TabControl` hai tab. Tab **Mặc định** giữ nguyên 6 hàng cũ. Tab **Tùy chỉnh** liệt kê mọi biến môi trường **Machine** (trừ 6 key mặc định) với ô tìm kiếm, value được che, và các nút Thêm, Sửa value, Xóa, Làm mới. Khi thêm/sửa, người dùng nhập value tay hoặc sinh tự động (AES key base64, GUID dạng urn, chuỗi ngẫu nhiên, cặp RSA 2048 ghi file). Xóa là xóa thật khỏi máy, luôn có xác nhận Yes/No. Một danh sách 12 biến hệ thống cốt lõi (`Path`, `TEMP`...) chỉ cho xem, khóa sửa/xóa. Không đổi DB, `system.config`, `CommonLibs`, và không thêm package.
@@ -40,22 +40,22 @@ Không có.
 ## 5. Cách chạy và kiểm tra
 - Build: `dotnet build BaseRepo.slnx` → 0 Error (Claude chạy lại độc lập sau khi coder xong; tester gặp 2 lỗi `OutOfMemoryException` của compiler ở `AdministrativeUnit.Api` ở lần build đầu, không liên quan N1, chạy lại với `-m:1` thì 0 Error).
 - Test tự động: **không có test project** (M1 xUnit chưa làm, spec cấm thêm package). Tester dựng harness console tạm ở scratchpad ngoài repo: 49/49 assertion đạt cho `EnvValueGenerator`/`CustomEnvService` (phần không tác dụng phụ).
-- **Kiểm tra thủ công (CHƯA CHẠY):** chạy `SystemManagement` bằng tài khoản Administrator, dùng biến giả tiền tố `N1_TEST_`, theo checklist ở mục 8 của [04-test-report.md](04-test-report.md) (AC3 phần User scope, AC4, AC8–AC15, AC17). Chỉ thử Sửa/Xóa trên `N1_TEST_*`; với `Path`/`TEMP` chỉ kiểm tra bị chặn. Xóa hết biến `N1_TEST_*` khi xong (AC17).
+- **Kiểm tra thủ công (ĐÃ CHẠY, người dùng xác nhận đạt ngày 2026-11-15; chỉ có xác nhận chung, không có biên bản từng AC):** chạy `SystemManagement` bằng tài khoản Administrator, dùng biến giả tiền tố `N1_TEST_`, theo checklist ở mục 8 của [04-test-report.md](04-test-report.md) (AC3 phần User scope, AC4, AC8–AC15, AC17). Chỉ thử Sửa/Xóa trên `N1_TEST_*`; với `Path`/`TEMP` chỉ kiểm tra bị chặn. Xóa hết biến `N1_TEST_*` khi xong (AC17).
 
 ## 6. Kết quả kiểm chứng
-- Test: PASS cho phần tự động kiểm được (xem `04-test-report.md`); **11 AC cần UI/quyền Administrator chưa chạy, không tính là PASS**.
+- Test: PASS cho phần tự động kiểm được (xem `04-test-report.md`); 11 AC cần UI/quyền Administrator: người dùng chạy tay và xác nhận đạt (2026-11-15), chưa có biên bản từng AC.
 - Review: APPROVE, không có blocker/major (xem `05-review.md`).
 - Đã kiểm độc lập: diff chỉ đúng 6 file được phép; không có lệnh log/console trong code mới.
 
 ## 7. Rủi ro và lưu ý
-- Chưa kiểm bằng mắt bố cục tab/Dock và các luồng ghi Machine env thật. Ghi env Machine có thể làm UI đứng vài giây.
+- Bố cục tab/Dock và các luồng ghi Machine env thật đã được người dùng chạy tay xác nhận ổn (2026-11-15). Ghi env Machine có thể làm UI đứng vài giây.
 - Danh sách khóa chỉ gồm 12 biến; các biến hệ thống khác (`USERNAME`, `PROCESSOR_IDENTIFIER`...) chỉ bị cảnh báo thêm khi sửa/xóa, không bị chặn. Chỉ thử với `N1_TEST_*`.
 - File RSA private ghi plaintext, ACL mặc định, ở thư mục hiện hành theo mặc định của hộp thoại. Code gốc `UC_ConfigEnv` làm y hệt nên không vi phạm spec; AC8 cần xác nhận file nạp lại được bằng `RsaCypher.Import*` (file ghi bằng `Utf8ToByteArray(base64)`).
 - Thông tin model: job Antigravity yêu cầu `gemini-3.8-flash-medium` nhưng kèm cảnh báo "không tìm thấy trong `agy models`", nên chưa xác nhận được model nào thực sự chạy. Code đã được kiểm độc lập (diff, build, tester, reviewer), không dựa vào lời tự báo cáo.
 - Chỉ một vòng code, không có vòng sửa lỗi.
 
 ## 8. Việc tồn đọng / đề xuất tiếp theo
-- **Chạy tay checklist** (xem mục 5) trên máy Windows có quyền Administrator rồi mới đánh ✅ cho N1.
+- ~~Chạy tay checklist (xem mục 5)~~ **Đã xong:** người dùng xác nhận đạt 2026-11-15, N1 đánh ✅.
 - Minor từ review (chưa sửa, ngoài phạm vi): form Sửa hiện value thật bằng plaintext dù lưới đang che (`UC_ConfigEnvCustom.cs:118`); chưa giới hạn độ dài value (`CustomEnvService.cs`); using thừa (`CommonLibs.Utils` trong `EnvValueGenerator.cs:1`; `System.Data`, `System.ComponentModel`, `SystemManagement.Views` trong `UC_ConfigEnvCustom.cs`).
 - Khi có M1 (xUnit): chuyển 5 AC đánh "Unit (chờ M1)" (AC1, AC2, AC5, AC6, AC7) thành test thật cho `EnvValueGenerator`/`CustomEnvService`.
 - Thay đổi chưa commit; nhánh `feature/N1-configenv-env-tuy-chinh` (gốc `ea03dfe`). Cần bạn quyết định commit (có thể dùng skill `commit-helper`).

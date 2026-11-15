@@ -22,7 +22,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 | 3 | AdministrativeUnit (Province/Ward) | 🟡 | M5 template import · 🔑 M13 chạy SQL + seed + test |
 | 4 | Booking: Quản lý thuê sân (SportsBooking) | 🟡 | Phase 1: 🏗️ M18 Customer, M2 Booking + chống trùng lịch, M3 RecurringGroup, M4 API Lễ tân/Admin, 🔑 M14 SQL + seed · Phase 2/3: 🔑 M17, 🏗️ M19, 🏗️ M20 |
 | 5 | CommonLibs / hạ tầng chung | 🟡 | M1 dựng xUnit · M8 vá NU1903 · 🔑 M15 verify runtime |
-| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · 🟡 N1 chạy tay checklist ConfigEnv tab Tùy chỉnh |
+| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · ⬜ N2-1, N2-2, N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
 | 7 | BloodDonation: Đăng ký hiến máu | ⬜ | 🏗️ M21 khởi tạo domain (chờ BA) |
 
 ## 2. Việc còn lại
@@ -45,9 +45,8 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 
 | Mã | Việc | Ghi chú | Trạng thái |
 |---|---|---|---|
-| N1 | Module 6: ConfigEnv thêm tab "Tùy chỉnh" — thêm/sinh value/sửa/xóa biến env Machine tùy chọn. Xem `.claude/docs/tasks/N1-configenv-env-tuy-chinh/01-requirement.md` | Code + test tự động + review APPROVE xong 2026-11-15 ([06-handover.md](tasks/N1-configenv-env-tuy-chinh/06-handover.md)); **còn chạy tay** checklist AC (UI + quyền Administrator) trước khi ✅ | 🟡 |
-| N3 | Module 6: ConfigSQL — công cụ quản trị SQL Server (nhiều kết nối đồng thời không lưu, test kết nối và thực thi trực tiếp trên nhiều đích, xem đối tượng + sinh script, backup/copy sang DB khác, gợi ý index, chẩn đoán treo/kill session/clear cache). Bao gồm M6. Chia 9 task N3-1..N3-9 (spec ở `.claude/docs/tasks/N3-*/02-coding-spec.md`: N3-1 khung+kết nối → N3-2 chạy file `.sql` (M6) → N3-3 đối tượng → N3-4 backup/copy (chỉ schema / chỉ dữ liệu / cả hai) → N3-5 index → N3-6 chẩn đoán + kill/cache → N3-7 restore → N3-8 thư viện script chẩn đoán kể cả log hệ thống → N3-9 so sánh cấu trúc giữa 2 kết nối và migration tự động: thêm cột, sửa kiểu theo nguồn, tự xử lý phụ thuộc; không so sánh dữ liệu), xem `.claude/docs/tasks/N3-configsql-quan-tri-sql-server/01-requirement.md` | Yêu cầu đã chốt 2026-11-15; spec N3-1, N3-2 chi tiết chờ duyệt, N3-3..N3-9 là bản phác thảo cần BA hoàn thiện; cần 🔑 SQL Server 2019+ để verify runtime | ⬜ |
-| N2 | Module 6: ConfigEnv cho sửa biến hệ thống cốt lõi (`Path`, `TEMP`...) khi elevated + gõ lại tên key; backup `Backups/Env/` + nút Khôi phục; trình sửa từng mục cho `Path`/`PATHEXT`/`PSModulePath`. Yêu cầu đã chốt 2026-11-15, xem `.claude/docs/tasks/N2-configenv-sua-bien-loi/01-requirement.md`. Tách 2 task: **N2-1** (mở khóa + backup + khôi phục, spec `tasks/N2-1-backup-khoi-phuc-bien-loi/02-coding-spec.md`) → **N2-2** (trình sửa danh sách, phụ thuộc N2-1, spec `tasks/N2-2-trinh-sua-danh-sach/02-coding-spec.md`) | Spec chờ duyệt (2026-11-15); phụ thuộc N1 (nên chạy tay xong checklist N1 trước) | ⬜ |
+| N3 | Module 6: ConfigSQL — công cụ quản trị SQL Server (nhiều kết nối đồng thời không lưu, test kết nối và thực thi trực tiếp trên nhiều đích, xem đối tượng + sinh script, backup/copy sang DB khác, gợi ý index, chẩn đoán treo/kill session/clear cache). Bao gồm M6. Chia 9 task N3-1..N3-9 (spec ở `.claude/docs/tasks/N3-*/02-coding-spec.md`: N3-1 khung+kết nối → N3-2 chạy file `.sql` (M6) → N3-3 đối tượng → N3-4 backup/copy (chỉ schema / chỉ dữ liệu / cả hai) → N3-5 index → N3-6 chẩn đoán + kill/cache → N3-7 restore → N3-8 thư viện script chẩn đoán kể cả log hệ thống → N3-9 so sánh cấu trúc giữa 2 kết nối và migration tự động: thêm cột, sửa kiểu theo nguồn, tự xử lý phụ thuộc; không so sánh dữ liệu), xem `.claude/docs/tasks/N3-configsql-quan-tri-sql-server/01-requirement.md` | Yêu cầu đã chốt 2026-11-15; spec N3-1, N3-2 chi tiết đã duyệt 2026-11-15 (chưa code), N3-3..N3-9 là bản phác thảo cần BA hoàn thiện; cần 🔑 SQL Server 2019+ để verify runtime | ⬜ |
+| N2 | Module 6: ConfigEnv cho sửa biến hệ thống cốt lõi (`Path`, `TEMP`...) khi elevated + gõ lại tên key; backup `Backups/Env/` + nút Khôi phục; trình sửa từng mục cho `Path`/`PATHEXT`/`PSModulePath`. Yêu cầu đã chốt 2026-11-15, xem `.claude/docs/tasks/N2-configenv-sua-bien-loi/01-requirement.md`. Tách 2 task: **N2-1** (mở khóa + backup + khôi phục, spec `tasks/N2-1-backup-khoi-phuc-bien-loi/02-coding-spec.md`) → **N2-2** (trình sửa danh sách, phụ thuộc N2-1, spec `tasks/N2-2-trinh-sua-danh-sach/02-coding-spec.md`) | Spec N2-1 và N2-2 đã duyệt 2026-11-15, chưa code; phụ thuộc N1 (nên chạy tay xong checklist N1 trước) | ⬜ |
 
 ### 2.3 Cần credential / hạ tầng ngoài 🔑
 
@@ -83,7 +82,7 @@ _Thứ tự gợi ý, chỉ chứa việc CHƯA xong. Hướng đã chốt: **�
 6. M2 → M3 → M4: Booking + chống trùng lịch, RecurringGroup, API Lễ tân/Admin
 7. M13, M5: AdministrativeUnit
 8. M7, M9: Tài liệu URL mới, RequireFunction cho Site
-9. M6, M16, N1: SystemManagement (N1 độc lập, làm được trên máy hiện tại; đề xuất đặt đầu nhóm này)
+9. N2 (N2-1 → N2-2), N3 (N3-1 → N3-2 → ...; gồm M6), M16: SystemManagement (N2 làm được trên máy hiện tại; N3 cần SQL Server 2019+ để verify runtime)
 10. M17, M19, M20, M21: Booking Phase 2/3 và BloodDonation (chờ BA)
 
 ## 4. Cách thêm tính năng
@@ -126,6 +125,7 @@ Mức xác nhận: code hoàn chỉnh + build xanh, chưa test runtime trừ khi
 
 ### xong-6 — SystemManagement
 - Nâng lên `net10.0-windows` (build xanh, fix analyzer `WFO1000`). Verify: M16.
+- **N1** — ConfigEnv tab "Tùy chỉnh": thêm/sinh value (AES, GUID urn, chuỗi ngẫu nhiên, cặp RSA)/sửa/xóa biến env Machine, 12 biến hệ thống cốt lõi chỉ cho xem. Build xanh, test tự động PASS, review APPROVE, người dùng chạy tay checklist đạt 2026-11-15. Commit `73ca84a`. [06-handover.md](tasks/N1-configenv-env-tuy-chinh/06-handover.md)
 
 ### xong-7 — BloodDonation
 - _(chưa có)_

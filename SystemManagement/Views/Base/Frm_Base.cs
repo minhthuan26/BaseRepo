@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -27,7 +28,52 @@ namespace SystemManagement.Views.Base
         {
             IsSaving = saving;
             UseWaitCursor = saving;
+            ShowSavingBar(saving);
             OnSavingStateChanged(saving);
+        }
+
+        /// <summary>
+        /// Thanh tiến trình riêng của form, tạo lần đầu khi cần (null nếu form chưa từng lưu).
+        /// </summary>
+        private ProgressBar? _savingBar;
+
+        /// <summary>
+        /// Hiện/ẩn thanh tiến trình chạy liên tục của chính form, giống <c>progressBar1</c> của <c>FrmMain</c>:
+        /// 500x24, kiểu marquee, nằm giữa form và nổi lên trên các control khác.
+        /// Giải thích: loader chung của ứng dụng là <c>progressBar1</c> của cửa sổ chính (<c>FrmMain</c>), nên khi form
+        /// được mở bằng <c>ShowDialog</c> thanh đó nằm sau hộp thoại và người dùng không thấy. Mỗi form tự có thanh
+        /// riêng để luôn thấy đang xử lý; tạo bằng code ở lớp nền (nội dung động) nên form con không phải thêm control nào.
+        /// </summary>
+        private void ShowSavingBar(bool show)
+        {
+            if (show)
+            {
+                if (_savingBar == null)
+                {
+                    _savingBar = new ProgressBar
+                    {
+                        Name = "pb_Saving",
+                        // Anchor None: giữ nguyên kích thước và luôn ở giữa khi form đổi kích thước (như progressBar1 của FrmMain)
+                        Anchor = AnchorStyles.None,
+                        Style = ProgressBarStyle.Marquee,
+                        MarqueeAnimationSpeed = 20,
+                        Visible = false
+                    };
+                    Controls.Add(_savingBar);
+                }
+
+                // Kích thước 500x24 theo DPI, không rộng quá form (trừ lề 20px mỗi bên); đặt lại mỗi lần hiện vì form có thể đã đổi kích thước
+                int width = Math.Min(LogicalToDeviceUnits(500), Math.Max(0, ClientSize.Width - LogicalToDeviceUnits(40)));
+                int height = LogicalToDeviceUnits(24);
+                _savingBar.Size = new Size(width, height);
+                _savingBar.Location = new Point((ClientSize.Width - width) / 2, (ClientSize.Height - height) / 2);
+                _savingBar.Visible = true;
+                _savingBar.BringToFront();
+            }
+            else if (_savingBar != null)
+            {
+                _savingBar.Visible = false;
+            }
         }
 
         /// <summary>

@@ -58,7 +58,7 @@
             // 
             // progressBar1
             // 
-            progressBar1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            progressBar1.Anchor = AnchorStyles.None;
             progressBar1.Location = new Point(251, 265);
             progressBar1.Name = "progressBar1";
             progressBar1.Size = new Size(500, 24);

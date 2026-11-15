@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet format:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(rtk:*)",
+      "Bash(codegraph:*)",
+      "mcp__codegraph__*",
+      "mcp__antigravity__use_antigravity",
+      "mcp__antigravity__antigravity_result",
+      "mcp__antigravity__antigravity_jobs",
+      "mcp__antigravity__antigravity_cancel"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(dotnet add package:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/.env*)",
+      "Read(./**/appsettings.Production.json)",
+      "Read(./**/appsettings.*.local.json)",
+      "Read(./**/secrets.json)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)",
+      "Bash(curl * | bash)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | sh)",
+      "Bash(wget * | bash)",
+      "Write(**/*.pem)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-secrets.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1511 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "App API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/authorization/login": {
+      "post": {
+        "tags": [
+          "Authorization"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.AuthorizationInputDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.AuthorizationInputDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.AuthorizationInputDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/authorization/logout": {
+      "post": {
+        "tags": [
+          "Authorization"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/configuration": {
+      "get": {
+        "tags": [
+          "FileConfiguration"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "FileConfiguration"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ocelot.Configuration.File.FileConfiguration"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ocelot.Configuration.File.FileConfiguration"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ocelot.Configuration.File.FileConfiguration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/outputcache/{region}": {
+      "delete": {
+        "tags": [
+          "OutputCache"
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/gateway/{id}": {
+      "get": {
+        "tags": [
+          "TestGatewayAPI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "TestGatewayAPI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "TestGatewayAPI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "TestGatewayAPI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "TestGatewayAPI"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/user": {
+      "post": {
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.UserInputDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.UserInputDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.UserInputDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "Priority",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "UserName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Email",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "QuickCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "FromDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "ToDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "SortBy",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CommonLibs.DTOs.Sort"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/user/{userId}": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/user/export": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/user/{userId}/change-password": {
+      "post": {
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-ID",
+            "in": "header",
+            "description": "Device identifier",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "DEV-DEVICE-2604"
+            }
+          },
+          {
+            "name": "X-Device-Name",
+            "in": "header",
+            "description": "Device name",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "MINHTHUAN"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.ChangePasswordInputDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.ChangePasswordInputDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Gateway.Domain.DTOs.ChangePasswordInputDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CommonLibs.DTOs.Sort": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "CommonLibs.Entities.EntityStatus": {
+        "enum": [
+          0,
+          1,
+          -1
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "Gateway.Domain.DTOs.AuthorizationInputDTO": {
+        "type": "object",
+        "properties": {
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommonLibs.Entities.EntityStatus"
+          },
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "headerMappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Gateway.Domain.DTOs.ChangePasswordInputDTO": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "oldPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "newPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "confirmNewPassword": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Gateway.Domain.DTOs.UserInputDTO": {
+        "type": "object",
+        "properties": {
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/CommonLibs.Entities.EntityStatus"
+          },
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          },
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "refreshToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "signature": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "quickCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "headerMappings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.AggregateRouteConfig": {
+        "type": "object",
+        "properties": {
+          "routeKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "parameter": {
+            "type": "string",
+            "nullable": true
+          },
+          "jsonPath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileAggregateRoute": {
+        "type": "object",
+        "properties": {
+          "routeKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "routeKeysConfig": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ocelot.Configuration.File.AggregateRouteConfig"
+            },
+            "nullable": true
+          },
+          "upstreamPathTemplate": {
+            "type": "string",
+            "nullable": true
+          },
+          "upstreamHost": {
+            "type": "string",
+            "nullable": true
+          },
+          "routeIsCaseSensitive": {
+            "type": "boolean"
+          },
+          "aggregator": {
+            "type": "string",
+            "nullable": true
+          },
+          "upstreamHttpMethod": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileAuthenticationOptions": {
+        "type": "object",
+        "properties": {
+          "authenticationProviderKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileCacheOptions": {
+        "type": "object",
+        "properties": {
+          "ttlSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileConfiguration": {
+        "type": "object",
+        "properties": {
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ocelot.Configuration.File.FileRoute"
+            },
+            "nullable": true
+          },
+          "dynamicRoutes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ocelot.Configuration.File.FileDynamicRoute"
+            },
+            "nullable": true
+          },
+          "aggregates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ocelot.Configuration.File.FileAggregateRoute"
+            },
+            "nullable": true
+          },
+          "globalConfiguration": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileGlobalConfiguration"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileDynamicRoute": {
+        "type": "object",
+        "properties": {
+          "serviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "rateLimitRule": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileRateLimitRule"
+          },
+          "downstreamHttpVersion": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileGlobalConfiguration": {
+        "type": "object",
+        "properties": {
+          "requestIdKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceDiscoveryProvider": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileServiceDiscoveryProvider"
+          },
+          "rateLimitOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileRateLimitOptions"
+          },
+          "qoSOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileQoSOptions"
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "loadBalancerOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileLoadBalancerOptions"
+          },
+          "downstreamScheme": {
+            "type": "string",
+            "nullable": true
+          },
+          "httpHandlerOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileHttpHandlerOptions"
+          },
+          "downstreamHttpVersion": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileHostAndPort": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string",
+            "nullable": true
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileHttpHandlerOptions": {
+        "type": "object",
+        "properties": {
+          "allowAutoRedirect": {
+            "type": "boolean"
+          },
+          "useCookieContainer": {
+            "type": "boolean"
+          },
+          "useTracing": {
+            "type": "boolean"
+          },
+          "useProxy": {
+            "type": "boolean"
+          },
+          "maxConnectionsPerServer": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileLoadBalancerOptions": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiry": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileQoSOptions": {
+        "type": "object",
+        "properties": {
+          "exceptionsAllowedBeforeBreaking": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationOfBreak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "timeoutValue": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileRateLimitOptions": {
+        "type": "object",
+        "properties": {
+          "clientIdHeader": {
+            "type": "string",
+            "nullable": true
+          },
+          "quotaExceededMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "rateLimitCounterPrefix": {
+            "type": "string",
+            "nullable": true
+          },
+          "disableRateLimitHeaders": {
+            "type": "boolean"
+          },
+          "httpStatusCode": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileRateLimitRule": {
+        "type": "object",
+        "properties": {
+          "clientWhitelist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "enableRateLimiting": {
+            "type": "boolean"
+          },
+          "period": {
+            "type": "string",
+            "nullable": true
+          },
+          "periodTimespan": {
+            "type": "number",
+            "format": "double"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileRoute": {
+        "type": "object",
+        "properties": {
+          "downstreamPathTemplate": {
+            "type": "string",
+            "nullable": true
+          },
+          "upstreamPathTemplate": {
+            "type": "string",
+            "nullable": true
+          },
+          "upstreamHttpMethod": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "downstreamHttpMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "addHeadersToRequest": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "upstreamHeaderTransform": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "downstreamHeaderTransform": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "addClaimsToRequest": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "routeClaimsRequirement": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "addQueriesToRequest": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "changeDownstreamPathTemplate": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "requestIdKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileCacheOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileCacheOptions"
+          },
+          "routeIsCaseSensitive": {
+            "type": "boolean"
+          },
+          "serviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceNamespace": {
+            "type": "string",
+            "nullable": true
+          },
+          "downstreamScheme": {
+            "type": "string",
+            "nullable": true
+          },
+          "qoSOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileQoSOptions"
+          },
+          "loadBalancerOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileLoadBalancerOptions"
+          },
+          "rateLimitOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileRateLimitRule"
+          },
+          "authenticationOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileAuthenticationOptions"
+          },
+          "httpHandlerOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileHttpHandlerOptions"
+          },
+          "downstreamHostAndPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ocelot.Configuration.File.FileHostAndPort"
+            },
+            "nullable": true
+          },
+          "upstreamHost": {
+            "type": "string",
+            "nullable": true
+          },
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "delegatingHandlers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "timeout": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dangerousAcceptAnyServerCertificateValidator": {
+            "type": "boolean"
+          },
+          "securityOptions": {
+            "$ref": "#/components/schemas/Ocelot.Configuration.File.FileSecurityOptions"
+          },
+          "downstreamHttpVersion": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileSecurityOptions": {
+        "type": "object",
+        "properties": {
+          "ipAllowedList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "ipBlockedList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ocelot.Configuration.File.FileServiceDiscoveryProvider": {
+        "type": "object",
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "nullable": true
+          },
+          "host": {
+            "type": "string",
+            "nullable": true
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "nullable": true
+          },
+          "configurationKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "pollingInterval": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "namespace": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Enter Access Token",
+        "scheme": "Bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ]
+}

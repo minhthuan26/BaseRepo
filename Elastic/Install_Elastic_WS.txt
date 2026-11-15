@@ -3,11 +3,13 @@ HƯỚNG DẪN CÀI ĐẶT & QUẢN LÝ HỆ THỐNG LOGS (ELASTICSEARCH - FILEB
 MÔI TRƯỜNG: WINDOWS SERVICE
 ================================================================================
 
-1. ĐỊA CHỈ THƯ MỤC CÀI ĐẶT (KHUYÊN DÙNG)
+Luồng: ASP.NET Core --> Log4Net/Serilog (JSON) --> Filebeat --> Elasticsearch --> Kibana
+
+1. ĐỊA CHỈ THƯ MỤC CÀI ĐẶT
 --------------------------------------------------------------------------------
-- Elasticsearch: D:\Mitalab_Testing\BaseRepo\Elastic\elasticsearch-9.4.2
-- Filebeat     : D:\Mitalab_Testing\BaseRepo\Elastic\filebeat-9.4.2-windows-x86_64
-- Kibana       : D:\Mitalab_Testing\BaseRepo\Elastic\kibana-9.4.2
+- Elasticsearch: <Folder>\Elastic\elasticsearch-9.4.2
+- Filebeat     : <Folder>\Elastic\filebeat-9.4.2-windows-x86_64
+- Kibana       : <Folder>\Elastic\kibana-9.4.2
 
 
 2. LỆNH CÀI ĐẶT WINDOWS SERVICE (YÊU CẦU QUYỀN ADMINISTRATOR)
@@ -38,69 +40,7 @@ C. KIBANA (Chạy bằng PowerShell/CMD - Sử dụng công cụ NSSM)
    > Start-Service _Kibana
 
 
-3. FILE CẤU HÌNH THỰC TẾ FILEBEAT (filebeat.yml)
---------------------------------------------------------------------------------
-filebeat.inputs:
-  - type: filestream
-    id: gateway
-    enabled: true
-    paths:
-      - "D:\\Mitalab_Testing\\BaseRepo\\Gateway\\Logs\\*.json"
-    parsers:
-      - ndjson:
-          keys_under_root: true
-          overwrite_keys: true
-          add_error_key: true
-    fields:
-      service: gateway
-    fields_under_root: true
-    
-  - type: filestream
-    id: site
-    enabled: true
-    paths:
-      - "D:\\Mitalab_Testing\\BaseRepo\\Site\\Logs\\*.json"
-    parsers:
-      - ndjson:
-          keys_under_root: true
-          overwrite_keys: true
-          add_error_key: true
-    fields:
-      service: site
-    fields_under_root: true
-
-setup.ilm.enabled: false
-setup.template.enabled: false
-
-output.elasticsearch:
-  hosts: ["localhost:8010"]
-  index: "log-%{[service]}-%{+yyyy.MM.dd}"
-
-setup.kibana:
-  host: "localhost:8011"
-  
-processors:
-  - add_host_metadata:
-      when.not.contains.tags: forwarded
-
-  - copy_fields:
-      fields:
-        - from: "@t"
-          to: "@timestamp"
-      fail_on_error: false
-      ignore_missing: true
-
-  - drop_fields:
-      fields:
-        - "agent"
-        - "host"
-        - "ecs"
-        - "input"
-        - "log"
-      ignore_missing: true
-
-
-4. CÁC LỆNH BẢO TRÌ NHANH TRÊN POWERSHELL
+3. CÁC LỆNH BẢO TRÌ NHANH TRÊN POWERSHELL
 --------------------------------------------------------------------------------
 - Kiểm tra trạng thái:  Get-Service Mitalab_Elasticsearch, filebeat, _Kibana
 - Khởi động lại nhanh:  Restart-Service filebeat
@@ -110,6 +50,6 @@ processors:
 ================================================================================
 
 
-5. CÀI REDIS WINDOW SERVICE
+4. CÀI REDIS WINDOW SERVICE
 - RedisService.exe install -c ./redis_8012.conf --service-name _Redis_8012
 - sc config _Redis_8012 DisplayName= "_Red8012" description "Redis => 8012"

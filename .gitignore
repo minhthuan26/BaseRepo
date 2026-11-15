@@ -159,3 +159,12 @@ Desktop.ini
 # Superpowers: local worktrees for isolated task execution
 # =========================================
 .worktrees/
+# claude-workflow-template
+.claude/settings.local.json
+CLAUDE.local.md
+.codegraph/
+Elastic
+graphify-out
+.mcp*
+./CommonLibs/BaseRabbitMQ/db
+./CommonLibs/BaseRabbitMQ/log

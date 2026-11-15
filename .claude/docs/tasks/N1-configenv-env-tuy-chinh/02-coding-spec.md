@@ -1,6 +1,6 @@
 # N1 — ConfigEnv: env tùy chọn (thêm / sinh value / sửa / xóa) · Coding Spec
 
-- **Trạng thái duyệt:** ⬜ chờ duyệt
+- **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-15
 - Yêu cầu đã chốt: [01-requirement.md](01-requirement.md) (2026-11-15). Chỉ một task, không tách nhỏ (một lát cắt UI + logic, ~6 file).
 
 ## 1. Phạm vi

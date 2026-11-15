@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views.ConfigEnv
 {
@@ -11,7 +12,7 @@ namespace SystemManagement.Views.ConfigEnv
     /// Hộp thoại chọn một bản sao lưu để khôi phục cho biến môi trường cốt lõi.
     /// Giải thích: Hiển thị các bản sao lưu của đúng key được chọn theo thứ tự thời gian mới nhất trước.
     /// </summary>
-    public partial class FrmEnvRestorePicker : Form
+    public partial class FrmEnvRestorePicker : Frm_Base
     {
         private readonly string _targetKey;
 

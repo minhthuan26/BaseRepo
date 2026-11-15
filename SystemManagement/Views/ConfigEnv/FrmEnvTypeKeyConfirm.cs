@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views.ConfigEnv
 {
@@ -9,7 +10,7 @@ namespace SystemManagement.Views.ConfigEnv
     /// Giải thích: Yêu cầu người dùng gõ lại chính xác tên biến (so sánh Ordinal)
     /// để tránh thao tác nhầm lẫn gây hỏng hóc hệ thống.
     /// </summary>
-    public partial class FrmEnvTypeKeyConfirm : Form
+    public partial class FrmEnvTypeKeyConfirm : Frm_Base
     {
         private readonly string _expectedKey;
 

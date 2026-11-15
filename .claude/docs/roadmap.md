@@ -22,7 +22,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 | 3 | AdministrativeUnit (Province/Ward) | 🟡 | M5 template import · 🔑 M13 chạy SQL + seed + test |
 | 4 | Booking: Quản lý thuê sân (SportsBooking) | 🟡 | Phase 1: 🏗️ M18 Customer, M2 Booking + chống trùng lịch, M3 RecurringGroup, M4 API Lễ tân/Admin, 🔑 M14 SQL + seed · Phase 2/3: 🔑 M17, 🏗️ M19, 🏗️ M20 |
 | 5 | CommonLibs / hạ tầng chung | 🟡 | M1 dựng xUnit · M8 vá NU1903 · 🔑 M15 verify runtime |
-| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · 🟡 N2-1, N2-2 chạy tay checklist (sửa/khôi phục biến cốt lõi, trình sửa danh sách Path) · ⬜ N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
+| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · 🟡 N2-1, N2-2 chạy tay checklist (sửa/khôi phục biến cốt lõi, trình sửa danh sách Path) · ⬜ N4-1, N4-2 (spec đã duyệt, chưa code), N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
 | 7 | BloodDonation: Đăng ký hiến máu | ⬜ | 🏗️ M21 khởi tạo domain (chờ BA) |
 
 ## 2. Việc còn lại
@@ -47,6 +47,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 |---|---|---|---|
 | N3 | Module 6: ConfigSQL — công cụ quản trị SQL Server (nhiều kết nối đồng thời không lưu, test kết nối và thực thi trực tiếp trên nhiều đích, xem đối tượng + sinh script, backup/copy sang DB khác, gợi ý index, chẩn đoán treo/kill session/clear cache). Bao gồm M6. Chia 9 task N3-1..N3-9 (spec ở `.claude/docs/tasks/N3-*/02-coding-spec.md`: N3-1 khung+kết nối → N3-2 chạy file `.sql` (M6) → N3-3 đối tượng → N3-4 backup/copy (chỉ schema / chỉ dữ liệu / cả hai) → N3-5 index → N3-6 chẩn đoán + kill/cache → N3-7 restore → N3-8 thư viện script chẩn đoán kể cả log hệ thống → N3-9 so sánh cấu trúc giữa 2 kết nối và migration tự động: thêm cột, sửa kiểu theo nguồn, tự xử lý phụ thuộc; không so sánh dữ liệu), xem `.claude/docs/tasks/N3-configsql-quan-tri-sql-server/01-requirement.md` | Yêu cầu đã chốt 2026-11-15; spec N3-1, N3-2 chi tiết đã duyệt 2026-11-15 (chưa code), N3-3..N3-9 là bản phác thảo cần BA hoàn thiện; cần 🔑 SQL Server 2019+ để verify runtime | ⬜ |
 | N2 | Module 6: ConfigEnv cho sửa biến hệ thống cốt lõi (`Path`, `TEMP`...) khi elevated + gõ lại tên key; backup `Backups/Env/` + nút Khôi phục; trình sửa từng mục cho `Path`/`PATHEXT`/`PSModulePath`. Yêu cầu đã chốt 2026-11-15, xem `.claude/docs/tasks/N2-configenv-sua-bien-loi/01-requirement.md`. Tách 2 task: **N2-1** (mở khóa + backup + khôi phục, spec `tasks/N2-1-backup-khoi-phuc-bien-loi/02-coding-spec.md`) → **N2-2** (trình sửa danh sách, phụ thuộc N2-1, spec `tasks/N2-2-trinh-sua-danh-sach/02-coding-spec.md`) | **N2-1** code + test tự động + review APPROVE xong 2026-11-15 ([06-handover.md](tasks/N2-1-backup-khoi-phuc-bien-loi/06-handover.md)), **còn chạy tay** checklist (UI + Administrator) trước khi ✅; **N2-2** code + test tự động + review APPROVE xong 2026-11-15 ([06-handover.md](tasks/N2-2-trinh-sua-danh-sach/06-handover.md)), **còn chạy tay** (UI + Administrator, `reg export` trước) | 🟡 |
+| N4 | Module 6: ConfigEnv tab Tùy chỉnh chia **hai lưới System (Machine) và User (HKCU)**, hiện cả 6 key `BaseRepo__*` mặc định (sửa/xóa như biến thường), backup bắt buộc trước mọi sửa/xóa ở cả hai lưới (file backup thêm `Scope`, `Backups/` vào `.gitignore`), Khôi phục mọi biến kể cả biến đã xóa; biến trùng tên giữa hai scope để Windows tự xử lý. Yêu cầu đã chốt 2026-11-16, xem `.claude/docs/tasks/N4-configenv-hai-luoi-user-system/01-requirement.md`. Tách 2 task: **N4-1** (dịch vụ theo scope + backup, spec `tasks/N4-1-dich-vu-env-theo-scope/02-coding-spec.md`) → **N4-2** (giao diện hai lưới, phụ thuộc N4-1, spec `tasks/N4-2-giao-dien-hai-luoi-system-user/02-coding-spec.md`) | Spec N4-1, N4-2 đã duyệt 2026-11-16 (chưa code). Xây trên N2-1/N2-2 chưa chạy tay; nên chạy tay N2 trước | ⬜ |
 
 ### 2.3 Cần credential / hạ tầng ngoài 🔑
 
@@ -82,12 +83,12 @@ _Thứ tự gợi ý, chỉ chứa việc CHƯA xong. Hướng đã chốt: **�
 6. M2 → M3 → M4: Booking + chống trùng lịch, RecurringGroup, API Lễ tân/Admin
 7. M13, M5: AdministrativeUnit
 8. M7, M9: Tài liệu URL mới, RequireFunction cho Site
-9. N2 (N2-1 → N2-2), N3 (N3-1 → N3-2 → ...; gồm M6), M16: SystemManagement (N2 làm được trên máy hiện tại; N3 cần SQL Server 2019+ để verify runtime)
+9. N2 (N2-1 → N2-2), N4 (N4-1 → N4-2; sau khi chạy tay N2), N3 (N3-1 → N3-2 → ...; gồm M6), M16: SystemManagement (N2 làm được trên máy hiện tại; N3 cần SQL Server 2019+ để verify runtime)
 10. M17, M19, M20, M21: Booking Phase 2/3 và BloodDonation (chờ BA)
 
 ## 4. Cách thêm tính năng
 
-Dùng mã `N` kế tiếp (**hiện tại: N4**). Thêm dòng vào mục 2.2, tăng số `N` ở đây, đề xuất vị trí ở mục 3.
+Dùng mã `N` kế tiếp (**hiện tại: N5**). Thêm dòng vào mục 2.2, tăng số `N` ở đây, đề xuất vị trí ở mục 3.
 
 ## 5. Đã xong
 

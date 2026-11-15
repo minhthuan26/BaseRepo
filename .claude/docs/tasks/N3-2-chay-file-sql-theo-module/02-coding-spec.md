@@ -1,6 +1,6 @@
 # N3-2 — ConfigSQL: chạy file `.sql` theo module trên một hoặc nhiều đích, trong transaction (M6) · Coding Spec
 
-- **Trạng thái duyệt:** ⬜ chờ duyệt (đã viết lại 2026-11-15 sau khi người dùng bổ sung nhiều kết nối đồng thời)
+- **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-15 (đã viết lại 2026-11-15 sau khi người dùng bổ sung nhiều kết nối đồng thời)
 - **Yêu cầu gốc:** `../N3-configsql-quan-tri-sql-server/01-requirement.md` mục 4 (bước 4), R4, R5, R10, R13, R14, R19, R20 · Thiết kế gốc: `docs/superpowers/specs/2026-09-02-sql-file-relocation-and-system-management-sql-tool-design.md` mục 5–6 · **Phụ thuộc: N3-1** · **Thực hiện luôn M6 trong roadmap**
 
 ## 1. Phạm vi

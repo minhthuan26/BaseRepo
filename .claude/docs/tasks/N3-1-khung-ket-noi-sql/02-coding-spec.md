@@ -1,6 +1,6 @@
 # N3-1 — ConfigSQL: khung màn hình, quản lý nhiều kết nối (nguồn/đích), test kết nối, chế độ chỉ đọc/ghi theo từng kết nối · Coding Spec
 
-- **Trạng thái duyệt:** ⬜ chờ duyệt (đã viết lại 2026-11-15 sau khi người dùng bổ sung yêu cầu nhiều kết nối đồng thời)
+- **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-15 (đã viết lại 2026-11-15 sau khi người dùng bổ sung yêu cầu nhiều kết nối đồng thời)
 - **Yêu cầu gốc:** `../N3-configsql-quan-tri-sql-server/01-requirement.md` (đã chốt 2026-11-15, R1–R3, R19) · **Phụ thuộc:** không · **Task kế tiếp:** N3-2 trở đi đều dựa vào task này
 
 ## 1. Phạm vi

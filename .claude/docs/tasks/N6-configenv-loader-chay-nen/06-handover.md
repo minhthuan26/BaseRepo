@@ -1,6 +1,6 @@
 # N6 — ConfigEnv: loader và chạy nền cho Lưu/Xóa/Khôi phục · Bàn giao
 
-- **Ngày:** 2026-11-16 · **Trạng thái:** 🟡 một phần (code + test tự động + review APPROVE xong, **còn chạy tay** loader/UI không đứng/bấm lặp) · **Sprint:** chưa gán
+- **Ngày:** 2026-11-16 · **Trạng thái:** ✅ xong (người dùng chạy tay checklist đạt 2026-11-16: loader, UI không đứng, bấm lặp) · **Sprint:** chưa gán
 
 ## 1. Tóm tắt
 Khi Lưu/Xóa/Khôi phục trong ConfigEnv, UI không còn đứng: phần ghi (registry, backup, broadcast) chạy ở **luồng nền** dưới loader. Form đang lưu bị **khóa** (nút, ô nhập, con trỏ chờ), **không đóng được** (kể cả nút X/Esc), và bấm Lưu lặp chỉ ghi một lần. Nguyên nhân gốc đã sửa: `FrmEnvListEditor` gọi `UpdateCoreValue` trực tiếp không qua loader, và `FrmMain.RunWithLoadingAsync` vốn chạy action **trên luồng UI** nên ngay cả nơi đã có loader vẫn đứng. Hành vi nghiệp vụ, thông báo, nhánh lỗi giữ nguyên. Không đổi `FrmMain`, DB, registry logic, Designer, `.resx`, không thêm package.

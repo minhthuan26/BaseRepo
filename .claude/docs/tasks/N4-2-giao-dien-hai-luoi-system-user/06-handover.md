@@ -1,6 +1,6 @@
 # N4-2 — ConfigEnv: giao diện hai lưới System / User · Bàn giao
 
-- **Ngày:** 2026-11-16 · **Trạng thái:** 🟡 một phần (code + test tự động + review xong; chờ người dùng chạy checklist thủ công AC4–AC9) · **Sprint:** —
+- **Ngày:** 2026-11-16 · **Trạng thái:** ✅ xong (người dùng chạy tay checklist đạt 2026-11-16) · **Sprint:** —
 
 ## 1. Tóm tắt
 Tab **Tùy chỉnh** của ConfigEnv giờ có **hai lưới trên/dưới**: System (Machine, HKLM) và User (HKCU, tiêu đề ghi tên tài khoản đang chạy). Cả hai hiện **mọi** biến, kể cả 6 key `BaseRepo__*` mặc định. Tìm kiếm, Hiện/Ẩn giá trị, Làm mới áp cho cả hai lưới; Thêm/Sửa/Xóa/Khôi phục tác động lưới đang được chọn (có dấu ▶ ở tiêu đề). Mọi ghi đi qua hàm theo scope của N4-1 nên tự backup; Khôi phục chọn bản backup của scope đang chọn (mọi key, kể cả biến đã xóa).

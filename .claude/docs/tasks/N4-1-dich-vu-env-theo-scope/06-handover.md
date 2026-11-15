@@ -1,6 +1,6 @@
 # N4-1 — ConfigEnv: dịch vụ biến môi trường theo phạm vi User/Machine + backup mọi thao tác · Bàn giao
 
-- **Ngày:** 2026-11-16 · **Trạng thái:** 🟡 một phần (code + test tự động + review xong; chưa verify nhánh Machine khi chạy elevated) · **Sprint:** —
+- **Ngày:** 2026-11-16 · **Trạng thái:** ✅ xong (người dùng chạy tay checklist đạt 2026-11-16, gồm nhánh Machine) · **Sprint:** —
 
 ## 1. Tóm tắt
 Tầng dịch vụ của ConfigEnv giờ làm việc với **hai phạm vi** (`Machine` = HKLM, `User` = HKCU) và với **mọi biến**, không chỉ 12 biến cốt lõi. Có hàm liệt kê/tạo/sửa/xóa/khôi phục theo scope; mọi sửa, xóa, khôi phục đều tự backup trước, và khôi phục dùng được cả cho biến đã bị xóa. File backup có thêm dòng `Scope=` (file cũ không có dòng này được coi là `Machine`). `Backups/` đã vào `.gitignore` vì backup chứa giá trị plaintext. Chưa đổi giao diện (thuộc N4-2); các hàm N1/N2 giữ nguyên hành vi Machine.

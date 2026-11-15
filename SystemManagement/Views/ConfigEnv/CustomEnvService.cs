@@ -1,8 +1,10 @@
 using CommonLibs.Utils;
+using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 
 namespace SystemManagement.Views.ConfigEnv
 {
@@ -26,12 +28,146 @@ namespace SystemManagement.Views.ConfigEnv
             "NUMBER_OF_PROCESSORS"
         };
 
+        private static readonly HashSet<string> ListKeys = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Path",
+            "PATHEXT",
+            "PSModulePath"
+        };
+
         public static bool IsProtected(string key)
         {
             if (string.IsNullOrWhiteSpace(key))
                 return false;
 
             return CoreProtectedKeys.Contains(key.Trim());
+        }
+
+        public static bool IsListKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return false;
+
+            return ListKeys.Contains(key.Trim());
+        }
+
+        /// <summary>
+        /// Kiểm tra tiến trình có đang chạy dưới quyền Administrator (elevated) hay không.
+        /// Giải thích: Sửa registry HKLM bắt buộc tiến trình phải có quyền Administrator.
+        /// </summary>
+        public static bool IsElevated()
+        {
+            if (!OperatingSystem.IsWindows())
+                return false;
+
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        /// <summary>
+        /// Đọc giá trị thô (chưa mở rộng %...%) của một biến hệ thống cốt lõi.
+        /// Ném KeyNotFoundException nếu biến không còn tồn tại trên máy.
+        /// </summary>
+        public static string GetCoreRawValue(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Tên biến không được để trống.", nameof(key));
+
+            var raw = EnvRegistryService.ReadRaw(key);
+            if (raw == null)
+                throw new KeyNotFoundException($"Biến '{key}' không còn tồn tại trên máy.");
+
+            return raw.Value;
+        }
+
+        /// <summary>
+        /// Cập nhật giá trị biến hệ thống cốt lõi (chấp nhận cả biến danh sách vì N2-2 dùng lại; UI mới là nơi chặn list key).
+        /// Bắt buộc sao lưu giá trị cũ trước khi ghi.
+        /// </summary>
+        public static void UpdateCoreValue(string key, string newValue)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Tên biến không được để trống.", nameof(key));
+
+            if (!IsProtected(key))
+                throw new InvalidOperationException($"Biến '{key}' không phải là biến hệ thống cốt lõi.");
+
+            if (!IsElevated())
+                throw new UnauthorizedAccessException("Cần chạy ứng dụng với quyền Administrator để sửa biến hệ thống cốt lõi.");
+
+            string? valError = ValidateValue(newValue);
+            if (valError != null)
+                throw new ArgumentException(valError);
+
+            if (newValue.Contains('\r') || newValue.Contains('\n'))
+                throw new ArgumentException("Giá trị biến không được chứa ký tự xuống dòng.");
+
+            var current = EnvRegistryService.ReadRaw(key);
+            if (current == null)
+                throw new KeyNotFoundException($"Biến '{key}' không còn tồn tại trên máy.");
+
+            // Kiểm tra kiểu dữ liệu của biến hiện có: chỉ hỗ trợ String hoặc ExpandString
+            if (current.Kind != RegistryValueKind.String && current.Kind != RegistryValueKind.ExpandString)
+                throw new InvalidOperationException($"Biến '{key}' có kiểu dữ liệu '{current.Kind}' không được hỗ trợ (chỉ hỗ trợ String hoặc ExpandString).");
+
+            // Sao lưu giá trị hiện tại trước khi ghi; nếu CreateBackup lỗi thì dừng ngay không ghi registry
+            EnvBackupService.CreateBackup(key, current.Value, current.Kind, reason: "Edit");
+
+            // Ghi giá trị mới và giữ nguyên kiểu RegistryValueKind cũ
+            EnvRegistryService.WriteRaw(key, newValue, current.Kind);
+
+            // Broadcast thông báo toàn hệ thống về thay đổi biến môi trường
+            EnvRegistryService.BroadcastSettingChange();
+        }
+
+        /// <summary>
+        /// Khôi phục biến hệ thống cốt lõi từ một bản sao lưu.
+        /// Sao lưu giá trị hiện tại (reason: BeforeRestore) trước khi ghi đè.
+        /// Thứ tự thực hiện: kiểm tra -> ReadRaw -> CreateBackup (lỗi thì dừng) -> WriteRaw -> Broadcast.
+        /// </summary>
+        public static void RestoreCoreValue(EnvBackupEntry entry)
+        {
+            if (entry == null)
+                throw new ArgumentNullException(nameof(entry));
+
+            if (string.IsNullOrWhiteSpace(entry.Key))
+                throw new ArgumentException("Tên biến trong bản sao lưu không hợp lệ.");
+
+            if (entry.Key != entry.Key.Trim())
+                throw new ArgumentException($"Tên biến '{entry.Key}' trong bản sao lưu không được chứa khoảng trắng đầu hoặc cuối.");
+
+            if (!IsProtected(entry.Key))
+                throw new InvalidOperationException($"Biến '{entry.Key}' không phải là biến hệ thống cốt lõi.");
+
+            if (!IsElevated())
+                throw new UnauthorizedAccessException("Cần chạy ứng dụng với quyền Administrator để khôi phục biến hệ thống cốt lõi.");
+
+            string? valError = ValidateValue(entry.Value);
+            if (valError != null)
+                throw new ArgumentException($"Giá trị của biến '{entry.Key}' trong bản sao lưu không hợp lệ ({valError}).");
+
+            if (entry.Value.Contains('\r') || entry.Value.Contains('\n'))
+                throw new ArgumentException($"Giá trị của biến '{entry.Key}' trong bản sao lưu không được chứa ký tự xuống dòng.");
+
+            // Đọc giá trị hiện tại; nếu biến thực sự không tồn tại (ReadRaw trả null) thì bỏ qua backup BeforeRestore;
+            // mọi lỗi đọc khác (ReadRaw ném lỗi) sẽ làm dừng ngay lập tức, không ghi.
+            var current = EnvRegistryService.ReadRaw(entry.Key);
+            if (current != null)
+            {
+                // Kiểm tra kiểu dữ liệu của biến hiện có trước khi tạo backup/ghi đè
+                if (current.Kind != RegistryValueKind.String && current.Kind != RegistryValueKind.ExpandString)
+                    throw new InvalidOperationException($"Biến '{entry.Key}' có kiểu dữ liệu '{current.Kind}' không được hỗ trợ (chỉ hỗ trợ String hoặc ExpandString).");
+
+                // Sao lưu giá trị hiện tại trước khi ghi đè; lỗi thì dừng không ghi
+                EnvBackupService.CreateBackup(entry.Key, current.Value, current.Kind, reason: "BeforeRestore");
+            }
+
+            // Ghi đè giá trị và kiểu từ bản sao lưu
+            EnvRegistryService.WriteRaw(entry.Key, entry.Value, entry.Kind);
+
+            // Broadcast thông báo toàn hệ thống
+            EnvRegistryService.BroadcastSettingChange();
         }
 
         public static bool NeedsExtraWarning(string key)

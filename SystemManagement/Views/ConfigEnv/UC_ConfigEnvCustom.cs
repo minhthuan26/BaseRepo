@@ -91,6 +91,73 @@ namespace SystemManagement.Views.ConfigEnv
             }
         }
 
+        private async void btn_Restore_Click(object? sender, EventArgs e)
+        {
+            var selected = (dgv_Envs.CurrentRow?.DataBoundItem as EnvRowViewModel)?.Item;
+            if (selected == null)
+            {
+                FrmMain.ThrowWarning("Vui lòng chọn một biến môi trường để khôi phục.");
+                return;
+            }
+
+            if (!selected.IsProtected)
+            {
+                FrmMain.ThrowWarning($"Biến '{selected.Key}' không phải là biến hệ thống cốt lõi. Chức năng khôi phục chỉ áp dụng cho biến cốt lõi.");
+                return;
+            }
+
+            if (!CustomEnvService.IsElevated())
+            {
+                FrmMain.ThrowWarning("Cần chạy ứng dụng với quyền Administrator để khôi phục biến hệ thống cốt lõi.");
+                return;
+            }
+
+            var backups = EnvBackupService.ListBackups(selected.Key);
+            if (backups.Count == 0)
+            {
+                FrmMain.ThrowInfo($"Biến '{selected.Key}' chưa có bản sao lưu nào để khôi phục.");
+                return;
+            }
+
+            using var picker = new FrmEnvRestorePicker(selected.Key);
+            if (picker.ShowDialog(this) != DialogResult.OK || picker.SelectedEntry == null)
+            {
+                return;
+            }
+
+            var selectedEntry = picker.SelectedEntry;
+
+            string confirmMsg = $"CẢNH BÁO NGUY HIỂM: Khôi phục biến hệ thống cốt lõi '{selected.Key}' về bản sao lưu thời điểm {selectedEntry.CreatedAt:yyyy-MM-dd HH:mm:ss}.\n" +
+                                $"Thao tác này sẽ ghi đè giá trị biến môi trường của hệ thống Windows.\n\n" +
+                                $"Để tiếp tục, vui lòng gõ lại chính xác tên biến để xác nhận:";
+
+            using var confirmForm = new FrmEnvTypeKeyConfirm(selected.Key, "Xác nhận khôi phục biến hệ thống cốt lõi", confirmMsg);
+            if (confirmForm.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                await FrmMain.RunWithLoadingAsync(() =>
+                {
+                    CustomEnvService.RestoreCoreValue(selectedEntry);
+                    return Task.CompletedTask;
+                });
+
+                FrmMain.ThrowInfo($"Đã khôi phục biến '{selected.Key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
+                await LoadDataAsync();
+            }
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
+            {
+                FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+            }
+            catch (Exception ex)
+            {
+                FrmMain.ThrowError(ex.Message);
+            }
+        }
+
         private async void btn_Edit_Click(object sender, EventArgs e)
         {
             var selected = (dgv_Envs.CurrentRow?.DataBoundItem as EnvRowViewModel)?.Item;
@@ -102,7 +169,50 @@ namespace SystemManagement.Views.ConfigEnv
 
             if (selected.IsProtected)
             {
-                FrmMain.ThrowWarning($"Biến '{selected.Key}' là biến hệ thống cốt lõi, không được phép sửa.");
+                // Biến dạng danh sách Path, PATHEXT, PSModulePath vẫn khóa sửa trong task này (làm ở N2-2)
+                if (CustomEnvService.IsListKey(selected.Key))
+                {
+                    FrmMain.ThrowWarning("Biến dạng danh sách sẽ có trình sửa riêng, chưa hỗ trợ ở phiên bản này.");
+                    return;
+                }
+
+                if (!CustomEnvService.IsElevated())
+                {
+                    FrmMain.ThrowWarning("Cần chạy ứng dụng với quyền Administrator để sửa biến hệ thống cốt lõi.");
+                    return;
+                }
+
+                string confirmMsg = $"CẢNH BÁO NGUY HIỂM: Biến '{selected.Key}' là biến hệ thống cốt lõi của Windows.\n" +
+                                    $"Thay đổi giá trị biến này có thể ảnh hưởng nghiêm trọng đến toàn bộ hệ điều hành và các ứng dụng đang chạy.\n\n" +
+                                    $"Để tiếp tục, vui lòng gõ lại chính xác tên biến để xác nhận:";
+
+                using var confirmForm = new FrmEnvTypeKeyConfirm(selected.Key, "Xác nhận sửa biến hệ thống cốt lõi", confirmMsg);
+                if (confirmForm.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                string rawValue;
+                try
+                {
+                    rawValue = CustomEnvService.GetCoreRawValue(selected.Key);
+                }
+                catch (KeyNotFoundException ex)
+                {
+                    FrmMain.ThrowError(ex.Message);
+                    await LoadDataAsync();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    FrmMain.ThrowError(ex.Message);
+                    return;
+                }
+
+                using var coreEditor = new FrmCustomEnvEditor(isEditMode: true, key: selected.Key, currentValue: rawValue, isCoreEdit: true);
+                var coreRes = coreEditor.ShowDialog(this);
+                if (coreRes == DialogResult.OK || coreRes == DialogResult.Abort)
+                {
+                    await LoadDataAsync();
+                }
                 return;
             }
 
@@ -207,6 +317,7 @@ namespace SystemManagement.Views.ConfigEnv
     internal class FrmCustomEnvEditor : Form
     {
         private readonly bool _isEditMode;
+        private readonly bool _isCoreEdit;
         private readonly TextBox _txtKey;
         private readonly TextBox _txtValue;
         private readonly ComboBox _cboGenType;
@@ -216,12 +327,15 @@ namespace SystemManagement.Views.ConfigEnv
         private readonly NumericUpDown _nudRandomLength;
         private readonly Label _lblRsaNote;
 
-        public FrmCustomEnvEditor(bool isEditMode, string key, string currentValue)
+        public FrmCustomEnvEditor(bool isEditMode, string key, string currentValue, bool isCoreEdit = false)
         {
             _isEditMode = isEditMode;
+            _isCoreEdit = isCoreEdit;
 
-            Text = _isEditMode ? "Sửa giá trị biến môi trường" : "Thêm biến môi trường tùy chỉnh";
-            ClientSize = new Size(540, 460);
+            Text = _isCoreEdit
+                ? "Sửa giá trị biến hệ thống cốt lõi"
+                : (_isEditMode ? "Sửa giá trị biến môi trường" : "Thêm biến môi trường tùy chỉnh");
+            ClientSize = new Size(540, _isCoreEdit ? 200 : 460);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -263,12 +377,13 @@ namespace SystemManagement.Views.ConfigEnv
                 ScrollBars = ScrollBars.Vertical
             };
 
-            // Generator GroupBox
+            // Generator GroupBox (ẩn khi sửa biến cốt lõi)
             var grpGen = new GroupBox
             {
                 Text = "Sinh giá trị tự động",
                 Location = new Point(20, 140),
-                Size = new Size(490, 240)
+                Size = new Size(490, 240),
+                Visible = !_isCoreEdit
             };
 
             var lblGenType = new Label
@@ -359,7 +474,7 @@ namespace SystemManagement.Views.ConfigEnv
             var btnSave = new Button
             {
                 Text = "Lưu",
-                Location = new Point(320, 400),
+                Location = new Point(320, _isCoreEdit ? 145 : 400),
                 Size = new Size(90, 35),
                 BackColor = Color.LimeGreen,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -371,7 +486,7 @@ namespace SystemManagement.Views.ConfigEnv
             var btnCancel = new Button
             {
                 Text = "Hủy",
-                Location = new Point(420, 400),
+                Location = new Point(420, _isCoreEdit ? 145 : 400),
                 Size = new Size(90, 35),
                 BackColor = Color.WhiteSmoke,
                 Cursor = Cursors.Hand,
@@ -505,6 +620,50 @@ namespace SystemManagement.Views.ConfigEnv
         {
             string key = _txtKey.Text;
             string val = _txtValue.Text;
+
+            if (_isCoreEdit)
+            {
+                string? coreValError = CustomEnvService.ValidateValue(val);
+                if (coreValError != null)
+                {
+                    FrmMain.ThrowError(coreValError);
+                    return;
+                }
+
+                if (val.Contains('\r') || val.Contains('\n'))
+                {
+                    FrmMain.ThrowError("Giá trị biến không được chứa ký tự xuống dòng.");
+                    return;
+                }
+
+                try
+                {
+                    await FrmMain.RunWithLoadingAsync(() =>
+                    {
+                        CustomEnvService.UpdateCoreValue(key, val);
+                        return Task.CompletedTask;
+                    });
+
+                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
+                {
+                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                }
+                catch (KeyNotFoundException ex)
+                {
+                    FrmMain.ThrowError(ex.Message);
+                    DialogResult = DialogResult.Abort;
+                    Close();
+                }
+                catch (Exception ex)
+                {
+                    FrmMain.ThrowError(ex.Message);
+                }
+                return;
+            }
 
             if (!_isEditMode)
             {

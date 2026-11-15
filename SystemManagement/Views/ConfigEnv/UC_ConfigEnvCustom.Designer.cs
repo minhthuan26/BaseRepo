@@ -34,6 +34,7 @@ namespace SystemManagement.Views.ConfigEnv
             btn_Edit = new Button();
             btn_Add = new Button();
             btn_Refresh = new Button();
+            btn_Restore = new Button();
             btn_ToggleMask = new Button();
             txt_Search = new TextBox();
             lbl_Search = new Label();
@@ -53,6 +54,7 @@ namespace SystemManagement.Views.ConfigEnv
             pnl_Toolbar.Controls.Add(btn_Edit);
             pnl_Toolbar.Controls.Add(btn_Add);
             pnl_Toolbar.Controls.Add(btn_Refresh);
+            pnl_Toolbar.Controls.Add(btn_Restore);
             pnl_Toolbar.Controls.Add(btn_ToggleMask);
             pnl_Toolbar.Controls.Add(txt_Search);
             pnl_Toolbar.Controls.Add(lbl_Search);
@@ -71,7 +73,7 @@ namespace SystemManagement.Views.ConfigEnv
             btn_Delete.Location = new Point(895, 8);
             btn_Delete.Name = "btn_Delete";
             btn_Delete.Size = new Size(80, 32);
-            btn_Delete.TabIndex = 6;
+            btn_Delete.TabIndex = 7;
             btn_Delete.Text = "Xóa";
             toolTip1.SetToolTip(btn_Delete, "Xóa biến môi trường Machine");
             btn_Delete.UseVisualStyleBackColor = false;
@@ -86,7 +88,7 @@ namespace SystemManagement.Views.ConfigEnv
             btn_Edit.Location = new Point(810, 8);
             btn_Edit.Name = "btn_Edit";
             btn_Edit.Size = new Size(80, 32);
-            btn_Edit.TabIndex = 5;
+            btn_Edit.TabIndex = 6;
             btn_Edit.Text = "Sửa value";
             toolTip1.SetToolTip(btn_Edit, "Sửa giá trị biến đang chọn");
             btn_Edit.UseVisualStyleBackColor = false;
@@ -101,7 +103,7 @@ namespace SystemManagement.Views.ConfigEnv
             btn_Add.Location = new Point(725, 8);
             btn_Add.Name = "btn_Add";
             btn_Add.Size = new Size(80, 32);
-            btn_Add.TabIndex = 4;
+            btn_Add.TabIndex = 5;
             btn_Add.Text = "Thêm";
             toolTip1.SetToolTip(btn_Add, "Thêm biến môi trường Machine mới");
             btn_Add.UseVisualStyleBackColor = false;
@@ -116,11 +118,26 @@ namespace SystemManagement.Views.ConfigEnv
             btn_Refresh.Location = new Point(640, 8);
             btn_Refresh.Name = "btn_Refresh";
             btn_Refresh.Size = new Size(80, 32);
-            btn_Refresh.TabIndex = 3;
+            btn_Refresh.TabIndex = 4;
             btn_Refresh.Text = "Làm mới";
             toolTip1.SetToolTip(btn_Refresh, "Tải lại danh sách từ máy tính");
             btn_Refresh.UseVisualStyleBackColor = false;
             btn_Refresh.Click += btn_Refresh_Click;
+            // 
+            // btn_Restore
+            // 
+            btn_Restore.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btn_Restore.BackColor = Color.SandyBrown;
+            btn_Restore.Cursor = Cursors.Hand;
+            btn_Restore.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btn_Restore.Location = new Point(555, 8);
+            btn_Restore.Name = "btn_Restore";
+            btn_Restore.Size = new Size(80, 32);
+            btn_Restore.TabIndex = 3;
+            btn_Restore.Text = "Khôi phục";
+            toolTip1.SetToolTip(btn_Restore, "Khôi phục biến cốt lõi từ bản sao lưu");
+            btn_Restore.UseVisualStyleBackColor = false;
+            btn_Restore.Click += btn_Restore_Click;
             // 
             // btn_ToggleMask
             // 
@@ -228,6 +245,7 @@ namespace SystemManagement.Views.ConfigEnv
         private Label lbl_Search;
         private TextBox txt_Search;
         private Button btn_ToggleMask;
+        private Button btn_Restore;
         private Button btn_Refresh;
         private Button btn_Add;
         private Button btn_Edit;

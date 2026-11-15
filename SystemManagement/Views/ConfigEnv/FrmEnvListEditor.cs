@@ -18,10 +18,12 @@ namespace SystemManagement.Views.ConfigEnv
     public partial class FrmEnvListEditor : Frm_Base
     {
         private readonly string _key;
+        private readonly EnvScope _scope;
 
-        public FrmEnvListEditor(string key, string rawValue)
+        public FrmEnvListEditor(string key, string rawValue, EnvScope scope = EnvScope.Machine)
         {
             _key = key ?? string.Empty;
+            _scope = scope;
 
             InitializeComponent();
 
@@ -304,19 +306,23 @@ namespace SystemManagement.Views.ConfigEnv
             bool saveSuccess = false;
             bool abortRequired = false;
 
-            // Khóa form và chạy ghi biến cốt lõi ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+            // Khóa form và chạy cập nhật biến môi trường ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+            // Giải thích: Gọi UpdateVariable theo scope đã chọn (Machine hoặc User) để hỗ trợ cả biến danh sách cấp User
             try
             {
                 await RunSavingAsync(() => Task.Run(() =>
                 {
-                    CustomEnvService.UpdateCoreValue(_key, joinedValue);
+                    CustomEnvService.UpdateVariable(_scope, _key, joinedValue);
                 }));
 
                 saveSuccess = true;
             }
             catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
             {
-                FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                if (_scope == EnvScope.Machine)
+                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                else
+                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường User");
             }
             catch (KeyNotFoundException ex)
             {

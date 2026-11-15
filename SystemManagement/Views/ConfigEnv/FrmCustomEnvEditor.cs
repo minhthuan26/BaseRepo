@@ -15,17 +15,19 @@ namespace SystemManagement.Views.ConfigEnv
     {
         private readonly bool _isEditMode;
         private readonly bool _isCoreEdit;
+        private readonly EnvScope _scope;
 
-        public FrmCustomEnvEditor(bool isEditMode, string key, string currentValue, bool isCoreEdit = false)
+        public FrmCustomEnvEditor(bool isEditMode, string key, string currentValue, EnvScope scope, bool isCoreEdit = false)
         {
             _isEditMode = isEditMode;
             _isCoreEdit = isCoreEdit;
+            _scope = scope;
 
             InitializeComponent();
 
             Text = _isCoreEdit
-                ? "Sửa giá trị biến hệ thống cốt lõi"
-                : (_isEditMode ? "Sửa giá trị biến môi trường" : "Thêm biến môi trường tùy chỉnh");
+                ? $"Sửa giá trị biến hệ thống cốt lõi ({_scope})"
+                : (_isEditMode ? $"Sửa giá trị biến môi trường ({_scope})" : $"Thêm biến môi trường tùy chỉnh ({_scope})");
 
             if (_isCoreEdit)
             {
@@ -197,24 +199,32 @@ namespace SystemManagement.Views.ConfigEnv
                 bool saveSuccess = false;
                 bool abortRequired = false;
 
-                // Khóa form và chạy UpdateCoreValue ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+                // Khóa form và chạy UpdateVariable theo scope ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+                // Giải thích: Tự động sao lưu giá trị cũ trước khi ghi đè, bảo toàn kiểu RegistryValueKind và kiểm tra quyền
                 try
                 {
                     await RunSavingAsync(() => Task.Run(() =>
                     {
-                        CustomEnvService.UpdateCoreValue(key, val);
+                        CustomEnvService.UpdateVariable(_scope, key, val);
                     }));
 
                     saveSuccess = true;
                 }
                 catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
                 {
-                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                    if (_scope == EnvScope.Machine)
+                        FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                    else
+                        FrmMain.ThrowError("Thiếu quyền ghi biến môi trường User");
                 }
                 catch (KeyNotFoundException ex)
                 {
                     FrmMain.ThrowError(ex.Message);
                     abortRequired = true;
+                }
+                catch (ArgumentException ex)
+                {
+                    FrmMain.ThrowError(ex.Message);
                 }
                 catch (Exception ex)
                 {
@@ -235,17 +245,6 @@ namespace SystemManagement.Views.ConfigEnv
                 return;
             }
 
-            if (!_isEditMode)
-            {
-                var defaultKeys = FrmMain.SysConfig?.EnvKeys ?? Enumerable.Empty<string>();
-                string? keyError = CustomEnvService.ValidateKey(key, defaultKeys);
-                if (keyError != null)
-                {
-                    FrmMain.ThrowError(keyError);
-                    return;
-                }
-            }
-
             string? valError = CustomEnvService.ValidateValue(val);
             if (valError != null)
             {
@@ -254,25 +253,26 @@ namespace SystemManagement.Views.ConfigEnv
             }
 
             bool isEdit = _isEditMode;
-            var sysDefaultKeys = FrmMain.SysConfig?.EnvKeys ?? Enumerable.Empty<string>();
+            var sysDefaultKeys = (_scope == EnvScope.Machine) ? (FrmMain.SysConfig?.EnvKeys ?? Enumerable.Empty<string>()) : null;
             bool normalSuccess = false;
             bool normalAbort = false;
 
-            // Khóa form và chạy UpdateValue/Create ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+            // Khóa form và chạy UpdateVariable/CreateVariable ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
+            // Giải thích: Gọi hàm dịch vụ N4-1 theo scope chỉ định; CreateVariable tự kiểm tra trùng lặp trong scope và định dạng key
             try
             {
                 if (isEdit)
                 {
                     await RunSavingAsync(() => Task.Run(() =>
                     {
-                        CustomEnvService.UpdateValue(key, val);
+                        CustomEnvService.UpdateVariable(_scope, key, val);
                     }));
                 }
                 else
                 {
                     await RunSavingAsync(() => Task.Run(() =>
                     {
-                        CustomEnvService.Create(key, val, sysDefaultKeys);
+                        CustomEnvService.CreateVariable(_scope, key, val, sysDefaultKeys);
                     }));
                 }
 
@@ -280,12 +280,19 @@ namespace SystemManagement.Views.ConfigEnv
             }
             catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
             {
-                FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                if (_scope == EnvScope.Machine)
+                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
+                else
+                    FrmMain.ThrowError("Thiếu quyền ghi biến môi trường User");
             }
             catch (KeyNotFoundException ex)
             {
                 FrmMain.ThrowError(ex.Message);
                 normalAbort = true;
+            }
+            catch (ArgumentException ex)
+            {
+                FrmMain.ThrowError(ex.Message);
             }
             catch (Exception ex)
             {
@@ -296,7 +303,7 @@ namespace SystemManagement.Views.ConfigEnv
             {
                 if (isEdit)
                 {
-                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.");
+                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
                 }
                 else
                 {

@@ -38,13 +38,25 @@ namespace SystemManagement.Views.ConfigEnv
             btn_ToggleMask = new Button();
             txt_Search = new TextBox();
             lbl_Search = new Label();
-            dgv_Envs = new DataGridView();
-            col_Key = new DataGridViewTextBoxColumn();
-            col_Value = new DataGridViewTextBoxColumn();
-            col_Type = new DataGridViewTextBoxColumn();
+            spc_Containers = new SplitContainer();
+            dgv_System = new DataGridView();
+            col_SysKey = new DataGridViewTextBoxColumn();
+            col_SysValue = new DataGridViewTextBoxColumn();
+            col_SysType = new DataGridViewTextBoxColumn();
+            lbl_SystemTitle = new Label();
+            dgv_User = new DataGridView();
+            col_UserKey = new DataGridViewTextBoxColumn();
+            col_UserValue = new DataGridViewTextBoxColumn();
+            col_UserType = new DataGridViewTextBoxColumn();
+            lbl_UserTitle = new Label();
             toolTip1 = new ToolTip(components);
             pnl_Toolbar.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgv_Envs).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)spc_Containers).BeginInit();
+            spc_Containers.Panel1.SuspendLayout();
+            spc_Containers.Panel2.SuspendLayout();
+            spc_Containers.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgv_System).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dgv_User).BeginInit();
             SuspendLayout();
             // 
             // pnl_Toolbar
@@ -172,52 +184,150 @@ namespace SystemManagement.Views.ConfigEnv
             lbl_Search.TabIndex = 0;
             lbl_Search.Text = "Tìm kiếm:";
             // 
-            // dgv_Envs
+            // spc_Containers
             // 
-            dgv_Envs.AllowUserToAddRows = false;
-            dgv_Envs.AllowUserToDeleteRows = false;
-            dgv_Envs.AllowUserToResizeRows = false;
-            dgv_Envs.BackgroundColor = Color.White;
-            dgv_Envs.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgv_Envs.Columns.AddRange(new DataGridViewColumn[] { col_Key, col_Value, col_Type });
-            dgv_Envs.Dock = DockStyle.Fill;
-            dgv_Envs.Location = new Point(0, 48);
-            dgv_Envs.MultiSelect = false;
-            dgv_Envs.Name = "dgv_Envs";
-            dgv_Envs.ReadOnly = true;
-            dgv_Envs.RowHeadersVisible = false;
-            dgv_Envs.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgv_Envs.Size = new Size(988, 501);
-            dgv_Envs.TabIndex = 1;
-            dgv_Envs.CellDoubleClick += dgv_Envs_CellDoubleClick;
-            dgv_Envs.CellFormatting += dgv_Envs_CellFormatting;
+            spc_Containers.Dock = DockStyle.Fill;
+            spc_Containers.Location = new Point(0, 48);
+            spc_Containers.Name = "spc_Containers";
+            spc_Containers.Orientation = Orientation.Horizontal;
             // 
-            // col_Key
+            // spc_Containers.Panel1
             // 
-            col_Key.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            col_Key.DataPropertyName = "Key";
-            col_Key.FillWeight = 30F;
-            col_Key.HeaderText = "Tên biến (Key)";
-            col_Key.Name = "col_Key";
-            col_Key.ReadOnly = true;
+            spc_Containers.Panel1.Controls.Add(dgv_System);
+            spc_Containers.Panel1.Controls.Add(lbl_SystemTitle);
             // 
-            // col_Value
+            // spc_Containers.Panel2
             // 
-            col_Value.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            col_Value.DataPropertyName = "DisplayValue";
-            col_Value.FillWeight = 50F;
-            col_Value.HeaderText = "Giá trị (Value)";
-            col_Value.Name = "col_Value";
-            col_Value.ReadOnly = true;
+            spc_Containers.Panel2.Controls.Add(dgv_User);
+            spc_Containers.Panel2.Controls.Add(lbl_UserTitle);
+            spc_Containers.Size = new Size(988, 501);
+            spc_Containers.SplitterDistance = 240;
+            spc_Containers.SplitterWidth = 4;
+            spc_Containers.TabIndex = 1;
             // 
-            // col_Type
+            // lbl_SystemTitle
             // 
-            col_Type.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            col_Type.DataPropertyName = "TypeDescription";
-            col_Type.FillWeight = 20F;
-            col_Type.HeaderText = "Loại biến";
-            col_Type.Name = "col_Type";
-            col_Type.ReadOnly = true;
+            lbl_SystemTitle.BackColor = Color.FromArgb(240, 243, 246);
+            lbl_SystemTitle.Dock = DockStyle.Top;
+            lbl_SystemTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lbl_SystemTitle.Location = new Point(0, 0);
+            lbl_SystemTitle.Name = "lbl_SystemTitle";
+            lbl_SystemTitle.Padding = new Padding(8, 0, 0, 0);
+            lbl_SystemTitle.Size = new Size(988, 26);
+            lbl_SystemTitle.TabIndex = 0;
+            lbl_SystemTitle.Text = "▶ Biến môi trường Hệ thống (System / Machine)";
+            lbl_SystemTitle.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // dgv_System
+            // 
+            dgv_System.AllowUserToAddRows = false;
+            dgv_System.AllowUserToDeleteRows = false;
+            dgv_System.AllowUserToResizeRows = false;
+            dgv_System.AutoGenerateColumns = false;
+            dgv_System.BackgroundColor = Color.White;
+            dgv_System.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgv_System.Columns.AddRange(new DataGridViewColumn[] { col_SysKey, col_SysValue, col_SysType });
+            dgv_System.Dock = DockStyle.Fill;
+            dgv_System.Location = new Point(0, 26);
+            dgv_System.MultiSelect = false;
+            dgv_System.Name = "dgv_System";
+            dgv_System.ReadOnly = true;
+            dgv_System.RowHeadersVisible = false;
+            dgv_System.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv_System.Size = new Size(988, 214);
+            dgv_System.TabIndex = 1;
+            dgv_System.CellDoubleClick += dgv_System_CellDoubleClick;
+            dgv_System.CellFormatting += dgv_System_CellFormatting;
+            dgv_System.Enter += dgv_System_Enter;
+            // 
+            // col_SysKey
+            // 
+            col_SysKey.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_SysKey.DataPropertyName = "Key";
+            col_SysKey.FillWeight = 30F;
+            col_SysKey.HeaderText = "Tên biến (Key)";
+            col_SysKey.Name = "col_SysKey";
+            col_SysKey.ReadOnly = true;
+            // 
+            // col_SysValue
+            // 
+            col_SysValue.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_SysValue.DataPropertyName = "DisplayValue";
+            col_SysValue.FillWeight = 50F;
+            col_SysValue.HeaderText = "Giá trị (Value)";
+            col_SysValue.Name = "col_SysValue";
+            col_SysValue.ReadOnly = true;
+            // 
+            // col_SysType
+            // 
+            col_SysType.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_SysType.DataPropertyName = "TypeDescription";
+            col_SysType.FillWeight = 20F;
+            col_SysType.HeaderText = "Loại biến";
+            col_SysType.Name = "col_SysType";
+            col_SysType.ReadOnly = true;
+            // 
+            // lbl_UserTitle
+            // 
+            lbl_UserTitle.BackColor = Color.FromArgb(240, 243, 246);
+            lbl_UserTitle.Dock = DockStyle.Top;
+            lbl_UserTitle.Font = new Font("Segoe UI", 9F);
+            lbl_UserTitle.Location = new Point(0, 0);
+            lbl_UserTitle.Name = "lbl_UserTitle";
+            lbl_UserTitle.Padding = new Padding(8, 0, 0, 0);
+            lbl_UserTitle.Size = new Size(988, 26);
+            lbl_UserTitle.TabIndex = 0;
+            lbl_UserTitle.Text = "   Biến môi trường Người dùng (User)";
+            lbl_UserTitle.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // dgv_User
+            // 
+            dgv_User.AllowUserToAddRows = false;
+            dgv_User.AllowUserToDeleteRows = false;
+            dgv_User.AllowUserToResizeRows = false;
+            dgv_User.AutoGenerateColumns = false;
+            dgv_User.BackgroundColor = Color.White;
+            dgv_User.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgv_User.Columns.AddRange(new DataGridViewColumn[] { col_UserKey, col_UserValue, col_UserType });
+            dgv_User.Dock = DockStyle.Fill;
+            dgv_User.Location = new Point(0, 26);
+            dgv_User.MultiSelect = false;
+            dgv_User.Name = "dgv_User";
+            dgv_User.ReadOnly = true;
+            dgv_User.RowHeadersVisible = false;
+            dgv_User.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv_User.Size = new Size(988, 231);
+            dgv_User.TabIndex = 1;
+            dgv_User.CellDoubleClick += dgv_User_CellDoubleClick;
+            dgv_User.CellFormatting += dgv_User_CellFormatting;
+            dgv_User.Enter += dgv_User_Enter;
+            // 
+            // col_UserKey
+            // 
+            col_UserKey.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_UserKey.DataPropertyName = "Key";
+            col_UserKey.FillWeight = 30F;
+            col_UserKey.HeaderText = "Tên biến (Key)";
+            col_UserKey.Name = "col_UserKey";
+            col_UserKey.ReadOnly = true;
+            // 
+            // col_UserValue
+            // 
+            col_UserValue.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_UserValue.DataPropertyName = "DisplayValue";
+            col_UserValue.FillWeight = 50F;
+            col_UserValue.HeaderText = "Giá trị (Value)";
+            col_UserValue.Name = "col_UserValue";
+            col_UserValue.ReadOnly = true;
+            // 
+            // col_UserType
+            // 
+            col_UserType.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            col_UserType.DataPropertyName = "TypeDescription";
+            col_UserType.FillWeight = 20F;
+            col_UserType.HeaderText = "Loại biến";
+            col_UserType.Name = "col_UserType";
+            col_UserType.ReadOnly = true;
             // 
             // toolTip1
             // 
@@ -228,14 +338,19 @@ namespace SystemManagement.Views.ConfigEnv
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            Controls.Add(dgv_Envs);
+            Controls.Add(spc_Containers);
             Controls.Add(pnl_Toolbar);
             Name = "UC_ConfigEnvCustom";
             Size = new Size(988, 549);
             Load += UC_ConfigEnvCustom_Load;
             pnl_Toolbar.ResumeLayout(false);
             pnl_Toolbar.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)dgv_Envs).EndInit();
+            spc_Containers.Panel1.ResumeLayout(false);
+            spc_Containers.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)spc_Containers).EndInit();
+            spc_Containers.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dgv_System).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgv_User).EndInit();
             ResumeLayout(false);
         }
 
@@ -250,10 +365,17 @@ namespace SystemManagement.Views.ConfigEnv
         private Button btn_Add;
         private Button btn_Edit;
         private Button btn_Delete;
-        private DataGridView dgv_Envs;
-        private DataGridViewTextBoxColumn col_Key;
-        private DataGridViewTextBoxColumn col_Value;
-        private DataGridViewTextBoxColumn col_Type;
+        private SplitContainer spc_Containers;
+        private Label lbl_SystemTitle;
+        private DataGridView dgv_System;
+        private DataGridViewTextBoxColumn col_SysKey;
+        private DataGridViewTextBoxColumn col_SysValue;
+        private DataGridViewTextBoxColumn col_SysType;
+        private Label lbl_UserTitle;
+        private DataGridView dgv_User;
+        private DataGridViewTextBoxColumn col_UserKey;
+        private DataGridViewTextBoxColumn col_UserValue;
+        private DataGridViewTextBoxColumn col_UserType;
         private ToolTip toolTip1;
     }
 }

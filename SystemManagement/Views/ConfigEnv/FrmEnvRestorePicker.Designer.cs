@@ -31,6 +31,7 @@ namespace SystemManagement.Views.ConfigEnv
             lbl_Header = new Label();
             dgv_Backups = new DataGridView();
             col_Time = new DataGridViewTextBoxColumn();
+            col_Key = new DataGridViewTextBoxColumn();
             col_Reason = new DataGridViewTextBoxColumn();
             col_Kind = new DataGridViewTextBoxColumn();
             col_Value = new DataGridViewTextBoxColumn();
@@ -56,7 +57,7 @@ namespace SystemManagement.Views.ConfigEnv
             dgv_Backups.AutoGenerateColumns = false;
             dgv_Backups.BackgroundColor = Color.White;
             dgv_Backups.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgv_Backups.Columns.AddRange(new DataGridViewColumn[] { col_Time, col_Reason, col_Kind, col_Value });
+            dgv_Backups.Columns.AddRange(new DataGridViewColumn[] { col_Time, col_Key, col_Reason, col_Kind, col_Value });
             dgv_Backups.Location = new Point(15, 42);
             dgv_Backups.MultiSelect = false;
             dgv_Backups.Name = "dgv_Backups";
@@ -75,6 +76,14 @@ namespace SystemManagement.Views.ConfigEnv
             col_Time.Name = "col_Time";
             col_Time.ReadOnly = true;
             col_Time.Width = 140;
+            // 
+            // col_Key
+            // 
+            col_Key.DataPropertyName = "Key";
+            col_Key.HeaderText = "Tên biến (Key)";
+            col_Key.Name = "col_Key";
+            col_Key.ReadOnly = true;
+            col_Key.Width = 130;
             // 
             // col_Reason
             // 
@@ -154,6 +163,7 @@ namespace SystemManagement.Views.ConfigEnv
         private Label lbl_Header;
         private DataGridView dgv_Backups;
         private DataGridViewTextBoxColumn col_Time;
+        private DataGridViewTextBoxColumn col_Key;
         private DataGridViewTextBoxColumn col_Reason;
         private DataGridViewTextBoxColumn col_Kind;
         private DataGridViewTextBoxColumn col_Value;

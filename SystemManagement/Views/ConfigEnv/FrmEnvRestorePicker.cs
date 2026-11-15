@@ -9,34 +9,35 @@ using SystemManagement.Views.Base;
 namespace SystemManagement.Views.ConfigEnv
 {
     /// <summary>
-    /// Hộp thoại chọn một bản sao lưu để khôi phục cho biến môi trường cốt lõi.
-    /// Giải thích: Hiển thị các bản sao lưu của đúng key được chọn theo thứ tự thời gian mới nhất trước.
+    /// Hộp thoại chọn một bản sao lưu để khôi phục cho biến môi trường theo phạm vi.
+    /// Giải thích: Hiển thị các bản sao lưu của toàn bộ key thuộc phạm vi được chọn theo thứ tự thời gian mới nhất trước.
     /// </summary>
     public partial class FrmEnvRestorePicker : Frm_Base
     {
-        private readonly string _targetKey;
+        private readonly EnvScope _scope;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public EnvBackupEntry? SelectedEntry { get; private set; }
 
-        public FrmEnvRestorePicker(string key)
+        public FrmEnvRestorePicker(EnvScope scope)
         {
-            _targetKey = key ?? string.Empty;
+            _scope = scope;
 
             InitializeComponent();
 
-            Text = $"Chọn bản sao lưu để khôi phục - {_targetKey}";
-            lbl_Header.Text = $"Danh sách các bản sao lưu của biến '{_targetKey}' (mới nhất xếp trước):";
+            Text = $"Chọn bản sao lưu để khôi phục - {_scope}";
+            lbl_Header.Text = $"Danh sách các bản sao lưu thuộc phạm vi {_scope} (mới nhất xếp trước):";
 
             LoadBackups();
         }
 
         private void LoadBackups()
         {
-            var backups = EnvBackupService.ListBackups(_targetKey);
+            var backups = EnvBackupService.ListBackups(_scope);
             var viewModels = backups.Select(x => new BackupRowViewModel
             {
                 CreatedAtDisplay = x.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                Key = x.Key,
                 Reason = x.Reason,
                 Kind = x.Kind.ToString(),
                 ValuePreview = x.Value.Length > 80 ? x.Value[..80] + "..." : x.Value,
@@ -83,6 +84,7 @@ namespace SystemManagement.Views.ConfigEnv
         private class BackupRowViewModel
         {
             public string CreatedAtDisplay { get; set; } = string.Empty;
+            public string Key { get; set; } = string.Empty;
             public string Reason { get; set; } = string.Empty;
             public string Kind { get; set; } = string.Empty;
             public string ValuePreview { get; set; } = string.Empty;

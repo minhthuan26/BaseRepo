@@ -14,22 +14,56 @@ using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views
 {
-    public partial class FrmMain : Form
+    /// <summary>
+    /// Cửa sổ chính của SystemManagement.
+    /// Giải thích: chứa một trang (UserControl) trong <c>pnl_Main</c> và quản lý điều hướng giữa các trang
+    /// (ngăn xếp lịch sử), đồng hồ ở thanh trạng thái, nạp <c>system.config</c> khi mở, và cung cấp các hàm
+    /// dùng chung cho toàn ứng dụng: loader (<see cref="RunWithLoadingAsync"/>, <see cref="ShowLoading"/>...)
+    /// và hộp thông báo (<see cref="ThrowInfo"/>, <see cref="ThrowWarning"/>, <see cref="ThrowError"/>,
+    /// <see cref="ThrowQuestion"/>). Kế thừa <see cref="Frm_Base"/> như mọi form khác của ứng dụng.
+    /// </summary>
+    public partial class FrmMain : Frm_Base
     {
         #region Public props
 
+        /// <summary>
+        /// Thể hiện duy nhất của cửa sổ chính, đặt trong constructor; các hàm static (loader, hộp thông báo) dựa vào nó.
+        /// </summary>
         public static FrmMain Instance { get; private set; }
+
+        /// <summary>
+        /// Cấu hình đọc từ <c>Config/system.config</c> (danh sách khóa env, kết nối, site) khi form mở (<see cref="FrmHome_Load"/>).
+        /// </summary>
         public static SystemConfig SysConfig { get; set; }
+
+        /// <summary>
+        /// Chiều rộng hiện tại của cửa sổ chính (0 nếu chưa tạo).
+        /// </summary>
         public static int FrmWidth => Instance?.Width ?? 0;
+
+        /// <summary>
+        /// Chiều cao hiện tại của cửa sổ chính (0 nếu chưa tạo).
+        /// </summary>
         public static int FrmHeight => Instance?.Height ?? 0;
 
         #endregion
         #region Private props
 
+        /// <summary>
+        /// Bộ đếm 1 giây để cập nhật đồng hồ ở thanh trạng thái; dừng và hủy khi đóng form.
+        /// </summary>
         private System.Windows.Forms.Timer _clockTimer;
+
+        /// <summary>
+        /// Ngăn xếp các trang đã mở, dùng cho nút quay lại (<see cref="GoBack"/>).
+        /// </summary>
         private Stack<UserControl> navigationStack = new Stack<UserControl>();
 
         #endregion
+
+        /// <summary>
+        /// Dựng giao diện và ghi nhận thể hiện duy nhất <see cref="Instance"/>.
+        /// </summary>
         public FrmMain()
         {
             InitializeComponent();
@@ -37,11 +71,18 @@ namespace SystemManagement.Views
         }
 
         #region Public functions
+
+        /// <summary>
+        /// Xóa toàn bộ lịch sử điều hướng (không đổi trang đang hiển thị).
+        /// </summary>
         public void ClearNavigation()
         {
             navigationStack.Clear();
         }
 
+        /// <summary>
+        /// Hiển thị một trang thay cho trang hiện tại mà không lưu trang cũ vào lịch sử (không quay lại được).
+        /// </summary>
         public void LoadPageWithoutHistory(UserControl page)
         {
             pnl_Main.Controls.Clear();
@@ -49,11 +90,17 @@ namespace SystemManagement.Views
             pnl_Main.Controls.Add(page);
         }
 
+        /// <summary>
+        /// Trả về ngăn xếp lịch sử điều hướng hiện tại (trả tham chiếu gốc, không phải bản sao).
+        /// </summary>
         public Stack<UserControl> GetNavigationStack()
         {
             return navigationStack;
         }
 
+        /// <summary>
+        /// Hiển thị một trang mới và đẩy trang đang hiển thị vào lịch sử để <see cref="GoBack"/> quay lại được.
+        /// </summary>
         public void LoadPage(UserControl page)
         {
             // Save current page
@@ -71,6 +118,9 @@ namespace SystemManagement.Views
             pnl_Main.Controls.Add(page);
         }
 
+        /// <summary>
+        /// Quay lại trang gần nhất trong lịch sử; không làm gì nếu lịch sử rỗng.
+        /// </summary>
         public void GoBack()
         {
             if (navigationStack.Count > 0)
@@ -85,6 +135,12 @@ namespace SystemManagement.Views
             }
         }
 
+        /// <summary>
+        /// Hiện loader, chạy <paramref name="action"/>, rồi luôn ẩn loader (kể cả khi action ném lỗi).
+        /// Giải thích: <c>Task.Yield()</c> nhường luồng một lần để loader kịp vẽ, nhưng <paramref name="action"/>
+        /// vẫn chạy <b>trên luồng UI</b>. Việc nặng (ghi registry, IO) phải được nơi gọi tự bọc <c>Task.Run</c>,
+        /// còn action chạm control UI thì để nguyên; vì vậy hàm này không tự đẩy action sang luồng nền.
+        /// </summary>
         public static async Task RunWithLoadingAsync(Func<Task> action)
         {
             ShowLoading();
@@ -101,6 +157,9 @@ namespace SystemManagement.Views
 
         #region Global Messages
 
+        /// <summary>
+        /// Ẩn loader rồi hiện hộp thông báo thông tin (OK), thuộc cửa sổ chính.
+        /// </summary>
         public static void ThrowInfo(string message, string title = "Thông báo")
         {
             HideLoading();
@@ -113,6 +172,9 @@ namespace SystemManagement.Views
                 MessageBoxIcon.Information);
         }
 
+        /// <summary>
+        /// Ẩn loader rồi hiện hộp cảnh báo (OK), thuộc cửa sổ chính.
+        /// </summary>
         public static void ThrowWarning(string message, string title = "Cảnh báo")
         {
             HideLoading();
@@ -125,6 +187,9 @@ namespace SystemManagement.Views
                 MessageBoxIcon.Warning);
         }
 
+        /// <summary>
+        /// Ẩn loader rồi hiện hộp báo lỗi (OK), thuộc cửa sổ chính.
+        /// </summary>
         public static void ThrowError(string message, string title = "Lỗi")
         {
             HideLoading();
@@ -137,6 +202,9 @@ namespace SystemManagement.Views
                 MessageBoxIcon.Error);
         }
 
+        /// <summary>
+        /// Ẩn loader rồi hỏi Có/Không; trả về true khi người dùng chọn Có.
+        /// </summary>
         public static bool ThrowQuestion(string message, string title = "Xác nhận")
         {
             HideLoading();
@@ -153,6 +221,9 @@ namespace SystemManagement.Views
 
         #region Global Loading
 
+        /// <summary>
+        /// Hiện thanh tiến trình dạng chạy liên tục (marquee) của cửa sổ chính; an toàn khi gọi từ luồng khác.
+        /// </summary>
         public static void ShowLoading()
         {
             if (Instance.InvokeRequired)
@@ -167,6 +238,9 @@ namespace SystemManagement.Views
             Instance.progressBar1.BringToFront();
         }
 
+        /// <summary>
+        /// Ẩn thanh tiến trình, đưa về trạng thái ban đầu và vẽ lại cửa sổ; an toàn khi gọi từ luồng khác.
+        /// </summary>
         public static void HideLoading()
         {
             if (Instance.InvokeRequired)
@@ -181,6 +255,9 @@ namespace SystemManagement.Views
             Instance.Refresh();
         }
 
+        /// <summary>
+        /// Hiện thanh tiến trình dạng phần trăm (giới hạn 0-100); tự ẩn khi đạt 100. An toàn khi gọi từ luồng khác.
+        /// </summary>
         public static void SetProgress(int value)
         {
             if (Instance.InvokeRequired)
@@ -207,6 +284,11 @@ namespace SystemManagement.Views
         #endregion
 
         #region Private functions
+
+        /// <summary>
+        /// Đọc <c>Config/system.config</c> vào <see cref="SysConfig"/>. Đọc không được thì dùng cấu hình rỗng
+        /// (các danh sách rỗng) và báo lỗi, để các màn hình khác không gặp <c>null</c>.
+        /// </summary>
         private async Task ReadSystemConfig()
         {
             try
@@ -227,6 +309,10 @@ namespace SystemManagement.Views
             }
         }
 
+        /// <summary>
+        /// Khi form mở: nạp cấu hình dưới loader, hiện số phiên bản và giờ, bật đồng hồ, và hiển thị trang chủ
+        /// (<see cref="UC_Base"/>) nếu chưa có trang nào.
+        /// </summary>
         private async void FrmHome_Load(object sender, EventArgs e)
         {
             await RunWithLoadingAsync(async () =>
@@ -255,17 +341,26 @@ namespace SystemManagement.Views
             }
         }
 
+        /// <summary>
+        /// Mỗi giây cập nhật đồng hồ ở thanh trạng thái.
+        /// </summary>
         private void ClockTimer_Tick(object sender, EventArgs e)
         {
             // This runs automatically every 1 second
             UpdateTimeLabel();
         }
 
+        /// <summary>
+        /// Ghi giờ hiện tại (định dạng HH:mm:ss dd/MM/yyyy) lên thanh trạng thái.
+        /// </summary>
         private void UpdateTimeLabel()
         {
             tstrip_LblTime.Text = DateTime.Now.ToString("HH:mm:ss dd/MM/yyyy");
         }
 
+        /// <summary>
+        /// Khi đóng form: dừng và hủy bộ đếm đồng hồ.
+        /// </summary>
         private void FrmHome_FormClosing(object sender, FormClosingEventArgs e)
         {
             if (_clockTimer != null)
@@ -275,6 +370,9 @@ namespace SystemManagement.Views
             }
         }
 
+        /// <summary>
+        /// Menu Home: xóa lịch sử và trang hiện tại, hiển thị lại trang chủ (<see cref="UC_Base"/>) làm trang gốc.
+        /// </summary>
         private void homeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // Clear navigation history
@@ -296,6 +394,9 @@ namespace SystemManagement.Views
             navigationStack.Push(homePage);
         }
 
+        /// <summary>
+        /// Menu About: chưa triển khai (handler rỗng).
+        /// </summary>
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
 
@@ -303,9 +404,21 @@ namespace SystemManagement.Views
         #endregion
 
         #region Override functions
+
+        /// <summary>Mã thông điệp hệ thống của cửa sổ (lệnh phóng to/thu nhỏ/khôi phục...).</summary>
         const int WM_SYSCOMMAND = 0x0112;
+
+        /// <summary>Lệnh phóng to cửa sổ (trong <c>WM_SYSCOMMAND</c>).</summary>
         const int SC_MAXIMIZE = 0xF030;
+
+        /// <summary>Lệnh khôi phục kích thước cửa sổ (trong <c>WM_SYSCOMMAND</c>).</summary>
         const int SC_RESTORE = 0xF120;
+
+        /// <summary>
+        /// Khi người dùng phóng to hoặc khôi phục cửa sổ thì phát <c>OnResizeEnd</c>.
+        /// Giải thích: <c>ResizeEnd</c> mặc định chỉ phát sau khi kéo đổi kích thước, không phát khi phóng to/khôi phục,
+        /// nên phải tự phát để các thành phần lắng nghe sự kiện này co giãn lại.
+        /// </summary>
         protected override void WndProc(ref Message m) {
             if (m.Msg == WM_SYSCOMMAND)
             {

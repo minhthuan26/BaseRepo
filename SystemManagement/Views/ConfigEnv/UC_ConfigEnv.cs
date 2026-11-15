@@ -25,9 +25,13 @@ namespace SystemManagement.Views.ConfigEnv
         private string RefreshKey { get; set; }
         private string PrivateKeyPath { get; set; }
         private string PublicKeyPath { get; set; }
+        private readonly UC_ConfigEnvCustom _ucCustom;
+
         public UC_ConfigEnv()
         {
             InitializeComponent();
+            _ucCustom = new UC_ConfigEnvCustom { Dock = DockStyle.Fill };
+            tabCustom.Controls.Add(_ucCustom);
         }
 
         private void UC_ConfigEnv_Load(object sender, EventArgs e)

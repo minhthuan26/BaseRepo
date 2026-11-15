@@ -1,6 +1,6 @@
 # Roadmap — BaseRepo
 
-> **Cập nhật:** 2026-11-16 · **Phiên bản mới nhất:** v0.0.0 · **Lịch sử:** [changelog.md](changelog.md)
+> **Cập nhật:** 2026-11-16 (N4-1) · **Phiên bản mới nhất:** v0.0.0 · **Lịch sử:** [changelog.md](changelog.md)
 > **Ký hiệu:** ✅ xong · 🟡 làm một phần · ⬜ chưa làm · 🔑 cần credential/hạ tầng ngoài · 🏗️ subsystem lớn
 > **Quy tắc cập nhật file này:** [.claude/rules/roadmap-sync.md](../rules/roadmap-sync.md)
 
@@ -22,7 +22,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 | 3 | AdministrativeUnit (Province/Ward) | 🟡 | M5 template import · 🔑 M13 chạy SQL + seed + test |
 | 4 | Booking: Quản lý thuê sân (SportsBooking) | 🟡 | Phase 1: 🏗️ M18 Customer, M2 Booking + chống trùng lịch, M3 RecurringGroup, M4 API Lễ tân/Admin, 🔑 M14 SQL + seed · Phase 2/3: 🔑 M17, 🏗️ M19, 🏗️ M20 |
 | 5 | CommonLibs / hạ tầng chung | 🟡 | M1 dựng xUnit · M8 vá NU1903 · 🔑 M15 verify runtime |
-| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · 🟡 N6 chạy tay (loader/UI không đứng) · ⬜ N4-1, N4-2 (spec đã duyệt, chưa code), N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
+| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · 🟡 N6 chạy tay (loader/UI không đứng) · 🟡 N4-1 (code xong, chờ verify Machine elevated), ⬜ N4-2 (spec đã duyệt, chưa code), N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
 | 7 | BloodDonation: Đăng ký hiến máu | ⬜ | 🏗️ M21 khởi tạo domain (chờ BA) |
 
 ## 2. Việc còn lại
@@ -46,7 +46,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 | Mã | Việc | Ghi chú | Trạng thái |
 |---|---|---|---|
 | N3 | Module 6: ConfigSQL — công cụ quản trị SQL Server (nhiều kết nối đồng thời không lưu, test kết nối và thực thi trực tiếp trên nhiều đích, xem đối tượng + sinh script, backup/copy sang DB khác, gợi ý index, chẩn đoán treo/kill session/clear cache). Bao gồm M6. Chia 9 task N3-1..N3-9 (spec ở `.claude/docs/tasks/N3-*/02-coding-spec.md`: N3-1 khung+kết nối → N3-2 chạy file `.sql` (M6) → N3-3 đối tượng → N3-4 backup/copy (chỉ schema / chỉ dữ liệu / cả hai) → N3-5 index → N3-6 chẩn đoán + kill/cache → N3-7 restore → N3-8 thư viện script chẩn đoán kể cả log hệ thống → N3-9 so sánh cấu trúc giữa 2 kết nối và migration tự động: thêm cột, sửa kiểu theo nguồn, tự xử lý phụ thuộc; không so sánh dữ liệu), xem `.claude/docs/tasks/N3-configsql-quan-tri-sql-server/01-requirement.md` | Yêu cầu đã chốt 2026-11-15; spec N3-1, N3-2 chi tiết đã duyệt 2026-11-15 (chưa code), N3-3..N3-9 là bản phác thảo cần BA hoàn thiện; cần 🔑 SQL Server 2019+ để verify runtime | ⬜ |
-| N4 | Module 6: ConfigEnv tab Tùy chỉnh chia **hai lưới System (Machine) và User (HKCU)**, hiện cả 6 key `BaseRepo__*` mặc định (sửa/xóa như biến thường), backup bắt buộc trước mọi sửa/xóa ở cả hai lưới (file backup thêm `Scope`, `Backups/` vào `.gitignore`), Khôi phục mọi biến kể cả biến đã xóa; biến trùng tên giữa hai scope để Windows tự xử lý. Yêu cầu đã chốt 2026-11-16, xem `.claude/docs/tasks/N4-configenv-hai-luoi-user-system/01-requirement.md`. Tách 2 task: **N4-1** (dịch vụ theo scope + backup, spec `tasks/N4-1-dich-vu-env-theo-scope/02-coding-spec.md`) → **N4-2** (giao diện hai lưới, phụ thuộc N4-1, spec `tasks/N4-2-giao-dien-hai-luoi-system-user/02-coding-spec.md`) | Spec N4-1, N4-2 đã duyệt 2026-11-16 (chưa code). Xây trên N2-1/N2-2 (đã ✅) | ⬜ |
+| N4 | Module 6: ConfigEnv tab Tùy chỉnh chia **hai lưới System (Machine) và User (HKCU)**, hiện cả 6 key `BaseRepo__*` mặc định (sửa/xóa như biến thường), backup bắt buộc trước mọi sửa/xóa ở cả hai lưới (file backup thêm `Scope`, `Backups/` vào `.gitignore`), Khôi phục mọi biến kể cả biến đã xóa; biến trùng tên giữa hai scope để Windows tự xử lý. Yêu cầu đã chốt 2026-11-16, xem `.claude/docs/tasks/N4-configenv-hai-luoi-user-system/01-requirement.md`. Tách 2 task: **N4-1** (dịch vụ theo scope + backup, spec `tasks/N4-1-dich-vu-env-theo-scope/02-coding-spec.md`) → **N4-2** (giao diện hai lưới, phụ thuộc N4-1, spec `tasks/N4-2-giao-dien-hai-luoi-system-user/02-coding-spec.md`) | Spec N4-1, N4-2 đã duyệt 2026-11-16. **N4-1 code + test tự động PASS 46/46 + review APPROVE xong 2026-11-16** ([06-handover.md](tasks/N4-1-dich-vu-env-theo-scope/06-handover.md)), còn chưa verify nhánh Machine khi chạy elevated (🟡); N4-2 chưa code. Xây trên N2-1/N2-2 (đã ✅) | 🟡 |
 | N6 | Module 6: ConfigEnv sửa lỗi "trông như đơ" khi Lưu/Xóa/Khôi phục: `FrmEnvListEditor` chưa gọi loader, và `FrmMain.RunWithLoadingAsync` chạy việc trên luồng UI. Thêm loader + chạy nền (`Task.Run`) cho mọi Lưu/Xóa/Khôi phục trong ConfigEnv, khóa form + chặn đóng khi đang lưu, chống bấm lặp; không đổi `FrmMain`. Yêu cầu + spec `tasks/N6-configenv-loader-chay-nen/`. **Làm trước N4** | Code + test tự động PASS + review APPROVE xong 2026-11-16 ([06-handover.md](tasks/N6-configenv-loader-chay-nen/06-handover.md)), **còn chạy tay** (loader chạy, UI không đứng, bấm Lưu lặp chỉ một backup, lỗi mở khóa lại) trước khi ✅ | 🟡 |
 
 ### 2.3 Cần credential / hạ tầng ngoài 🔑

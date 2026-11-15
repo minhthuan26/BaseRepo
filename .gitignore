@@ -166,5 +166,5 @@ CLAUDE.local.md
 Elastic
 graphify-out
 .mcp*
-./CommonLibs/BaseRabbitMQ/db
-./CommonLibs/BaseRabbitMQ/log
+CommonLibs/BaseRabbitMQ/db/
+CommonLibs/BaseRabbitMQ/log/

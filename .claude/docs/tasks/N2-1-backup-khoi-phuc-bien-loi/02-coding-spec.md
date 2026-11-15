@@ -1,6 +1,6 @@
 # N2-1 — ConfigEnv: mở khóa sửa biến cốt lõi + backup + khôi phục · Coding Spec
 
-- **Trạng thái duyệt:** ⬜ chờ duyệt
+- **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-15
 - **Yêu cầu gốc:** `../N2-configenv-sua-bien-loi/01-requirement.md` (đã chốt 2026-11-15) · **Phụ thuộc:** N1 (code đã xong, chưa commit) · **Task kế tiếp:** N2-2
 
 ## 1. Phạm vi

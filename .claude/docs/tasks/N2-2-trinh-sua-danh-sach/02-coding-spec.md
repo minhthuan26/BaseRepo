@@ -1,6 +1,6 @@
 # N2-2 — ConfigEnv: trình sửa từng mục cho Path/PATHEXT/PSModulePath · Coding Spec
 
-- **Trạng thái duyệt:** ⬜ chờ duyệt
+- **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-15
 - **Yêu cầu gốc:** `../N2-configenv-sua-bien-loi/01-requirement.md` (đã chốt 2026-11-15) · **Phụ thuộc:** **N2-1** (dùng lại `UpdateCoreValue`, `IsListKey`, `FrmEnvTypeKeyConfirm`, backup/registry) · **Làm sau N2-1**
 
 ## 1. Phạm vi

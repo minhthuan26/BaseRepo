@@ -64,8 +64,14 @@
             txt_AccessKey = new TextBox();
             label2 = new Label();
             toolTip1 = new ToolTip(components);
+            tabControl1 = new TabControl();
+            tabDefault = new TabPage();
+            tabCustom = new TabPage();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
+            tabControl1.SuspendLayout();
+            tabDefault.SuspendLayout();
+            tabCustom.SuspendLayout();
             panel9.SuspendLayout();
             panel8.SuspendLayout();
             panel7.SuspendLayout();
@@ -98,18 +104,51 @@
             // panel2
             // 
             panel2.BackColor = Color.White;
-            panel2.Controls.Add(panel9);
-            panel2.Controls.Add(panel8);
-            panel2.Controls.Add(panel7);
-            panel2.Controls.Add(panel6);
-            panel2.Controls.Add(panel5);
-            panel2.Controls.Add(panel4);
-            panel2.Controls.Add(panel3);
+            panel2.Controls.Add(tabControl1);
             panel2.Dock = DockStyle.Fill;
             panel2.Location = new Point(0, 0);
             panel2.Name = "panel2";
             panel2.Size = new Size(996, 577);
             panel2.TabIndex = 1;
+            // 
+            // tabControl1
+            // 
+            tabControl1.Controls.Add(tabDefault);
+            tabControl1.Controls.Add(tabCustom);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Location = new Point(0, 0);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(996, 577);
+            tabControl1.TabIndex = 0;
+            // 
+            // tabDefault
+            // 
+            tabDefault.AutoScroll = true;
+            tabDefault.BackColor = Color.White;
+            tabDefault.Controls.Add(panel9);
+            tabDefault.Controls.Add(panel8);
+            tabDefault.Controls.Add(panel7);
+            tabDefault.Controls.Add(panel6);
+            tabDefault.Controls.Add(panel5);
+            tabDefault.Controls.Add(panel4);
+            tabDefault.Controls.Add(panel3);
+            tabDefault.Location = new Point(4, 24);
+            tabDefault.Name = "tabDefault";
+            tabDefault.Padding = new Padding(3);
+            tabDefault.Size = new Size(988, 549);
+            tabDefault.TabIndex = 0;
+            tabDefault.Text = "Mặc định";
+            // 
+            // tabCustom
+            // 
+            tabCustom.BackColor = Color.White;
+            tabCustom.Location = new Point(4, 24);
+            tabCustom.Name = "tabCustom";
+            tabCustom.Padding = new Padding(3);
+            tabCustom.Size = new Size(988, 549);
+            tabCustom.TabIndex = 1;
+            tabCustom.Text = "Tùy chỉnh";
             // 
             // panel9
             // 
@@ -497,6 +536,9 @@
             Load += UC_ConfigEnv_Load;
             panel1.ResumeLayout(false);
             panel2.ResumeLayout(false);
+            tabControl1.ResumeLayout(false);
+            tabDefault.ResumeLayout(false);
+            tabCustom.ResumeLayout(false);
             panel9.ResumeLayout(false);
             panel8.ResumeLayout(false);
             panel8.PerformLayout();
@@ -549,5 +591,8 @@
         private Button btn_RandomAccessKey;
         private TextBox txt_AccessKey;
         private Label label2;
+        private TabControl tabControl1;
+        private TabPage tabDefault;
+        private TabPage tabCustom;
     }
 }

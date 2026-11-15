@@ -14,5 +14,7 @@ Mỗi sprint khi đóng sẽ có một version và một git tag `sprint-<số>`
 - 2026-11-15 — N2-1 (ConfigEnv: sửa biến cốt lõi + backup + khôi phục): code xong (2 vòng), test tự động PASS 54/54, review APPROVE, nhưng còn chạy tay các AC cần UI/quyền Administrator nên giữ 🟡. Xem `tasks/N2-1-backup-khoi-phuc-bien-loi/06-handover.md`.
 - 2026-11-15 — N2-2 (ConfigEnv: trình sửa từng mục cho Path/PATHEXT/PSModulePath): code xong (1 vòng), test tự động PASS 37/37, review APPROVE, nhưng còn chạy tay các AC cần UI/quyền Administrator nên giữ 🟡. Xem `tasks/N2-2-trinh-sua-danh-sach/06-handover.md`.
 - 2026-11-16 — N2-1, N2-2 ✅ (cha N2 ✅): người dùng chạy tay checklist ConfigEnv (sửa/khôi phục biến cốt lõi, trình sửa danh sách) và xác nhận đạt. Code ở commit `c73bdbb`, `052d90a`.
+- 2026-11-16 — N5 ✅ (ConfigEnv: chuyển 4 form sang Designer, tách `FrmCustomEnvEditor` ra file riêng): code xong (1 vòng), test tự động PASS (harness so sánh cây control cũ/mới), review APPROVE, người dùng chạy tay đạt (kể cả DPI cao). Xem `tasks/N5-configenv-chuyen-form-sang-designer/06-handover.md`. Code ở commit `bc960f9`.
+- 2026-11-16 — N6 (ConfigEnv: loader + chạy nền cho Lưu/Xóa/Khôi phục, sửa lỗi "trông như đơ"): yêu cầu chốt, spec đã duyệt, chưa code.
 - 2026-11-16 — N4 (ConfigEnv hai lưới System/User, backup mọi thao tác): yêu cầu chốt, tách N4-1/N4-2, spec đã duyệt, chưa code. Docs ở commit `d4268cf`.
 - 2026-11-15 — Khởi tạo roadmap (roadmap-init): 7 module, việc tồn đọng M1–M21 rút từ code + Progress Log `claude.md`; mã N kế tiếp: N1.

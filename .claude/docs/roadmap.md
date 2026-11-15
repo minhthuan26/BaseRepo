@@ -22,7 +22,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 | 3 | AdministrativeUnit (Province/Ward) | 🟡 | M5 template import · 🔑 M13 chạy SQL + seed + test |
 | 4 | Booking: Quản lý thuê sân (SportsBooking) | 🟡 | Phase 1: 🏗️ M18 Customer, M2 Booking + chống trùng lịch, M3 RecurringGroup, M4 API Lễ tân/Admin, 🔑 M14 SQL + seed · Phase 2/3: 🔑 M17, 🏗️ M19, 🏗️ M20 |
 | 5 | CommonLibs / hạ tầng chung | 🟡 | M1 dựng xUnit · M8 vá NU1903 · 🔑 M15 verify runtime |
-| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · ⬜ N5, N4-1, N4-2 (spec đã duyệt, chưa code; làm N5 trước), N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
+| 6 | SystemManagement (WinForms) | 🟡 | M6 màn hình SQL · 🔑 M16 verify net10 · ⬜ N6 (spec đã duyệt, chưa code), N4-1, N4-2 (spec đã duyệt, chưa code), N3-1, N3-2 (spec đã duyệt, chưa code), N3-3..N3-9 (phác thảo) |
 | 7 | BloodDonation: Đăng ký hiến máu | ⬜ | 🏗️ M21 khởi tạo domain (chờ BA) |
 
 ## 2. Việc còn lại
@@ -47,7 +47,7 @@ Mục lục: [1. Tiến độ](#1-tổng-quan-tiến-độ) · [2. Việc còn l
 |---|---|---|---|
 | N3 | Module 6: ConfigSQL — công cụ quản trị SQL Server (nhiều kết nối đồng thời không lưu, test kết nối và thực thi trực tiếp trên nhiều đích, xem đối tượng + sinh script, backup/copy sang DB khác, gợi ý index, chẩn đoán treo/kill session/clear cache). Bao gồm M6. Chia 9 task N3-1..N3-9 (spec ở `.claude/docs/tasks/N3-*/02-coding-spec.md`: N3-1 khung+kết nối → N3-2 chạy file `.sql` (M6) → N3-3 đối tượng → N3-4 backup/copy (chỉ schema / chỉ dữ liệu / cả hai) → N3-5 index → N3-6 chẩn đoán + kill/cache → N3-7 restore → N3-8 thư viện script chẩn đoán kể cả log hệ thống → N3-9 so sánh cấu trúc giữa 2 kết nối và migration tự động: thêm cột, sửa kiểu theo nguồn, tự xử lý phụ thuộc; không so sánh dữ liệu), xem `.claude/docs/tasks/N3-configsql-quan-tri-sql-server/01-requirement.md` | Yêu cầu đã chốt 2026-11-15; spec N3-1, N3-2 chi tiết đã duyệt 2026-11-15 (chưa code), N3-3..N3-9 là bản phác thảo cần BA hoàn thiện; cần 🔑 SQL Server 2019+ để verify runtime | ⬜ |
 | N4 | Module 6: ConfigEnv tab Tùy chỉnh chia **hai lưới System (Machine) và User (HKCU)**, hiện cả 6 key `BaseRepo__*` mặc định (sửa/xóa như biến thường), backup bắt buộc trước mọi sửa/xóa ở cả hai lưới (file backup thêm `Scope`, `Backups/` vào `.gitignore`), Khôi phục mọi biến kể cả biến đã xóa; biến trùng tên giữa hai scope để Windows tự xử lý. Yêu cầu đã chốt 2026-11-16, xem `.claude/docs/tasks/N4-configenv-hai-luoi-user-system/01-requirement.md`. Tách 2 task: **N4-1** (dịch vụ theo scope + backup, spec `tasks/N4-1-dich-vu-env-theo-scope/02-coding-spec.md`) → **N4-2** (giao diện hai lưới, phụ thuộc N4-1, spec `tasks/N4-2-giao-dien-hai-luoi-system-user/02-coding-spec.md`) | Spec N4-1, N4-2 đã duyệt 2026-11-16 (chưa code). Xây trên N2-1/N2-2 (đã ✅) | ⬜ |
-| N5 | Module 6: ConfigEnv chuyển 4 form `FrmEnvTypeKeyConfirm`, `FrmEnvRestorePicker`, `FrmEnvListEditor`, `FrmCustomEnvEditor` (tách ra file riêng) từ dựng bằng code sang Visual Studio Designer (không đổi hành vi); đặt quy tắc WinForms mới `.claude/rules/convention-winforms.md` (form mới dùng Designer). Yêu cầu + spec `tasks/N5-configenv-chuyen-form-sang-designer/`. **Làm trước N4** | Yêu cầu đã chốt, spec đã duyệt 2026-11-16 (chưa code); 3 file `.resx` do Visual Studio tạo đang untracked | ⬜ |
+| N6 | Module 6: ConfigEnv sửa lỗi "trông như đơ" khi Lưu/Xóa/Khôi phục: `FrmEnvListEditor` chưa gọi loader, và `FrmMain.RunWithLoadingAsync` chạy việc trên luồng UI. Thêm loader + chạy nền (`Task.Run`) cho mọi Lưu/Xóa/Khôi phục trong ConfigEnv, khóa form + chặn đóng khi đang lưu, chống bấm lặp; không đổi `FrmMain`. Yêu cầu + spec `tasks/N6-configenv-loader-chay-nen/`. **Làm trước N4** | Yêu cầu đã chốt, spec đã duyệt 2026-11-16 (chưa code) | ⬜ |
 
 ### 2.3 Cần credential / hạ tầng ngoài 🔑
 
@@ -83,12 +83,12 @@ _Thứ tự gợi ý, chỉ chứa việc CHƯA xong. Hướng đã chốt: **�
 6. M2 → M3 → M4: Booking + chống trùng lịch, RecurringGroup, API Lễ tân/Admin
 7. M13, M5: AdministrativeUnit
 8. M7, M9: Tài liệu URL mới, RequireFunction cho Site
-9. N5 → N4 (N4-1 → N4-2; N5 trước để ổn định cấu trúc vì N4-2 sửa các form đó), N3 (N3-1 → N3-2 → ...; gồm M6), M16: SystemManagement (N4 làm được trên máy hiện tại; N3 cần SQL Server 2019+ để verify runtime)
+9. N6 → N4 (N4-1 → N4-2; N6 trước vì N4-2 viết lại các handler Lưu/Xóa/Khôi phục và phải giữ mẫu chạy nền), N3 (N3-1 → N3-2 → ...; gồm M6), M16: SystemManagement (N4 làm được trên máy hiện tại; N3 cần SQL Server 2019+ để verify runtime)
 10. M17, M19, M20, M21: Booking Phase 2/3 và BloodDonation (chờ BA)
 
 ## 4. Cách thêm tính năng
 
-Dùng mã `N` kế tiếp (**hiện tại: N6**). Thêm dòng vào mục 2.2, tăng số `N` ở đây, đề xuất vị trí ở mục 3.
+Dùng mã `N` kế tiếp (**hiện tại: N7**). Thêm dòng vào mục 2.2, tăng số `N` ở đây, đề xuất vị trí ở mục 3.
 
 ## 5. Đã xong
 
@@ -128,6 +128,7 @@ Mức xác nhận: code hoàn chỉnh + build xanh, chưa test runtime trừ khi
 - Nâng lên `net10.0-windows` (build xanh, fix analyzer `WFO1000`). Verify: M16.
 - **N1** — ConfigEnv tab "Tùy chỉnh": thêm/sinh value (AES, GUID urn, chuỗi ngẫu nhiên, cặp RSA)/sửa/xóa biến env Machine, 12 biến hệ thống cốt lõi chỉ cho xem. Build xanh, test tự động PASS, review APPROVE, người dùng chạy tay checklist đạt 2026-11-15. Commit `73ca84a`. [06-handover.md](tasks/N1-configenv-env-tuy-chinh/06-handover.md)
 - **N2** — ConfigEnv sửa biến hệ thống cốt lõi: **N2-1** mở khóa sửa 9 biến cốt lõi không phải danh sách (elevated + gõ lại tên key), backup bắt buộc vào `Backups/Env/` trước khi ghi, ghi qua registry giữ kiểu `REG_EXPAND_SZ`/`REG_SZ`, nút Khôi phục; **N2-2** trình sửa từng mục (thêm/sửa/xóa/lên/xuống, cảnh báo trùng và đường dẫn không tồn tại, giới hạn 2047 ký tự) cho `Path`/`PATHEXT`/`PSModulePath`. Build xanh, test tự động PASS (N2-1 54/54, N2-2 37/37), review APPROVE, người dùng chạy tay checklist đạt 2026-11-16. Commit `c73bdbb`, `052d90a`. [N2-1 handover](tasks/N2-1-backup-khoi-phuc-bien-loi/06-handover.md) · [N2-2 handover](tasks/N2-2-trinh-sua-danh-sach/06-handover.md)
+- **N5** — ConfigEnv: chuyển 4 form (`FrmEnvTypeKeyConfirm`, `FrmEnvRestorePicker`, `FrmEnvListEditor`, `FrmCustomEnvEditor` tách ra file riêng) từ dựng bằng code sang Visual Studio Designer, không đổi hành vi; thêm quy tắc `.claude/rules/convention-winforms.md`. Build xanh, test tự động PASS (harness so cây control cũ/mới), review APPROVE, người dùng chạy tay đạt 2026-11-16 (kể cả DPI cao). [06-handover.md](tasks/N5-configenv-chuyen-form-sang-designer/06-handover.md)
 
 ### xong-7 — BloodDonation
 - _(chưa có)_

@@ -2,6 +2,7 @@
 
 - **Trạng thái duyệt:** ✅ đã duyệt bởi Minh Thuận ngày 2026-11-16
 - **Yêu cầu gốc:** `../N4-configenv-hai-luoi-user-system/01-requirement.md` (đã chốt 2026-11-16) · **Phụ thuộc:** **N4-1** (hàm dịch vụ theo scope; phải xong và verify trước) và **N5** (4 form ConfigEnv đã chuyển sang Designer, `FrmCustomEnvEditor` đã ở file riêng) · **Làm sau N4-1 và N5**
+- **Bổ sung 2026-11-16 (✅ đã duyệt lại bởi Minh Thuận ngày 2026-11-16):** phụ thuộc thêm **N6**; mọi Lưu/Xóa/Khôi phục/Thêm trong các handler và form mới phải giữ mẫu của N6: gọi dịch vụ qua `FrmMain.RunWithLoadingAsync(() => Task.Run(...))`, đọc control ở luồng UI trước khi chạy nền, khóa form và chặn đóng khi đang lưu, cờ `_isSaving` chống bấm lặp. Không đổi `FrmMain.RunWithLoadingAsync`.
 - **Sửa đổi 2026-11-16 (✅ đã duyệt lại bởi Minh Thuận ngày 2026-11-16):** thêm phụ thuộc N5; `FrmEnvRestorePicker` thêm cột Key và tham số scope nên sửa cả `FrmEnvRestorePicker.Designer.cs`; `FrmCustomEnvEditor` nay là file riêng `FrmCustomEnvEditor.cs` (không còn trong `UC_ConfigEnvCustom.cs`); control đặt tên theo `.claude/rules/convention-winforms.md`.
 
 ## 1. Phạm vi

@@ -16,3 +16,8 @@ Tiền tố + `_` + tên, như `UC_ConfigEnvCustom.Designer.cs`: `btn_Save`, `tx
 - Property `public` trên form/UserControl phải gắn `[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]` (analyzer `WFO1000` là lỗi build trên .NET 10).
 - Lỗi/cảnh báo hiển thị qua `FrmMain.ThrowError/ThrowWarning/ThrowInfo/ThrowQuestion`; không log giá trị nhạy cảm.
 - Chuỗi giao diện tiếng Việt; tên biến/hàm tiếng Anh.
+
+## Thao tác ghi/IO không được làm đứng UI
+- Ghi registry, ghi file, gọi dịch vụ có thể chậm (broadcast `WM_SETTINGCHANGE` chờ tới 5 giây) phải chạy qua `await FrmMain.RunWithLoadingAsync(() => Task.Run(() => ...))`. `RunWithLoadingAsync` chỉ hiện loader và **chạy action trên luồng UI**, nên việc nặng phải tự bọc `Task.Run`; không đổi hàm đó vì nơi khác dùng nó với action chạm control UI.
+- Đọc giá trị control ở luồng UI **trước** `Task.Run`; không truy cập control bên trong lambda nền.
+- Khi đang lưu: khóa nút và ô nhập, bật `UseWaitCursor`, chặn đóng form, cờ `_isSaving` chống bấm lặp, trả về trạng thái cũ trong `finally`.

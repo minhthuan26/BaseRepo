@@ -169,13 +169,6 @@ namespace SystemManagement.Views.ConfigEnv
 
             if (selected.IsProtected)
             {
-                // Biến dạng danh sách Path, PATHEXT, PSModulePath vẫn khóa sửa trong task này (làm ở N2-2)
-                if (CustomEnvService.IsListKey(selected.Key))
-                {
-                    FrmMain.ThrowWarning("Biến dạng danh sách sẽ có trình sửa riêng, chưa hỗ trợ ở phiên bản này.");
-                    return;
-                }
-
                 if (!CustomEnvService.IsElevated())
                 {
                     FrmMain.ThrowWarning("Cần chạy ứng dụng với quyền Administrator để sửa biến hệ thống cốt lõi.");
@@ -204,6 +197,22 @@ namespace SystemManagement.Views.ConfigEnv
                 catch (Exception ex)
                 {
                     FrmMain.ThrowError(ex.Message);
+                    return;
+                }
+
+                if (CustomEnvService.IsListKey(selected.Key))
+                {
+                    using var listEditor = new FrmEnvListEditor(selected.Key, rawValue);
+                    var listRes = listEditor.ShowDialog(this);
+                    if (listRes == DialogResult.OK)
+                    {
+                        FrmMain.ThrowInfo($"Cập nhật biến '{selected.Key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
+                        await LoadDataAsync();
+                    }
+                    else if (listRes == DialogResult.Abort)
+                    {
+                        await LoadDataAsync();
+                    }
                     return;
                 }
 

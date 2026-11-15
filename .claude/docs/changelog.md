@@ -11,4 +11,5 @@ Mỗi sprint khi đóng sẽ có một version và một git tag `sprint-<số>`
 - 2026-11-15 — Khởi tạo bộ workflow (init-project).
 - 2026-11-15 — N1 (ConfigEnv: env tùy chọn, SystemManagement): code xong + test tự động PASS + review APPROVE, nhưng còn chạy tay các AC cần UI/quyền Administrator nên giữ 🟡. Xem `tasks/N1-configenv-env-tuy-chinh/06-handover.md`.
 - 2026-11-15 — N1 ✅: người dùng chạy tay checklist ConfigEnv (UI + quyền Administrator) và xác nhận đạt. Code ở commit `73ca84a`.
+- 2026-11-15 — N2-1 (ConfigEnv: sửa biến cốt lõi + backup + khôi phục): code xong (2 vòng), test tự động PASS 54/54, review APPROVE, nhưng còn chạy tay các AC cần UI/quyền Administrator nên giữ 🟡. Xem `tasks/N2-1-backup-khoi-phuc-bien-loi/06-handover.md`.
 - 2026-11-15 — Khởi tạo roadmap (roadmap-init): 7 module, việc tồn đọng M1–M21 rút từ code + Progress Log `claude.md`; mã N kế tiếp: N1.

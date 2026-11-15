@@ -7,10 +7,11 @@ using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views.ConfigEnv
 {
-    internal partial class FrmCustomEnvEditor : Form
+    internal partial class FrmCustomEnvEditor : Frm_Base
     {
         private readonly bool _isEditMode;
         private readonly bool _isCoreEdit;
@@ -156,8 +157,25 @@ namespace SystemManagement.Views.ConfigEnv
             }
         }
 
+        /// <summary>
+        /// Khóa hoặc mở khóa các nút và ô nhập của form khi đang lưu (cờ, con trỏ chờ, chặn đóng form do Frm_Base lo).
+        /// Giải thích: khóa nhóm sinh giá trị bằng grp_Gen là đủ vì các control con bị khóa theo.
+        /// </summary>
+        protected override void OnSavingStateChanged(bool saving)
+        {
+            btn_Save.Enabled = !saving;
+            btn_Cancel.Enabled = !saving;
+            txt_Key.Enabled = !saving;
+            txt_Value.Enabled = !saving;
+            grp_Gen.Enabled = !saving;
+        }
+
         private async void btn_Save_Click(object? sender, EventArgs e)
         {
+            // Thoát ngay nếu đang trong quá trình lưu để chống bấm lặp
+            if (IsSaving)
+                return;
+
             string key = txt_Key.Text;
             string val = txt_Value.Text;
 
@@ -176,17 +194,18 @@ namespace SystemManagement.Views.ConfigEnv
                     return;
                 }
 
+                bool saveSuccess = false;
+                bool abortRequired = false;
+
+                // Khóa form và chạy UpdateCoreValue ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
                 try
                 {
-                    await FrmMain.RunWithLoadingAsync(() =>
+                    await RunSavingAsync(() => Task.Run(() =>
                     {
                         CustomEnvService.UpdateCoreValue(key, val);
-                        return Task.CompletedTask;
-                    });
+                    }));
 
-                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
-                    DialogResult = DialogResult.OK;
-                    Close();
+                    saveSuccess = true;
                 }
                 catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
                 {
@@ -195,12 +214,23 @@ namespace SystemManagement.Views.ConfigEnv
                 catch (KeyNotFoundException ex)
                 {
                     FrmMain.ThrowError(ex.Message);
-                    DialogResult = DialogResult.Abort;
-                    Close();
+                    abortRequired = true;
                 }
                 catch (Exception ex)
                 {
                     FrmMain.ThrowError(ex.Message);
+                }
+
+                if (saveSuccess)
+                {
+                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else if (abortRequired)
+                {
+                    DialogResult = DialogResult.Abort;
+                    Close();
                 }
                 return;
             }
@@ -223,30 +253,30 @@ namespace SystemManagement.Views.ConfigEnv
                 return;
             }
 
+            bool isEdit = _isEditMode;
+            var sysDefaultKeys = FrmMain.SysConfig?.EnvKeys ?? Enumerable.Empty<string>();
+            bool normalSuccess = false;
+            bool normalAbort = false;
+
+            // Khóa form và chạy UpdateValue/Create ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
             try
             {
-                if (_isEditMode)
+                if (isEdit)
                 {
-                    await FrmMain.RunWithLoadingAsync(() =>
+                    await RunSavingAsync(() => Task.Run(() =>
                     {
                         CustomEnvService.UpdateValue(key, val);
-                        return Task.CompletedTask;
-                    });
-                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.");
+                    }));
                 }
                 else
                 {
-                    var defaultKeys = FrmMain.SysConfig?.EnvKeys ?? Enumerable.Empty<string>();
-                    await FrmMain.RunWithLoadingAsync(() =>
+                    await RunSavingAsync(() => Task.Run(() =>
                     {
-                        CustomEnvService.Create(key, val, defaultKeys);
-                        return Task.CompletedTask;
-                    });
-                    FrmMain.ThrowInfo($"Thêm biến '{key}' thành công.");
+                        CustomEnvService.Create(key, val, sysDefaultKeys);
+                    }));
                 }
 
-                DialogResult = DialogResult.OK;
-                Close();
+                normalSuccess = true;
             }
             catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
             {
@@ -255,17 +285,39 @@ namespace SystemManagement.Views.ConfigEnv
             catch (KeyNotFoundException ex)
             {
                 FrmMain.ThrowError(ex.Message);
-                DialogResult = DialogResult.Abort;
-                Close();
+                normalAbort = true;
             }
             catch (Exception ex)
             {
                 FrmMain.ThrowError(ex.Message);
             }
+
+            if (normalSuccess)
+            {
+                if (isEdit)
+                {
+                    FrmMain.ThrowInfo($"Cập nhật biến '{key}' thành công.");
+                }
+                else
+                {
+                    FrmMain.ThrowInfo($"Thêm biến '{key}' thành công.");
+                }
+
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            else if (normalAbort)
+            {
+                DialogResult = DialogResult.Abort;
+                Close();
+            }
         }
 
         private void btn_Cancel_Click(object? sender, EventArgs e)
         {
+            if (IsSaving)
+                return;
+
             DialogResult = DialogResult.Cancel;
             Close();
         }

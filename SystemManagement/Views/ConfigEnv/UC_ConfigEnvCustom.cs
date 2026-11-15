@@ -139,11 +139,11 @@ namespace SystemManagement.Views.ConfigEnv
 
             try
             {
-                await FrmMain.RunWithLoadingAsync(() =>
+                // Chạy khôi phục ở luồng nền dưới loader để tránh đơ UI
+                await FrmMain.RunWithLoadingAsync(() => Task.Run(() =>
                 {
                     CustomEnvService.RestoreCoreValue(selectedEntry);
-                    return Task.CompletedTask;
-                });
+                }));
 
                 FrmMain.ThrowInfo($"Đã khôi phục biến '{selected.Key}' thành công.\nVui lòng mở lại terminal hoặc ứng dụng để nhận giá trị mới.");
                 await LoadDataAsync();
@@ -265,15 +265,16 @@ namespace SystemManagement.Views.ConfigEnv
             if (!confirmed)
                 return;
 
+            string deleteKey = selected.Key;
             try
             {
-                await FrmMain.RunWithLoadingAsync(() =>
+                // Chạy xóa ở luồng nền dưới loader để tránh đơ UI
+                await FrmMain.RunWithLoadingAsync(() => Task.Run(() =>
                 {
-                    CustomEnvService.Delete(selected.Key);
-                    return Task.CompletedTask;
-                });
+                    CustomEnvService.Delete(deleteKey);
+                }));
 
-                FrmMain.ThrowInfo($"Đã xóa biến '{selected.Key}' thành công.");
+                FrmMain.ThrowInfo($"Đã xóa biến '{deleteKey}' thành công.");
                 await LoadDataAsync();
             }
             catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)

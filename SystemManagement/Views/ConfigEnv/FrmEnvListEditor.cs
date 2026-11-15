@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Security;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using SystemManagement.Views.Base;
 
 namespace SystemManagement.Views.ConfigEnv
 {
@@ -12,7 +15,7 @@ namespace SystemManagement.Views.ConfigEnv
     /// Giải thích: Cho phép thêm, cập nhật, xóa, thay đổi thứ tự các mục phân tách bởi dấu ';',
     /// đồng thời kiểm tra trùng lặp và đường dẫn không tồn tại trước khi lưu.
     /// </summary>
-    public partial class FrmEnvListEditor : Form
+    public partial class FrmEnvListEditor : Frm_Base
     {
         private readonly string _key;
 
@@ -211,8 +214,36 @@ namespace SystemManagement.Views.ConfigEnv
             }
         }
 
-        private void btn_Save_Click(object? sender, EventArgs e)
+        /// <summary>
+        /// Khóa hoặc mở khóa các nút và ô nhập của form khi đang lưu (cờ, con trỏ chờ, chặn đóng form do Frm_Base lo).
+        /// </summary>
+        protected override void OnSavingStateChanged(bool saving)
         {
+            btn_Save.Enabled = !saving;
+            btn_Cancel.Enabled = !saving;
+            txt_Input.Enabled = !saving;
+            lst_Items.Enabled = !saving;
+
+            if (saving)
+            {
+                btn_Up.Enabled = false;
+                btn_Down.Enabled = false;
+                btn_Delete.Enabled = false;
+                btn_Add.Enabled = false;
+                btn_Update.Enabled = false;
+            }
+            else
+            {
+                UpdateButtonStates();
+            }
+        }
+
+        private async void btn_Save_Click(object? sender, EventArgs e)
+        {
+            // Thoát ngay nếu đang trong quá trình lưu để chống bấm lặp
+            if (IsSaving)
+                return;
+
             var currentItems = lst_Items.Items.Cast<object>().Select(x => x?.ToString() ?? string.Empty).ToList();
             var normalized = EnvListService.Normalize(currentItems);
 
@@ -225,7 +256,16 @@ namespace SystemManagement.Views.ConfigEnv
 
             var duplicates = EnvListService.FindDuplicates(normalized);
             bool isPathExt = string.Equals(_key, "PATHEXT", StringComparison.OrdinalIgnoreCase);
-            var missingPaths = !isPathExt ? EnvListService.FindMissingPaths(normalized) : new List<string>();
+            var missingPaths = new List<string>();
+
+            if (!isPathExt)
+            {
+                // Khóa form và chạy FindMissingPaths ở luồng nền dưới loader để tránh làm đơ UI với đường dẫn mạng
+                await RunSavingAsync(() => Task.Run(() =>
+                {
+                    missingPaths = EnvListService.FindMissingPaths(normalized);
+                }));
+            }
 
             if (duplicates.Count > 0 || missingPaths.Count > 0)
             {
@@ -261,31 +301,50 @@ namespace SystemManagement.Views.ConfigEnv
             }
 
             string joinedValue = EnvListService.Join(normalized);
+            bool saveSuccess = false;
+            bool abortRequired = false;
 
+            // Khóa form và chạy ghi biến cốt lõi ở luồng nền dưới loader để tránh đơ UI (Frm_Base mở khóa lại trong finally)
             try
             {
-                CustomEnvService.UpdateCoreValue(_key, joinedValue);
-                DialogResult = DialogResult.OK;
-                Close();
+                await RunSavingAsync(() => Task.Run(() =>
+                {
+                    CustomEnvService.UpdateCoreValue(_key, joinedValue);
+                }));
+
+                saveSuccess = true;
             }
-            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException)
             {
                 FrmMain.ThrowError("Thiếu quyền ghi biến môi trường Machine (cần chạy với quyền Administrator)");
             }
             catch (KeyNotFoundException ex)
             {
                 FrmMain.ThrowError(ex.Message);
-                DialogResult = DialogResult.Abort;
-                Close();
+                abortRequired = true;
             }
             catch (Exception ex)
             {
                 FrmMain.ThrowError(ex.Message);
             }
+
+            if (saveSuccess)
+            {
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            else if (abortRequired)
+            {
+                DialogResult = DialogResult.Abort;
+                Close();
+            }
         }
 
         private void btn_Cancel_Click(object? sender, EventArgs e)
         {
+            if (IsSaving)
+                return;
+
             DialogResult = DialogResult.Cancel;
             Close();
         }
